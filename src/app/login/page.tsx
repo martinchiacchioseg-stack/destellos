@@ -44,11 +44,6 @@ export default function LoginPage() {
     }
   };
 
-  const setCredencialesPrueba = (correo: string, pass: string) => {
-    setEmail(correo);
-    setPassword(pass);
-    setError(null);
-  };
 
   return (
     <div className="flex-1 flex flex-col justify-between p-6 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6F0] to-[#F5EFE6] dark:from-[#18161A] dark:via-[#151318] dark:to-[#0F0D12]">
@@ -126,39 +121,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Atajos de prueba para la evaluación */}
-        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-          <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 text-center">
-            Accesos de prueba rápidos:
-          </p>
-          <div className="grid grid-cols-1 gap-1.5 text-xs">
-            <button
-              type="button"
-              onClick={() => setCredencialesPrueba('martinchiaccio.seg@gmail.com', 'qwerty1234')}
-              className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold text-left border border-purple-200 dark:border-purple-900/40 hover:bg-purple-100 flex items-center justify-between"
-            >
-              <span>👑 <b>Superadmin inicial</b></span>
-              <span className="text-[10px] text-purple-500">Cambio pass obligatorio</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setCredencialesPrueba('mama.perez@destellos.ar', 'familia2026')}
-              className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold text-left border border-blue-200 dark:border-blue-900/40 hover:bg-blue-100 flex items-center justify-between"
-            >
-              <span>🛡️ <b>Admin de Grupo</b> (Mariana)</span>
-              <span className="text-[10px] text-blue-500">Gestión de miembros</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setCredencialesPrueba('nico.perez@destellos.ar', 'familia2026')}
-              className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold text-left border border-emerald-200 dark:border-emerald-900/40 hover:bg-emerald-100 flex items-center justify-between"
-            >
-              <span>🌟 <b>Miembro</b> (Nico)</span>
-              <span className="text-[10px] text-emerald-500">Subidas y juegos</span>
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Pie de pantalla */}

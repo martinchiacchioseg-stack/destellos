@@ -27,13 +27,42 @@ import {
 } from './types';
 import { hashPassword } from './auth';
 import { getFechaArgentina, getAyerFechaArgentina, getSemanaArgentina } from './date-utils';
+import fs from 'fs';
+import path from 'path';
 import { getPuntosPorEvento, DESCRIPCIONES_PUNTOS } from './puntos';
 import { supabaseAdmin, isSupabaseConfigured } from './supabase';
 import { elegirDestelloDelDia } from './gemini';
 
 // ==============================================================================
-// ALMACENAMIENTO HÍBRIDO (Supabase + Memoria Reactiva con Inicialización Segura)
+// ALMACENAMIENTO PERSISTENTE EN DISCO (JSON) + MEMORIA REACTIVA
 // ==============================================================================
+
+const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'destellos_store.json');
+
+export function persistirStore(store: StateStore) {
+  try {
+    const dir = path.dirname(DATA_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(store, null, 2), 'utf-8');
+  } catch (err) {
+    // Si corre en un entorno read-only (serverless sin fs write), no rompe
+  }
+}
+
+export function cargarStoreDesdeArchivo(): StateStore | null {
+  try {
+    if (fs.existsSync(DATA_FILE_PATH)) {
+      const data = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && Array.isArray(parsed.usuarios)) {
+        return parsed;
+      }
+    }
+  } catch (err) {}
+  return null;
+}
 
 interface StateStore {
   usuarios: Usuario[];
@@ -92,97 +121,44 @@ export async function ensureInitialized() {
   const store = getStore();
   if (store.initialized) return;
 
+  // 1. Intentar cargar desde el archivo persistente en disco (evita pérdida de datos al reiniciar)
+  const guardadoEnDisco = cargarStoreDesdeArchivo();
+  if (guardadoEnDisco && guardadoEnDisco.usuarios && guardadoEnDisco.usuarios.length > 0) {
+    Object.assign(store, guardadoEnDisco);
+    store.initialized = true;
+    return;
+  }
+
   const superadminEmail = process.env.SUPERADMIN_EMAIL || 'martinchiaccio.seg@gmail.com';
   const superadminPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234';
 
-  const defaultGroupId = 'grupo-familia-perez-001';
+  const defaultGroupId = 'grupo-familia-chiaccio-001';
   const superadminId = 'usr-superadmin-001';
-  const adminId = 'usr-admin-mama-002';
-  const miembro1Id = 'usr-miembro-nico-003';
-  const miembro2Id = 'usr-miembro-sofi-004';
-  const miembro3Id = 'usr-miembro-abuela-005';
 
-  const passHashAdmin = await hashPassword('familia2026');
   const passHashSuper = await hashPassword(superadminPass);
 
-  // 1. Grupo inicial
+  // 1. Grupo inicial: Familia Chiaccio
   const grupoFamilia: Grupo = {
     id: defaultGroupId,
-    nombre: 'Familia Pérez & Amigos',
-    codigo_invitacion: 'DESTELLOS26',
-    descripcion: 'El espacio para compartir nuestros momentos cotidianos y reírnos juntos.',
+    nombre: 'Familia Chiaccio',
+    codigo_invitacion: 'CHIACCIO26',
+    descripcion: 'Nuestra familia compartiendo recuerdos, jugando y celebrando el destello del día.',
     activo: true,
     creado_en: new Date().toISOString(),
   };
 
-  // 2. Usuarios iniciales
+  // 2. Usuarios iniciales: ÚNICAMENTE Martín Chiaccio (Superadmin)
   const usuarios: Usuario[] = [
     {
       id: superadminId,
       email: superadminEmail.toLowerCase().trim(),
       password_hash: passHashSuper,
-      nombre: 'Martín (Superadmin)',
+      nombre: 'Martín Chiaccio',
       apodo: 'Martín',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       rol: 'superadmin',
       grupo_id: defaultGroupId,
       debe_cambiar_password: true, // Superadmin en su primer ingreso DEBE cambiar contraseña
-      intentos_fallidos: 0,
-      activo: true,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: adminId,
-      email: 'mama.perez@destellos.ar',
-      password_hash: passHashAdmin,
-      nombre: 'Mariana Pérez',
-      apodo: 'Mamá',
-      avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-      rol: 'admin',
-      grupo_id: defaultGroupId,
-      debe_cambiar_password: false,
-      intentos_fallidos: 0,
-      activo: true,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: miembro1Id,
-      email: 'nico.perez@destellos.ar',
-      password_hash: passHashAdmin,
-      nombre: 'Nicolás Pérez',
-      apodo: 'Nico',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      rol: 'miembro',
-      grupo_id: defaultGroupId,
-      debe_cambiar_password: false,
-      intentos_fallidos: 0,
-      activo: true,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: miembro2Id,
-      email: 'sofi.perez@destellos.ar',
-      password_hash: passHashAdmin,
-      nombre: 'Sofía Pérez',
-      apodo: 'Sofi',
-      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      rol: 'miembro',
-      grupo_id: defaultGroupId,
-      debe_cambiar_password: false,
-      intentos_fallidos: 0,
-      activo: true,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: miembro3Id,
-      email: 'abuela.rosa@destellos.ar',
-      password_hash: passHashAdmin,
-      nombre: 'Rosa Bellini',
-      apodo: 'Abu Rosa',
-      avatar_url: 'https://images.unsplash.com/photo-1581579438747-1dc8d17bbce4?w=150&auto=format&fit=crop&q=80',
-      rol: 'miembro',
-      grupo_id: defaultGroupId,
-      debe_cambiar_password: false,
       intentos_fallidos: 0,
       activo: true,
       creado_en: new Date().toISOString(),
@@ -208,7 +184,7 @@ export async function ensureInitialized() {
   const destelloAyerGanador: Destello = {
     id: 'destello-ayer-001',
     grupo_id: defaultGroupId,
-    usuario_id: miembro2Id,
+    usuario_id: superadminId,
     fecha: ayerStr,
     media_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&auto=format&fit=crop&q=80',
     thumbnail_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300&auto=format&fit=crop&q=80',
@@ -224,152 +200,18 @@ export async function ensureInitialized() {
     actualizado_en: new Date(Date.now() - 86400000).toISOString(),
   };
 
-  const destelloAyer2: Destello = {
-    id: 'destello-ayer-002',
-    grupo_id: defaultGroupId,
-    usuario_id: adminId,
-    fecha: ayerStr,
-    media_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
-    thumbnail_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=300&auto=format&fit=crop&q=80',
-    tipo_media: 'foto',
-    pie_de_foto: 'Pizzas caseras listas para el horno del domingo 🍕',
-    cumple_reto: true,
-    es_destello_del_dia: false,
-    votos_comunidad: 2,
-    es_favorito_comunidad: false,
-    moderado: false,
-    creado_en: new Date(Date.now() - 86400000).toISOString(),
-    actualizado_en: new Date(Date.now() - 86400000).toISOString(),
-  };
-
-  // 5. Destellos de hoy (en curso)
-  const destelloHoy1: Destello = {
-    id: 'destello-hoy-001',
-    grupo_id: defaultGroupId,
-    usuario_id: miembro1Id,
-    fecha: hoyStr,
-    media_url: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=800&auto=format&fit=crop&q=80',
-    thumbnail_url: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=300&auto=format&fit=crop&q=80',
-    tipo_media: 'foto',
-    pie_de_foto: 'Unos amargos con bizcochitos de grasa en el taller 🧉✨',
-    cumple_reto: true,
-    reto_verificacion_detalle: 'Cumple perfectamente el reto del mate',
-    es_destello_del_dia: false,
-    votos_comunidad: 2,
-    es_favorito_comunidad: false,
-    moderado: false,
-    creado_en: new Date().toISOString(),
-    actualizado_en: new Date().toISOString(),
-  };
-
-  const destelloHoy2: Destello = {
-    id: 'destello-hoy-002',
-    grupo_id: defaultGroupId,
-    usuario_id: miembro3Id,
-    fecha: hoyStr,
-    media_url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop&q=80',
-    thumbnail_url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300&auto=format&fit=crop&q=80',
-    tipo_media: 'foto',
-    pie_de_foto: 'Té con limón y galletitas caseras que hice esta mañana 🍋🍪',
-    cumple_reto: true,
-    reto_verificacion_detalle: 'Cumple el reto de infusión casera',
-    es_destello_del_dia: false,
-    votos_comunidad: 1,
-    es_favorito_comunidad: false,
-    moderado: false,
-    creado_en: new Date().toISOString(),
-    actualizado_en: new Date().toISOString(),
-  };
-
   // 6. Puntos iniciales
   const puntos: PuntosEvento[] = [
     {
       id: 'pt-001',
       grupo_id: defaultGroupId,
-      usuario_id: miembro2Id,
+      usuario_id: superadminId,
       fecha: ayerStr,
       tipo_evento: 'destello_del_dia',
       puntos: 10,
       descripcion: DESCRIPCIONES_PUNTOS.destello_del_dia,
       referencia_id: destelloAyerGanador.id,
       creado_en: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'pt-002',
-      grupo_id: defaultGroupId,
-      usuario_id: miembro2Id,
-      fecha: ayerStr,
-      tipo_evento: 'votacion_comunidad_ganador',
-      puntos: 5,
-      descripcion: DESCRIPCIONES_PUNTOS.votacion_comunidad_ganador,
-      referencia_id: destelloAyerGanador.id,
-      creado_en: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'pt-003',
-      grupo_id: defaultGroupId,
-      usuario_id: miembro2Id,
-      fecha: ayerStr,
-      tipo_evento: 'participacion_diaria',
-      puntos: 1,
-      descripcion: DESCRIPCIONES_PUNTOS.participacion_diaria,
-      referencia_id: destelloAyerGanador.id,
-      creado_en: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'pt-004',
-      grupo_id: defaultGroupId,
-      usuario_id: adminId,
-      fecha: ayerStr,
-      tipo_evento: 'participacion_diaria',
-      puntos: 1,
-      descripcion: DESCRIPCIONES_PUNTOS.participacion_diaria,
-      referencia_id: destelloAyer2.id,
-      creado_en: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'pt-005',
-      grupo_id: defaultGroupId,
-      usuario_id: miembro1Id,
-      fecha: hoyStr,
-      tipo_evento: 'participacion_diaria',
-      puntos: 1,
-      descripcion: DESCRIPCIONES_PUNTOS.participacion_diaria,
-      referencia_id: destelloHoy1.id,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: 'pt-006',
-      grupo_id: defaultGroupId,
-      usuario_id: miembro1Id,
-      fecha: hoyStr,
-      tipo_evento: 'cumplir_reto',
-      puntos: 2,
-      descripcion: DESCRIPCIONES_PUNTOS.cumplir_reto,
-      referencia_id: destelloHoy1.id,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: 'pt-007',
-      grupo_id: defaultGroupId,
-      usuario_id: miembro3Id,
-      fecha: hoyStr,
-      tipo_evento: 'participacion_diaria',
-      puntos: 1,
-      descripcion: DESCRIPCIONES_PUNTOS.participacion_diaria,
-      referencia_id: destelloHoy2.id,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: 'pt-008',
-      grupo_id: defaultGroupId,
-      usuario_id: miembro3Id,
-      fecha: hoyStr,
-      tipo_evento: 'cumplir_reto',
-      puntos: 2,
-      descripcion: DESCRIPCIONES_PUNTOS.cumplir_reto,
-      referencia_id: destelloHoy2.id,
-      creado_en: new Date().toISOString(),
     },
   ];
 
@@ -380,7 +222,7 @@ export async function ensureInitialized() {
     fecha: ayerStr,
     destello_ganador_id: destelloAyerGanador.id,
     destello_favorito_id: destelloAyerGanador.id,
-    total_participantes: 2,
+    total_participantes: 1,
     cerrado: true,
     cerrado_en: new Date(Date.now() - 40000000).toISOString(),
   };
@@ -390,7 +232,7 @@ export async function ensureInitialized() {
     id: 'foto-pasado-001',
     grupo_id: defaultGroupId,
     semana: semanaStr,
-    usuario_id: adminId,
+    usuario_id: superadminId,
     media_url: 'https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=800&auto=format&fit=crop&q=80',
     anio_real: 1998,
     lugar_real: 'Mar del Plata, Playa Varese',
@@ -402,7 +244,7 @@ export async function ensureInitialized() {
   store.grupos = [grupoFamilia];
   store.usuarios = usuarios;
   store.retos = [retoHoy];
-  store.destellos = [destelloAyerGanador, destelloAyer2, destelloHoy1, destelloHoy2];
+  store.destellos = [destelloAyerGanador];
   store.evaluaciones = [evaluacionAyer];
   store.puntos = puntos;
   store.fotosPasado = [fotoPasadoSemanal];
@@ -421,11 +263,11 @@ export async function ensureInitialized() {
     {
       id: 'preg-001',
       ronda_id: 'ronda-ruleta-001',
-      autor_usuario_id: miembro1Id,
+      autor_usuario_id: superadminId,
       texto_pregunta: '¿Quién fue el último en romper algo en la casa y no dijo nada?',
       nivel: 'suave',
       aprobada_ia: true,
-      asignada_a_usuario_id: miembro2Id,
+      asignada_a_usuario_id: superadminId,
       es_bala: false,
       respondida: true,
       respuesta_texto: '¡Fue papá con la jarra de vidrio en año nuevo, yo lo vi esconder los pedazos! 😂',
@@ -438,11 +280,11 @@ export async function ensureInitialized() {
     {
       id: 'preg-002',
       ronda_id: 'ronda-ruleta-001',
-      autor_usuario_id: miembro2Id,
+      autor_usuario_id: superadminId,
       texto_pregunta: '¿Cuál fue la peor anécdota o papelón cocinando algo para la familia?',
       nivel: 'picante',
       aprobada_ia: true,
-      asignada_a_usuario_id: adminId,
+      asignada_a_usuario_id: superadminId,
       es_bala: true, // ¡Bala! Debe responder con foto o video
       respondida: true,
       respuesta_texto: '¡Salió la bala! Acá tienen la torta quemada que intenté rescatar con dulce de leche 🎂🔥',
@@ -456,11 +298,11 @@ export async function ensureInitialized() {
     {
       id: 'preg-003',
       ronda_id: 'ronda-ruleta-001',
-      autor_usuario_id: adminId,
+      autor_usuario_id: superadminId,
       texto_pregunta: '¿Qué comida típica familiar secretamente no te gusta nada?',
       nivel: 'suave',
       aprobada_ia: true,
-      asignada_a_usuario_id: miembro3Id,
+      asignada_a_usuario_id: superadminId,
       es_bala: false,
       respondida: true,
       respuesta_texto: 'Perdón a todos... ¡pero el pastel de papas con pasas de uva me parece un crimen! 🙈',
@@ -784,6 +626,53 @@ export async function listarTodosLosUsuarios(): Promise<UsuarioPublico[]> {
   return store.usuarios.map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
 }
 
+export async function actualizarUsuario(
+  usuarioId: string,
+  data: {
+    nombre?: string;
+    apodo?: string;
+    email?: string;
+    rol?: 'superadmin' | 'admin' | 'miembro';
+    grupo_id?: string | null;
+    passwordTemporal?: string;
+    activo?: boolean;
+  }
+): Promise<UsuarioPublico | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const u = store.usuarios.find((x) => x.id === usuarioId);
+  if (!u) return null;
+
+  if (data.nombre) u.nombre = data.nombre.trim();
+  if (data.apodo !== undefined) u.apodo = data.apodo.trim();
+  if (data.email) u.email = data.email.toLowerCase().trim();
+  if (data.rol) u.rol = data.rol;
+  if (data.grupo_id !== undefined) u.grupo_id = data.grupo_id;
+  if (data.activo !== undefined) u.activo = data.activo;
+  if (data.passwordTemporal) {
+    u.password_hash = await hashPassword(data.passwordTemporal);
+    u.debe_cambiar_password = true;
+    u.intentos_fallidos = 0;
+    u.bloqueado_hasta = null;
+  }
+
+  persistirStore(store);
+  const { password_hash, intentos_fallidos, bloqueado_hasta, ...safe } = u;
+  return safe as UsuarioPublico;
+}
+
+export async function eliminarUsuarioPermanente(usuarioId: string): Promise<boolean> {
+  await ensureInitialized();
+  const store = getStore();
+  const idx = store.usuarios.findIndex((u) => u.id === usuarioId);
+  if (idx === -1) return false;
+
+  store.usuarios.splice(idx, 1);
+  store.destellos = store.destellos.filter((d) => d.usuario_id !== usuarioId);
+  persistirStore(store);
+  return true;
+}
+
 // ==============================================================================
 // MÉTODOS DE GRUPOS
 // ==============================================================================
@@ -830,9 +719,43 @@ export async function eliminarGrupo(grupoId: string): Promise<boolean> {
   const idx = store.grupos.findIndex((g) => g.id === grupoId);
   if (idx !== -1) {
     store.grupos[idx].activo = false;
+    persistirStore(store);
     return true;
   }
   return false;
+}
+
+export async function actualizarGrupo(
+  grupoId: string,
+  data: { nombre?: string; descripcion?: string }
+): Promise<Grupo | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const g = store.grupos.find((x) => x.id === grupoId);
+  if (!g) return null;
+
+  if (data.nombre) g.nombre = data.nombre.trim();
+  if (data.descripcion !== undefined) g.descripcion = data.descripcion.trim();
+
+  persistirStore(store);
+  return g;
+}
+
+export async function eliminarGrupoPermanente(grupoId: string): Promise<boolean> {
+  await ensureInitialized();
+  const store = getStore();
+  const idx = store.grupos.findIndex((g) => g.id === grupoId);
+  if (idx === -1) return false;
+
+  store.grupos.splice(idx, 1);
+  // Reasignar usuarios o desactivarlos si no tienen grupo
+  store.usuarios.forEach((u) => {
+    if (u.grupo_id === grupoId && u.rol !== 'superadmin') {
+      u.activo = false;
+    }
+  });
+  persistirStore(store);
+  return true;
 }
 
 // ==============================================================================

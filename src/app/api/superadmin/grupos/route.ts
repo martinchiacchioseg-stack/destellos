@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { listarGrupos, crearGrupo, eliminarGrupo, listarTodosLosUsuarios } from '@/lib/db';
+import {
+  listarGrupos,
+  crearGrupo,
+  actualizarGrupo,
+  eliminarGrupoPermanente,
+  listarTodosLosUsuarios,
+} from '@/lib/db';
 
 export async function GET() {
   const session = await getCurrentSession();
@@ -43,6 +49,29 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const session = await getCurrentSession();
+    if (!session || session.rol !== 'superadmin') {
+      return NextResponse.json({ error: 'Acceso exclusivo para Superadmin.' }, { status: 403 });
+    }
+
+    const { id, nombre, descripcion } = await req.json();
+    if (!id || !nombre) {
+      return NextResponse.json({ error: 'ID y nombre son obligatorios.' }, { status: 400 });
+    }
+
+    const modificado = await actualizarGrupo(id, { nombre, descripcion });
+    if (!modificado) {
+      return NextResponse.json({ error: 'No se encontró el grupo.' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, grupo: modificado, mensaje: 'Familia actualizada correctamente.' });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Error al actualizar grupo.' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getCurrentSession();
@@ -54,8 +83,8 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID de grupo requerido.' }, { status: 400 });
 
-    const ok = await eliminarGrupo(id);
-    return NextResponse.json({ ok, mensaje: 'Grupo desactivado correctamente.' });
+    const ok = await eliminarGrupoPermanente(id);
+    return NextResponse.json({ ok, mensaje: 'Familia eliminada correctamente.' });
   } catch (error: any) {
     return NextResponse.json({ error: 'Error al eliminar grupo.' }, { status: 500 });
   }

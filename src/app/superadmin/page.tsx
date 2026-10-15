@@ -17,6 +17,9 @@ import {
   Sliders,
   ExternalLink,
   Lock,
+  Pencil,
+  MessageCircle,
+  Copy,
 } from 'lucide-react';
 import { SesionUsuario, Publicidad, ReglasGrupo } from '@/lib/types';
 
@@ -42,6 +45,11 @@ export default function SuperadminPage() {
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [descGrupo, setDescGrupo] = useState('');
 
+  // Modales de Edición de Grupo
+  const [grupoEditando, setGrupoEditando] = useState<any | null>(null);
+  const [editNombreGrupo, setEditNombreGrupo] = useState('');
+  const [editDescGrupo, setEditDescGrupo] = useState('');
+
   // Modal nuevo admin
   const [mostrarModalAdmin, setMostrarModalAdmin] = useState(false);
   const [adminNombre, setAdminNombre] = useState('');
@@ -56,6 +64,14 @@ export default function SuperadminPage() {
   const [nuevoUsuarioEmail, setNuevoUsuarioEmail] = useState('');
   const [nuevoUsuarioPassTemp, setNuevoUsuarioPassTemp] = useState('familia2026');
   const [nuevoUsuarioRol, setNuevoUsuarioRol] = useState<'miembro' | 'admin'>('miembro');
+
+  // Modales de Edición de Usuario
+  const [usuarioEditando, setUsuarioEditando] = useState<any | null>(null);
+  const [editUsuarioNombre, setEditUsuarioNombre] = useState('');
+  const [editUsuarioApodo, setEditUsuarioApodo] = useState('');
+  const [editUsuarioEmail, setEditUsuarioEmail] = useState('');
+  const [editUsuarioRol, setEditUsuarioRol] = useState<'miembro' | 'admin'>('miembro');
+  const [editUsuarioPass, setEditUsuarioPass] = useState('');
 
   // Modal nueva publicidad
   const [mostrarModalAd, setMostrarModalAd] = useState(false);
@@ -150,6 +166,56 @@ export default function SuperadminPage() {
     }
   };
 
+  // Abrir y Guardar Edición de Grupo
+  const handleAbrirEditarGrupo = (g: any) => {
+    setGrupoEditando(g);
+    setEditNombreGrupo(g.nombre || '');
+    setEditDescGrupo(g.descripcion || '');
+  };
+
+  const handleGuardarEditarGrupo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!grupoEditando) return;
+    try {
+      const res = await fetch('/api/superadmin/grupos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: grupoEditando.id,
+          nombre: editNombreGrupo,
+          descripcion: editDescGrupo,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error });
+      } else {
+        setFeedback({ tipo: 'ok', texto: 'Familia / Grupo actualizado con éxito.' });
+        setGrupoEditando(null);
+        cargarTodo();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al actualizar grupo.' });
+    }
+  };
+
+  // Eliminar Grupo
+  const handleEliminarGrupo = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de eliminar permanentemente la familia "${nombre}" y todos sus miembros? Esta acción no se puede deshacer.`)) return;
+    try {
+      const res = await fetch(`/api/superadmin/grupos?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error });
+      } else {
+        setFeedback({ tipo: 'ok', texto: 'Familia eliminada correctamente.' });
+        cargarTodo();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al eliminar grupo.' });
+    }
+  };
+
   // Crear Admin
   const handleCrearAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,6 +282,87 @@ export default function SuperadminPage() {
     } catch {
       setFeedback({ tipo: 'error', texto: 'Error al crear usuario.' });
     }
+  };
+
+  // Abrir y Guardar Edición de Usuario
+  const handleAbrirEditarUsuario = (u: any) => {
+    setUsuarioEditando(u);
+    setEditUsuarioNombre(u.nombre || '');
+    setEditUsuarioApodo(u.apodo || '');
+    setEditUsuarioEmail(u.email || '');
+    setEditUsuarioRol(u.rol || 'miembro');
+    setEditUsuarioPass('');
+  };
+
+  const handleGuardarEditarUsuario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!usuarioEditando) return;
+    try {
+      const res = await fetch('/api/superadmin/usuarios', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: usuarioEditando.id,
+          nombre: editUsuarioNombre,
+          apodo: editUsuarioApodo,
+          email: editUsuarioEmail,
+          rol: editUsuarioRol,
+          passwordTemporal: editUsuarioPass ? editUsuarioPass : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error });
+      } else {
+        setFeedback({ tipo: 'ok', texto: 'Usuario actualizado con éxito.' });
+        setUsuarioEditando(null);
+        const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`);
+        if (uRes.ok) {
+          const uData = await uRes.json();
+          setUsuariosGrupo(uData.usuarios || []);
+        }
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al editar usuario.' });
+    }
+  };
+
+  // Eliminar Usuario
+  const handleEliminarUsuario = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de eliminar permanentemente al usuario "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      const res = await fetch(`/api/superadmin/usuarios?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error });
+      } else {
+        setFeedback({ tipo: 'ok', texto: 'Usuario eliminado correctamente.' });
+        const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`);
+        if (uRes.ok) {
+          const uData = await uRes.json();
+          setUsuariosGrupo(uData.usuarios || []);
+        }
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al eliminar usuario.' });
+    }
+  };
+
+  // Enviar invitación por WhatsApp
+  const handleEnviarWhatsApp = (u: any) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://destellos.ar';
+    const texto = `¡Hola ${u.nombre}! 👋\nYa tenés tu usuario listo en Destellos ("un clic familiar"):\n\n🔗 Ingreso directo: ${origin}/login\n📧 Tu usuario: ${u.email}\n🔑 Contraseña: (ingresá con tu clave de acceso)\n\n¡Sumate a compartir el destello del día y jugar en familia! ✨`;
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(texto).catch(() => {});
+    }
+
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(waUrl, '_blank');
+    setFeedback({
+      tipo: 'ok',
+      texto: `📲 Enlace de WhatsApp preparado para ${u.nombre}. ¡También se copió el mensaje al portapapeles!`,
+    });
   };
 
   // Guardar Publicidad
@@ -437,16 +584,80 @@ export default function SuperadminPage() {
                 </form>
               )}
 
+              {/* Formulario de Edición de Familia */}
+              {grupoEditando && (
+                <form
+                  onSubmit={handleGuardarEditarGrupo}
+                  className="p-3.5 bg-purple-50/70 dark:bg-purple-950/30 rounded-2xl space-y-2 text-xs border border-purple-200 dark:border-purple-800"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+                      <Pencil className="w-3.5 h-3.5 text-purple-600" />
+                      Editar Familia: {grupoEditando.nombre}
+                    </h4>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nombre del grupo"
+                    value={editNombreGrupo}
+                    onChange={(e) => setEditNombreGrupo(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#201D24] dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Descripción (opcional)"
+                    value={editDescGrupo}
+                    onChange={(e) => setEditDescGrupo(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#201D24] dark:text-white"
+                  />
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setGrupoEditando(null)}
+                      className="flex-1 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 font-bold"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-1.5 rounded-xl bg-purple-600 text-white font-bold"
+                    >
+                      Guardar Cambios
+                    </button>
+                  </div>
+                </form>
+              )}
+
               <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
                 {grupos.map((g) => (
-                  <div key={g.id} className="py-2.5 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-gray-800 dark:text-gray-200">{g.nombre}</p>
+                  <div key={g.id} className="py-2.5 flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-800 dark:text-gray-200 truncate">{g.nombre}</p>
+                      {g.descripcion && (
+                        <p className="text-[10px] text-gray-500 truncate">{g.descripcion}</p>
+                      )}
                       <p className="text-[10px] text-gray-400 font-mono">Código: {g.codigo_invitacion}</p>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded-full font-bold">
-                      {g.total_miembros || 0} miembros
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] px-2 py-0.5 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded-full font-bold">
+                        {g.total_miembros || 0} miembros
+                      </span>
+                      <button
+                        onClick={() => handleAbrirEditarGrupo(g)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                        title="Editar familia"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleEliminarGrupo(g.id, g.nombre)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        title="Eliminar familia"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -557,24 +768,132 @@ export default function SuperadminPage() {
               </form>
             )}
 
+            {/* Formulario de Edición de Usuario */}
+            {usuarioEditando && (
+              <form
+                onSubmit={handleGuardarEditarUsuario}
+                className="p-3.5 bg-blue-50/70 dark:bg-blue-950/30 rounded-2xl space-y-2.5 text-xs border border-blue-200 dark:border-blue-800"
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="font-black text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                    <Pencil className="w-3.5 h-3.5 text-blue-600" />
+                    Editar Usuario: {usuarioEditando.nombre}
+                  </h4>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nombre completo"
+                    value={editUsuarioNombre}
+                    onChange={(e) => setEditUsuarioNombre(e.target.value)}
+                    className="p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Apodo (opcional)"
+                    value={editUsuarioApodo}
+                    onChange={(e) => setEditUsuarioApodo(e.target.value)}
+                    className="p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
+                  />
+                </div>
+                <input
+                  type="email"
+                  required
+                  placeholder="Email del usuario"
+                  value={editUsuarioEmail}
+                  onChange={(e) => setEditUsuarioEmail(e.target.value)}
+                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nueva clave (dejar vacío si no cambia)"
+                    value={editUsuarioPass}
+                    onChange={(e) => setEditUsuarioPass(e.target.value)}
+                    className="p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] font-mono text-[11px] dark:text-white"
+                  />
+                  <select
+                    value={editUsuarioRol}
+                    onChange={(e) => setEditUsuarioRol(e.target.value as any)}
+                    className="p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
+                  >
+                    <option value="miembro">Rol: Miembro</option>
+                    <option value="admin">Rol: Administrador</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setUsuarioEditando(null)}
+                    className="flex-1 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 font-bold"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-1.5 rounded-xl bg-blue-600 text-white font-bold"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            )}
+
             <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
               {usuariosGrupo.map((u) => (
-                <div key={u.id} className="py-2.5 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-gray-800 dark:text-gray-200">
-                      {u.nombre} {u.apodo ? `(${u.apodo})` : ''}
-                    </p>
-                    <p className="text-[10px] text-gray-400">{u.email}</p>
+                <div key={u.id} className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-bold text-gray-800 dark:text-gray-200 truncate">
+                        {u.nombre} {u.apodo ? `(${u.apodo})` : ''}
+                      </p>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${
+                          u.rol === 'superadmin'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                            : u.rol === 'admin'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                            : 'bg-orange-100 text-[#FF7043] dark:bg-orange-950/50 dark:text-orange-300'
+                        }`}
+                      >
+                        {u.rol}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 truncate">{u.email}</p>
                   </div>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold capitalize ${
-                      u.rol === 'admin'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-orange-100 text-[#FF7043]'
-                    }`}
-                  >
-                    {u.rol}
-                  </span>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Botón WhatsApp */}
+                    <button
+                      onClick={() => handleEnviarWhatsApp(u)}
+                      className="px-2 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-xl text-[11px] font-bold border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 flex items-center gap-1 transition-colors"
+                      title="Enviar invitación e ingreso por WhatsApp"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </button>
+
+                    {/* Botón Editar */}
+                    <button
+                      onClick={() => handleAbrirEditarUsuario(u)}
+                      className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                      title="Editar usuario"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Botón Eliminar (no para superadmin) */}
+                    {u.rol !== 'superadmin' && (
+                      <button
+                        onClick={() => handleEliminarUsuario(u.id, u.nombre)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        title="Eliminar usuario"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

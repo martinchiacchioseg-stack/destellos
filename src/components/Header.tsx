@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Sparkles, Shield, Crown } from 'lucide-react';
+import { Sparkles, Shield } from 'lucide-react';
 import { SesionUsuario } from '@/lib/types';
 
 import AnimatedLogo from '@/components/AnimatedLogo';
@@ -27,17 +27,6 @@ export default function Header({ usuario, puntosTotales = 0 }: HeaderProps) {
           <span>{puntosTotales} pts</span>
         </div>
 
-        {/* Acceso rápido a Panel si es Admin o Superadmin */}
-        {usuario?.rol === 'superadmin' && (
-          <button
-            onClick={() => router.push('/superadmin')}
-            className="flex items-center gap-1 px-2.5 py-1 bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800"
-            title="Panel Superadmin"
-          >
-            <Crown className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Super</span>
-          </button>
-        )}
 
         {usuario?.rol === 'admin' && (
           <button
