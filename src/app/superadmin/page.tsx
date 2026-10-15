@@ -356,7 +356,8 @@ export default function SuperadminPage() {
   // Enviar invitación por WhatsApp
   const handleEnviarWhatsApp = (u: any) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://destellos.ar';
-    const texto = `¡Hola ${u.nombre}! 👋\nYa tenés tu usuario listo en Destellos ("un clic familiar"):\n\n🔗 Ingreso directo: ${origin}/login\n📧 Tu usuario: ${u.email}\n🔑 Contraseña: (ingresá con tu clave de acceso)\n\n¡Sumate a compartir el destello del día y jugar en familia! ✨`;
+    const claveDefecto = u.rol === 'admin' ? 'admin2026' : 'familia2026';
+    const texto = `¡Hola ${u.nombre}! 👋\nYa tenés tu usuario listo en Destellos ("un clic familiar"):\n\n🔗 Ingreso directo: ${origin}/login\n📧 Tu usuario: ${u.email}\n🔑 Contraseña inicial: ${claveDefecto}\n\n¡Sumate a compartir el destello del día y jugar en familia! ✨`;
 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(texto).catch(() => {});
