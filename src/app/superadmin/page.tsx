@@ -20,6 +20,9 @@ import {
   Pencil,
   MessageCircle,
   Copy,
+  Upload,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 import { SesionUsuario, Publicidad, ReglasGrupo } from '@/lib/types';
 
@@ -73,13 +76,15 @@ export default function SuperadminPage() {
   const [editUsuarioRol, setEditUsuarioRol] = useState<'miembro' | 'admin'>('miembro');
   const [editUsuarioPass, setEditUsuarioPass] = useState('');
 
-  // Modal nueva publicidad
+  // Modal publicidad (creación y edición)
   const [mostrarModalAd, setMostrarModalAd] = useState(false);
+  const [adEditandoId, setAdEditandoId] = useState<string | null>(null);
   const [adTitulo, setAdTitulo] = useState('');
   const [adTexto, setAdTexto] = useState('');
   const [adImagenUrl, setAdImagenUrl] = useState('');
   const [adLinkUrl, setAdLinkUrl] = useState('');
   const [adUbicacion, setAdUbicacion] = useState<'foto_ganadora' | 'prode' | 'post_subida'>('post_subida');
+  const [subiendoImagenAd, setSubiendoImagenAd] = useState(false);
 
   const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
@@ -365,7 +370,74 @@ export default function SuperadminPage() {
     });
   };
 
-  // Guardar Publicidad
+  // Abrir modal nueva publicidad
+  const handleAbrirNuevaPublicidad = () => {
+    setAdEditandoId(null);
+    setAdTitulo('');
+    setAdTexto('');
+    setAdImagenUrl('');
+    setAdLinkUrl('');
+    setAdUbicacion('post_subida');
+    setMostrarModalAd(true);
+  };
+
+  // Abrir modal editar publicidad
+  const handleAbrirEditarPublicidad = (ad: Publicidad) => {
+    setAdEditandoId(ad.id);
+    setAdTitulo(ad.titulo);
+    setAdTexto(ad.texto);
+    setAdImagenUrl(ad.imagen_url || '');
+    setAdLinkUrl(ad.link_url || '');
+    setAdUbicacion(ad.ubicacion);
+    setMostrarModalAd(true);
+  };
+
+  // Procesar archivo local de imagen para la publicidad
+  const handleSeleccionarImagenAd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoImagenAd(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setAdImagenUrl(dataUrl);
+        }
+        setSubiendoImagenAd(false);
+      };
+      img.onerror = () => setSubiendoImagenAd(false);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => setSubiendoImagenAd(false);
+    reader.readAsDataURL(file);
+  };
+
+  // Guardar Publicidad (Creación o Edición)
   const handleGuardarPublicidad = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
@@ -374,6 +446,7 @@ export default function SuperadminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: adEditandoId || undefined,
           titulo: adTitulo,
           texto: adTexto,
           imagen_url: adImagenUrl,
@@ -385,11 +458,12 @@ export default function SuperadminPage() {
       if (!res.ok) {
         setFeedback({ tipo: 'error', texto: data.error });
       } else {
-        setFeedback({ tipo: 'ok', texto: data.mensaje });
+        setFeedback({ tipo: 'ok', texto: data.mensaje || 'Publicidad guardada con éxito.' });
         setAdTitulo('');
         setAdTexto('');
         setAdImagenUrl('');
         setAdLinkUrl('');
+        setAdEditandoId(null);
         setMostrarModalAd(false);
         const pRes = await fetch('/api/superadmin/publicidades');
         if (pRes.ok) {
@@ -404,13 +478,24 @@ export default function SuperadminPage() {
 
   // Eliminar Publicidad
   const handleEliminarPublicidad = async (id: string) => {
-    if (!confirm('¿Deseás eliminar esta publicidad?')) return;
+    if (!confirm('¿Deseás eliminar esta publicidad permanentemente?')) return;
     try {
       const res = await fetch(`/api/superadmin/publicidades?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setPublicidades(publicidades.filter((p) => p.id !== id));
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error || 'Error al eliminar publicidad.' });
+      } else {
+        setFeedback({ tipo: 'ok', texto: 'Publicidad eliminada con éxito.' });
+        setPublicidades((prev) => prev.filter((p) => p.id !== id));
+        const pRes = await fetch('/api/superadmin/publicidades');
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          setPublicidades(pData.publicidades || []);
+        }
       }
-    } catch {}
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al eliminar publicidad.' });
+    }
   };
 
   // Actualizar Reglas de Grupo
@@ -916,7 +1001,7 @@ export default function SuperadminPage() {
                 </p>
               </div>
               <button
-                onClick={() => setMostrarModalAd(true)}
+                onClick={handleAbrirNuevaPublicidad}
                 className="text-xs font-bold text-[#FF7043] flex items-center gap-1 hover:underline shrink-0"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
@@ -927,9 +1012,24 @@ export default function SuperadminPage() {
             {mostrarModalAd && (
               <form
                 onSubmit={handleGuardarPublicidad}
-                className="p-3.5 bg-gray-50 dark:bg-[#2A2630] rounded-2xl space-y-2.5 text-xs border border-gray-200 dark:border-gray-700"
+                className="p-3.5 bg-gray-50 dark:bg-[#2A2630] rounded-2xl space-y-3 text-xs border border-gray-200 dark:border-gray-700"
               >
-                <h4 className="font-black text-gray-800 dark:text-gray-100">Nuevo Anuncio</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-black text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-amber-600" />
+                    {adEditandoId ? 'Editar Anuncio' : 'Nuevo Anuncio Publicitario'}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarModalAd(false);
+                      setAdEditandoId(null);
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-gray-500">Ubicación del anuncio:</label>
@@ -946,96 +1046,181 @@ export default function SuperadminPage() {
                   </select>
                 </div>
 
-                <input
-                  type="text"
-                  required
-                  placeholder="Título del anuncio (ej: Pastelería Dulce Abuela)"
-                  value={adTitulo}
-                  onChange={(e) => setAdTitulo(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
-                />
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 mb-0.5 block">Título del auspiciante:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Pastelería Dulce Abuela"
+                    value={adTitulo}
+                    onChange={(e) => setAdTitulo(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
+                  />
+                </div>
 
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Texto / Copete promocional"
-                  value={adTexto}
-                  onChange={(e) => setAdTexto(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
-                />
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 mb-0.5 block">Texto / Copete promocional:</label>
+                  <textarea
+                    required
+                    rows={2}
+                    placeholder="Texto de la promo o mensaje para la familia..."
+                    value={adTexto}
+                    onChange={(e) => setAdTexto(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
+                  />
+                </div>
 
-                <input
-                  type="url"
-                  placeholder="URL de Imagen (opcional)"
-                  value={adImagenUrl}
-                  onChange={(e) => setAdImagenUrl(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
-                />
+                {/* Subida de archivo de imagen local */}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 mb-1 block">
+                    Imagen del anuncio (archivo de tu dispositivo):
+                  </label>
+                  {adImagenUrl ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 p-2 flex items-center justify-between gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={adImagenUrl}
+                        alt="Vista previa"
+                        className="w-16 h-16 object-cover rounded-xl shrink-0 border border-gray-200 dark:border-gray-700"
+                      />
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-[11px] font-bold text-gray-700 dark:text-gray-200 truncate">
+                          Imagen cargada localmente
+                        </p>
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                          ✓ Optimizada y lista para mostrar
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAdImagenUrl('')}
+                        className="p-1.5 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 hover:bg-red-200 transition-colors shrink-0"
+                        title="Quitar imagen"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-[#FF7043] rounded-2xl cursor-pointer bg-white dark:bg-[#201D24] transition-colors text-center group">
+                      <Upload className="w-6 h-6 text-[#FF7043] mb-1 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
+                        {subiendoImagenAd ? 'Cargando y optimizando imagen...' : 'Elegir imagen de tu computadora o celular'}
+                      </span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">
+                        JPG, PNG, WEBP (se sube directo sin necesidad de URL externa)
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={subiendoImagenAd}
+                        className="hidden"
+                        onChange={handleSeleccionarImagenAd}
+                      />
+                    </label>
+                  )}
+                </div>
 
-                <input
-                  type="url"
-                  placeholder="URL de Enlace web (opcional)"
-                  value={adLinkUrl}
-                  onChange={(e) => setAdLinkUrl(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
-                />
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 mb-0.5 block">Enlace web de destino (opcional):</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={adLinkUrl}
+                    onChange={(e) => setAdLinkUrl(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
+                  />
+                </div>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setMostrarModalAd(false)}
-                    className="flex-1 py-1.5 rounded-xl bg-gray-200 font-bold"
+                    onClick={() => {
+                      setMostrarModalAd(false);
+                      setAdEditandoId(null);
+                    }}
+                    className="flex-1 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-700 font-bold"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-1.5 rounded-xl bg-amber-600 text-white font-bold"
+                    disabled={subiendoImagenAd}
+                    className="flex-1 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors"
                   >
-                    Publicar Anuncio
+                    {adEditandoId ? 'Guardar Cambios' : 'Publicar Anuncio'}
                   </button>
                 </div>
               </form>
             )}
 
             <div className="space-y-3">
-              {publicidades.map((ad) => (
-                <div
-                  key={ad.id}
-                  className="p-3 bg-gray-50/80 dark:bg-gray-900/40 rounded-2xl border border-gray-200/80 dark:border-gray-800 flex items-start justify-between gap-3"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        {ad.ubicacion}
-                      </span>
-                      <h4 className="text-xs font-black text-gray-800 dark:text-gray-100">{ad.titulo}</h4>
-                    </div>
-                    <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-snug">
-                      {ad.texto}
-                    </p>
-                    {ad.link_url && (
-                      <a
-                        href={ad.link_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] font-bold text-[#FF7043] flex items-center gap-0.5 hover:underline"
-                      >
-                        <span>{ad.link_url}</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handleEliminarPublicidad(ad.id)}
-                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg shrink-0"
-                    title="Eliminar publicidad"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+              {publicidades.length === 0 ? (
+                <div className="p-6 bg-gray-50/70 dark:bg-gray-900/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 text-center space-y-1">
+                  <p className="text-xs font-bold text-gray-600 dark:text-gray-300">
+                    No hay publicidades activas
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    Hacé clic en "+ Nuevo Anuncio" para cargar tu primera publicidad con imagen local y texto.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                publicidades.map((ad) => (
+                  <div
+                    key={ad.id}
+                    className="p-3 bg-gray-50/80 dark:bg-gray-900/40 rounded-2xl border border-gray-200/80 dark:border-gray-800 flex items-start justify-between gap-3"
+                  >
+                    {ad.imagen_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={ad.imagen_url}
+                        alt={ad.titulo}
+                        className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-200 dark:border-gray-700"
+                      />
+                    )}
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                          {ad.ubicacion}
+                        </span>
+                        <h4 className="text-xs font-black text-gray-800 dark:text-gray-100 truncate">
+                          {ad.titulo}
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-snug line-clamp-2">
+                        {ad.texto}
+                      </p>
+                      {ad.link_url && (
+                        <a
+                          href={ad.link_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] font-bold text-[#FF7043] flex items-center gap-0.5 hover:underline truncate"
+                        >
+                          <span>{ad.link_url}</span>
+                          <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleAbrirEditarPublicidad(ad)}
+                        className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg"
+                        title="Editar publicidad"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleEliminarPublicidad(ad.id)}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"
+                        title="Eliminar publicidad"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

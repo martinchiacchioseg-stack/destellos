@@ -368,39 +368,8 @@ export async function ensureInitialized() {
   store.prodePartidos = partidosProdeInicial;
   store.prodePronosticos = [];
 
-  // 11. Publicidades iniciales configuradas por Superadmin
-  store.publicidades = [
-    {
-      id: 'pub-001',
-      titulo: 'Café & Dulces Los Abuelos ☕🥐',
-      texto: 'Las mejores medialunas calientes y café para tus tardes en familia.',
-      imagen_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop&q=80',
-      link_url: 'https://cafemartinez.com',
-      ubicacion: 'post_subida',
-      activa: true,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: 'pub-002',
-      titulo: 'Álbumes y Portarretratos Recuerdos Vivos 📸✨',
-      texto: 'Imprimí las fotos ganadoras del mes en un álbum de tapa dura de colección.',
-      imagen_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-      link_url: 'https://recuerdosvivos.ar',
-      ubicacion: 'foto_ganadora',
-      activa: true,
-      creado_en: new Date().toISOString(),
-    },
-    {
-      id: 'pub-003',
-      titulo: 'Pizzería La Redonda del Domingo 🍕⚽',
-      texto: 'Los partidos del finde se miran con 2x1 en empanadas y muzzarella.',
-      imagen_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80',
-      link_url: 'https://pizzerialaredonda.ar',
-      ubicacion: 'prode',
-      activa: true,
-      creado_en: new Date().toISOString(),
-    },
-  ];
+  // 11. Publicidades configuradas por Superadmin (inicia limpio)
+  store.publicidades = [];
 
   // 12. Reglas del grupo
   store.reglas = [
@@ -417,6 +386,7 @@ export async function ensureInitialized() {
   ];
 
   store.initialized = true;
+  persistirStore(store);
 
   // Si Supabase está configurado, intentamos sincronizar el Superadmin si no existe en la base de datos
   if (isSupabaseConfigured && supabaseAdmin) {
@@ -522,6 +492,7 @@ export async function crearUsuario(data: {
 
   const store = getStore();
   store.usuarios.push(nuevoUsuario);
+  persistirStore(store);
   return nuevoUsuario;
 }
 
@@ -552,6 +523,7 @@ export async function actualizarPassword(usuarioId: string, nuevoPasswordPlano: 
     u.debe_cambiar_password = false;
     u.intentos_fallidos = 0;
     u.bloqueado_hasta = null;
+    persistirStore(store);
     return true;
   }
   return false;
@@ -584,6 +556,7 @@ export async function resetearPassword(usuarioId: string, nuevaPassTemporal: str
     u.debe_cambiar_password = true;
     u.intentos_fallidos = 0;
     u.bloqueado_hasta = null;
+    persistirStore(store);
     return true;
   }
   return false;
@@ -710,6 +683,7 @@ export async function crearGrupo(nombre: string, descripcion?: string): Promise<
 
   const store = getStore();
   store.grupos.push(nuevoGrupo);
+  persistirStore(store);
   return nuevoGrupo;
 }
 
@@ -867,6 +841,8 @@ export async function guardarOActualizarDestello(data: {
       );
     }
   }
+
+  persistirStore(store);
 
   const usuario = store.usuarios.find((u) => u.id === destelloFinal.usuario_id);
   return {
@@ -1497,6 +1473,7 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
         ...store.publicidades[idx],
         ...data,
       };
+      persistirStore(store);
       return store.publicidades[idx];
     }
   }
@@ -1507,6 +1484,7 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
     creado_en: new Date().toISOString(),
   };
   store.publicidades.push(nuevaPub);
+  persistirStore(store);
   return nuevaPub;
 }
 
@@ -1516,6 +1494,7 @@ export async function eliminarPublicidad(id: string): Promise<boolean> {
   const idx = store.publicidades.findIndex((p) => p.id === id);
   if (idx !== -1) {
     store.publicidades.splice(idx, 1);
+    persistirStore(store);
     return true;
   }
   return false;
@@ -1558,6 +1537,7 @@ export async function actualizarReglasGrupo(grupoId: string, data: Partial<Regla
   } else {
     Object.assign(r, data);
   }
+  persistirStore(store);
   return r;
 }
 
