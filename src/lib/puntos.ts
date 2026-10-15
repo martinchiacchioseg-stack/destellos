@@ -30,6 +30,7 @@ export const DESCRIPCIONES_PUNTOS: Record<TipoEventoPuntos, string> = {
   ruleta_rusa_pregunta_top: '✨ Tu pregunta fue la más picante y reaccionada',
   prode_acierto: '⚽ ¡Golazo! Acierto en el Prode del Fin de Semana',
   prode_marcador_exacto: '🎯 ¡Pleno! Marcador exacto en el Prode',
+  trivia_diaria: '🧠 Desafío de Trivia Diaria',
 };
 
 /**
@@ -63,6 +64,8 @@ export function getPuntosPorEvento(tipo: TipoEventoPuntos): number {
       return PUNTUACIONES.PRODE_ACIERTO;
     case 'prode_marcador_exacto':
       return PUNTUACIONES.PRODE_MARCADOR_EXACTO;
+    case 'trivia_diaria':
+      return 10;
     default:
       return 1;
   }

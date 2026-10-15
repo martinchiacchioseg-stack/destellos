@@ -2,15 +2,15 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Persistencia sólida basada en SQLite (módulo nativo node:sqlite, sin dependencias).
+ * Persistencia sólida basada en SQLite (módulo nativo node:sqlite).
  *
- * - Un archivo único: data/destellos.db (modo WAL, synchronous=FULL, busy_timeout).
- * - Una tabla por colección (id, data JSON). Se guardan SOLO las filas que cambiaron
- *   respecto a la última lectura de este proceso (diff por fila), dentro de una
- *   transacción IMMEDIATE. Un proceso con datos viejos nunca borra ni pisa filas
- *   que no tocó.
- * - Contador de versión compartido: todos los procesos detectan cambios ajenos.
- * - Backups automáticos con VACUUM INTO (data/backups).
+ * Características:
+ * - Archivo único: data/destellos.db
+ * - Modo WAL (Write-Ahead Logging) + synchronous=NORMAL + busy_timeout=15000.
+ * - Guardado atómico inmediato en cada operación (sin diffs ciegos que borren datos ajenos).
+ * - Las eliminaciones son EXPLÍCITAS (solo se borra el ID indicado).
+ * - Múltiples workers concurrentes pueden leer y escribir sin pisarse ni borrarse registros.
+ * - Backups automáticos rotativos.
  */
 
 export const COLLECTIONS = [
@@ -31,6 +31,8 @@ export const COLLECTIONS = [
   'prodePronosticos',
   'publicidades',
   'reglas',
+  'triviaPreguntas',
+  'triviaIntentos',
 ] as const;
 
 export type CollectionName = (typeof COLLECTIONS)[number];
@@ -41,15 +43,12 @@ const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const BACKUP_EVERY_MS = 30 * 60 * 1000;
 const BACKUP_KEEP = 30;
 
-type Snapshot = Record<string, Map<string, string>>;
-
 const g = globalThis as unknown as {
   __destellos_sqlite?: any;
-  __destellos_snapshot?: Snapshot;
   __destellos_last_backup?: number;
 };
 
-function getDb(): any {
+export function getDb(): any {
   if (g.__destellos_sqlite) return g.__destellos_sqlite;
 
   const sqlite = (process as any).getBuiltinModule('node:sqlite');
@@ -58,131 +57,133 @@ function getDb(): any {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   const db = new sqlite.DatabaseSync(DB_PATH);
   db.exec('PRAGMA journal_mode = WAL;');
-  db.exec('PRAGMA synchronous = FULL;');
+  db.exec('PRAGMA synchronous = NORMAL;');
   db.exec('PRAGMA busy_timeout = 15000;');
+
   for (const c of COLLECTIONS) {
     db.exec(`CREATE TABLE IF NOT EXISTS c_${c} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`);
   }
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL)');
-  db.exec("INSERT OR IGNORE INTO meta (key, value) VALUES ('version', 0)");
+  db.exec("INSERT OR IGNORE INTO meta (key, value) VALUES ('version', 1)");
 
   g.__destellos_sqlite = db;
   return db;
 }
 
-function keyOf(item: any, index: number): string {
-  if (item && item.id !== undefined && item.id !== null) return String(item.id);
-  return `idx-${index}-${JSON.stringify(item).length}`;
+export function leerVersion(): number {
+  try {
+    const row = getDb().prepare("SELECT value FROM meta WHERE key='version'").get();
+    return row ? Number(row.value) : 1;
+  } catch {
+    return 1;
+  }
 }
 
-export function leerVersion(): number {
-  const row = getDb().prepare("SELECT value FROM meta WHERE key='version'").get();
-  return row ? Number(row.value) : 0;
+export function incrementarVersion(): number {
+  try {
+    const db = getDb();
+    db.exec("UPDATE meta SET value = value + 1 WHERE key='version'");
+    return leerVersion();
+  } catch {
+    return 1;
+  }
 }
 
 export function cantidadUsuarios(): number {
-  const row = getDb().prepare('SELECT COUNT(*) AS n FROM c_usuarios').get();
-  return row ? Number(row.n) : 0;
+  try {
+    const row = getDb().prepare('SELECT COUNT(*) AS n FROM c_usuarios').get();
+    return row ? Number(row.n) : 0;
+  } catch {
+    return 0;
+  }
 }
 
-/** Lee toda la base y reemplaza el snapshot de este proceso. */
-export function cargarTodo(): { data: Record<string, any[]>; version: number } {
+/** Inserta o actualiza un registro individual de forma atómica e inmediata */
+export function dbUpsert(collection: CollectionName, item: any): void {
+  if (!item) return;
+  const id = item.id !== undefined && item.id !== null ? String(item.id) : null;
+  if (!id) return;
+
   const db = getDb();
-  const data: Record<string, any[]> = {};
-  const snapshot: Snapshot = {};
-  db.exec('BEGIN');
+  const json = JSON.stringify(item);
+  db.prepare(
+    `INSERT INTO c_${collection} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`
+  ).run(id, json);
+
+  incrementarVersion();
+  programarBackup();
+}
+
+/** Guarda múltiples registros con INSERT OR REPLACE (sin borrar los que no estén en la lista) */
+export function dbUpsertBatch(collection: CollectionName, items: any[]): void {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
   try {
-    const version = leerVersion();
-    for (const c of COLLECTIONS) {
-      const rows = db.prepare(`SELECT id, data FROM c_${c}`).all();
-      const map = new Map<string, string>();
-      data[c] = rows.map((r: any) => {
-        map.set(String(r.id), String(r.data));
-        return JSON.parse(String(r.data));
-      });
-      snapshot[c] = map;
+    const stmt = db.prepare(
+      `INSERT INTO c_${collection} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`
+    );
+    for (const item of items) {
+      const id = item?.id !== undefined && item?.id !== null ? String(item.id) : null;
+      if (id) stmt.run(id, JSON.stringify(item));
     }
+    db.exec("UPDATE meta SET value = value + 1 WHERE key='version'");
     db.exec('COMMIT');
-    g.__destellos_snapshot = snapshot;
-    return { data, version };
   } catch (e) {
     try { db.exec('ROLLBACK'); } catch {}
     throw e;
   }
+  programarBackup();
 }
 
-/**
- * Guarda solo lo que cambió respecto del snapshot. Devuelve:
- *  - changed: si hubo escrituras
- *  - version: versión resultante
- *  - externo: true si otro proceso escribió entre nuestra última lectura y este guardado
- */
-export function guardarCambios(
-  store: Record<string, any>,
-  versionConocida: number
-): { changed: boolean; version: number; externo: boolean } {
+/** Elimina EXPLÍCITAMENTE un registro por su ID */
+export function dbDelete(collection: CollectionName, id: string): boolean {
+  if (!id) return false;
   const db = getDb();
-  const snapshot = g.__destellos_snapshot || (g.__destellos_snapshot = {});
+  const res = db.prepare(`DELETE FROM c_${collection} WHERE id = ?`).run(String(id));
+  incrementarVersion();
+  return (res?.changes || 0) > 0;
+}
 
-  // Calcular diff fuera de la transacción (barato)
-  const upserts: Record<string, [string, string][]> = {};
-  const deletes: Record<string, string[]> = {};
-  let hayCambios = false;
-
-  for (const c of COLLECTIONS) {
-    const arr: any[] = Array.isArray(store[c]) ? store[c] : [];
-    const prev = snapshot[c] || new Map<string, string>();
-    const actuales = new Map<string, string>();
-    arr.forEach((item, i) => actuales.set(keyOf(item, i), JSON.stringify(item)));
-
-    const ups: [string, string][] = [];
-    actuales.forEach((json, id) => {
-      if (prev.get(id) !== json) ups.push([id, json]);
-    });
-    const dels: string[] = [];
-    prev.forEach((_json, id) => {
-      if (!actuales.has(id)) dels.push(id);
-    });
-
-    if (ups.length || dels.length) {
-      upserts[c] = ups;
-      deletes[c] = dels;
-      hayCambios = true;
-    }
-  }
-
-  if (!hayCambios) return { changed: false, version: versionConocida, externo: false };
-
-  // Protección anti-vaciado: nunca borrar todos los usuarios de golpe
-  if ((deletes['usuarios'] || []).length > 0 && (store.usuarios || []).length === 0) {
-    console.warn('[db] Guardado cancelado: intento de vaciar todos los usuarios.');
-    return { changed: false, version: versionConocida, externo: false };
-  }
-
-  db.exec('BEGIN IMMEDIATE');
+/** Obtiene un registro por ID */
+export function dbGet<T = any>(collection: CollectionName, id: string): T | null {
+  if (!id) return null;
+  const db = getDb();
+  const row = db.prepare(`SELECT data FROM c_${collection} WHERE id = ?`).get(String(id));
+  if (!row) return null;
   try {
-    const antes = leerVersion();
-    for (const c of Object.keys(upserts)) {
-      const up = db.prepare(
-        `INSERT INTO c_${c} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`
-      );
-      for (const [id, json] of upserts[c]) up.run(id, json);
-      const del = db.prepare(`DELETE FROM c_${c} WHERE id = ?`);
-      for (const id of deletes[c]) del.run(id);
+    return JSON.parse(String(row.data)) as T;
+  } catch {
+    return null;
+  }
+}
+
+/** Obtiene todos los registros de una colección */
+export function dbGetAll<T = any>(collection: CollectionName): T[] {
+  const db = getDb();
+  const rows = db.prepare(`SELECT data FROM c_${collection}`).all();
+  const res: T[] = [];
+  for (const r of rows) {
+    try {
+      res.push(JSON.parse(String(r.data)));
+    } catch {}
+  }
+  return res;
+}
+
+/** Lee toda la base de datos completa */
+export function cargarTodo(): { data: Record<string, any[]>; version: number } {
+  const db = getDb();
+  const data: Record<string, any[]> = {};
+  db.exec('BEGIN');
+  try {
+    const version = leerVersion();
+    for (const c of COLLECTIONS) {
+      const rows = db.prepare(`SELECT data FROM c_${c}`).all();
+      data[c] = rows.map((r: any) => JSON.parse(String(r.data)));
     }
-    db.exec("UPDATE meta SET value = value + 1 WHERE key='version'");
-    const despues = leerVersion();
     db.exec('COMMIT');
-
-    // Actualizar snapshot con lo que acabamos de escribir
-    for (const c of Object.keys(upserts)) {
-      const m = snapshot[c] || (snapshot[c] = new Map());
-      for (const [id, json] of upserts[c]) m.set(id, json);
-      for (const id of deletes[c]) m.delete(id);
-    }
-
-    programarBackup();
-    return { changed: true, version: despues, externo: antes !== versionConocida };
+    return { data, version };
   } catch (e) {
     try { db.exec('ROLLBACK'); } catch {}
     throw e;
@@ -193,10 +194,27 @@ export function guardarCambios(
 export function importarSiVacia(store: Record<string, any>): boolean {
   if (cantidadUsuarios() > 0) return false;
   if (!Array.isArray(store.usuarios) || store.usuarios.length === 0) return false;
-  const vacio = (g.__destellos_snapshot = {} as Snapshot);
-  for (const c of COLLECTIONS) vacio[c] = new Map();
-  guardarCambios(store, leerVersion());
-  return true;
+
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    for (const c of COLLECTIONS) {
+      const arr = Array.isArray(store[c]) ? store[c] : [];
+      const stmt = db.prepare(
+        `INSERT INTO c_${c} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`
+      );
+      arr.forEach((item: any, i: number) => {
+        const id = item?.id !== undefined && item?.id !== null ? String(item.id) : `idx-${i}-${Date.now()}`;
+        stmt.run(id, JSON.stringify(item));
+      });
+    }
+    db.exec("UPDATE meta SET value = value + 1 WHERE key='version'");
+    db.exec('COMMIT');
+    return true;
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch {}
+    throw e;
+  }
 }
 
 export function hacerBackup(): string | null {

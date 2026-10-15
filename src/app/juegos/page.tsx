@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   RefreshCw,
   ExternalLink,
+  Brain,
 } from 'lucide-react';
 import {
   SesionUsuario,
@@ -39,12 +40,13 @@ import {
   UbicacionPublicidad,
 } from '@/lib/types';
 import UploadModal from '@/components/UploadModal';
+import TriviaDiaria from '@/components/TriviaDiaria';
 
-type TabJuego = 'ruleta' | 'prode' | 'reto' | 'voto' | 'adivina' | 'pasado';
+type TabJuego = 'trivia' | 'ruleta' | 'prode' | 'reto' | 'voto' | 'adivina' | 'pasado';
 
 export default function JuegosPage() {
   const [usuario, setUsuario] = useState<(SesionUsuario & { grupo_nombre?: string }) | null>(null);
-  const [tabActivo, setTabActivo] = useState<TabJuego>('ruleta');
+  const [tabActivo, setTabActivo] = useState<TabJuego>('trivia');
   const [cargando, setCargando] = useState(true);
   const [puntosTotales, setPuntosTotales] = useState(16);
   const [modalUploadAbierto, setModalUploadAbierto] = useState(false);
@@ -419,6 +421,16 @@ export default function JuegosPage() {
     badgeInactivoClase: string;
   }[] = [
     {
+      id: 'trivia',
+      label: 'Trivia Diaria',
+      icon: Brain,
+      badge: 'Hasta +50',
+      activoClase: 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-blue-500/30 scale-102 ring-2 ring-blue-300',
+      inactivoClase: 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200',
+    },
+    {
       id: 'ruleta',
       label: 'Ruleta Rusa',
       icon: RotateCw,
@@ -512,7 +524,7 @@ export default function JuegosPage() {
               </div>
             </div>
             <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/20">
-              6 Desafíos
+              7 Desafíos
             </span>
           </div>
 
@@ -545,6 +557,17 @@ export default function JuegosPage() {
             })}
           </div>
         </div>
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* 0. TRIVIA DIARIA (1 intento por día) */}
+        {/* ------------------------------------------------------------------------- */}
+        {tabActivo === 'trivia' && (
+          <TriviaDiaria
+            usuario={usuario}
+            onPuntosActualizados={(delta) => setPuntosTotales((prev) => prev + delta)}
+            onFinalizarDesafio={() => setAdDesafioUbicacion('fin_desafio_trivia')}
+          />
+        )}
 
         {/* ------------------------------------------------------------------------- */}
         {/* 1. RULETA RUSA */}

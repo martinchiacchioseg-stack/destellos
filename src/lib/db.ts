@@ -24,6 +24,9 @@ import {
   TipoEventoPuntos,
   Usuario,
   UsuarioPublico,
+  DificultadTrivia,
+  TriviaPregunta,
+  TriviaIntento,
 } from './types';
 import { hashPassword } from './auth';
 import { getFechaArgentina, getAyerFechaArgentina, getSemanaArgentina } from './date-utils';
@@ -36,7 +39,11 @@ import { procesarYGuardarMedia } from './storage';
 import {
   COLLECTIONS,
   cargarTodo as cargarTodoDeBase,
-  guardarCambios as guardarCambiosEnBase,
+  dbUpsert,
+  dbUpsertBatch,
+  dbDelete,
+  dbGet,
+  dbGetAll,
   leerVersion as leerVersionDeBase,
   cantidadUsuarios as cantidadUsuariosEnBase,
   importarSiVacia as importarSiVaciaEnBase,
@@ -44,7 +51,7 @@ import {
 } from './sqlite-store';
 
 // ==============================================================================
-// ALMACENAMIENTO PERSISTENTE EN DISCO (JSON) + SINCRONIZACIÓN MULTI-WORKER
+// ALMACENAMIENTO PERSISTENTE EN DISCO (SQLITE WAL) + SINCRONIZACIÓN MULTI-WORKER
 // ==============================================================================
 
 export const DEFAULT_GRUPO_ID = 'grupo-familia-chiaccio-001';
@@ -54,7 +61,6 @@ const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'destellos_store.json');
 const globalState = global as unknown as {
   __destellos_store?: StateStore;
   __destellos_store_version?: number;
-  __destellos_flush_queued?: boolean;
 };
 
 interface StateStore {
@@ -77,35 +83,17 @@ interface StateStore {
   prodePronosticos: JuegoProdePronostico[];
   publicidades: Publicidad[];
   reglas: ReglasConfig[];
+  triviaPreguntas: TriviaPregunta[];
+  triviaIntentos: TriviaIntento[];
   initialized: boolean;
-}
-
-/**
- * Reemplaza los datos en memoria por los de la base preservando la identidad de los
- * objetos existentes (las referencias que otras funciones ya tengan siguen siendo válidas).
- */
-function reconciliarConBase(store: StateStore, data: Record<string, any[]>) {
-  const s = store as unknown as Record<string, any[]>;
-  for (const c of COLLECTIONS) {
-    const viejos = new Map<any, any>();
-    (s[c] || []).forEach((o) => {
-      if (o && o.id !== undefined) viejos.set(o.id, o);
-    });
-    s[c] = (data[c] || []).map((fresco) => {
-      const viejo = fresco && fresco.id !== undefined ? viejos.get(fresco.id) : undefined;
-      if (!viejo) return fresco;
-      if (JSON.stringify(viejo) !== JSON.stringify(fresco)) {
-        for (const k of Object.keys(viejo)) if (!(k in fresco)) delete viejo[k];
-        Object.assign(viejo, fresco);
-      }
-      return viejo;
-    });
-  }
 }
 
 function recargarDesdeBase(store: StateStore) {
   const { data, version } = cargarTodoDeBase();
-  reconciliarConBase(store, data);
+  const s = store as unknown as Record<string, any[]>;
+  for (const c of COLLECTIONS) {
+    s[c] = Array.isArray(data[c]) ? data[c] : [];
+  }
   store.initialized = true;
   globalState.__destellos_store_version = version;
 }
@@ -131,34 +119,36 @@ function cargaInicial(store: StateStore) {
 }
 
 /**
- * Guarda de inmediato los cambios pendientes de este proceso (solo las filas que cambiaron).
- * Se mantiene el nombre por compatibilidad con el resto del código.
+ * Guarda de inmediato los cambios pendientes en SQLite.
+ * Utiliza dbUpsertBatch para persistencia atómica sin borrados destructivos.
  */
 export function persistirStore(store: StateStore) {
   try {
-    const r = guardarCambiosEnBase(store as unknown as Record<string, any>, globalState.__destellos_store_version || 0);
-    if (r.changed) {
-      globalState.__destellos_store_version = r.version;
-      store._version = r.version;
-      store._updated_at = new Date().toISOString();
+    for (const c of COLLECTIONS) {
+      const items = (store as unknown as Record<string, any[]>)[c];
+      if (Array.isArray(items) && items.length > 0) {
+        dbUpsertBatch(c, items);
+      }
     }
+    const version = leerVersionDeBase();
+    globalState.__destellos_store_version = version;
+    store._version = version;
+    store._updated_at = new Date().toISOString();
   } catch (err) {
     console.error('Error al persistir store en SQLite:', err);
   }
 }
 
-/** Sincroniza: primero guarda lo pendiente de este proceso y luego trae lo que escribieron otros. */
+/** Sincroniza: trae cambios de SQLite si otro worker o proceso actualizó la base */
 function sincronizarInterno(store: StateStore) {
   try {
     if (!store.initialized) {
       cargaInicial(store);
       return;
     }
-    const r = guardarCambiosEnBase(store as unknown as Record<string, any>, globalState.__destellos_store_version || 0);
-    if (r.externo || leerVersionDeBase() !== r.version) {
+    const vBase = leerVersionDeBase();
+    if (vBase !== (globalState.__destellos_store_version || 0)) {
       recargarDesdeBase(store);
-    } else {
-      globalState.__destellos_store_version = r.version;
     }
   } catch (err) {
     console.error('Error al sincronizar con SQLite:', err);
@@ -189,6 +179,8 @@ export function getStore(): StateStore {
       prodePronosticos: [],
       publicidades: [],
       reglas: [],
+      triviaPreguntas: [],
+      triviaIntentos: [],
       initialized: false,
     };
     globalState.__destellos_store_version = 0;
@@ -196,17 +188,6 @@ export function getStore(): StateStore {
 
   const store = globalState.__destellos_store;
   sincronizarInterno(store);
-
-  // Autoguardado: cualquier cambio hecho por quien llamó a getStore() se guarda al terminar
-  // el turno actual, aunque la función no llame explícitamente a persistirStore().
-  if (store.initialized && !globalState.__destellos_flush_queued) {
-    globalState.__destellos_flush_queued = true;
-    setTimeout(() => {
-      globalState.__destellos_flush_queued = false;
-      persistirStore(store);
-    }, 0);
-  }
-
   return store;
 }
 
@@ -628,7 +609,7 @@ export async function crearUsuario(data: {
 
   const store = sincronizarConDiscoSiCambio();
   store.usuarios.push(nuevoUsuario);
-  persistirStore(store);
+  dbUpsert('usuarios', nuevoUsuario);
   return nuevoUsuario;
 }
 
@@ -768,19 +749,20 @@ export async function actualizarUsuario(
   }
 
   persistirStore(store);
+  dbUpsert('usuarios', u);
   const { password_hash, intentos_fallidos, bloqueado_hasta, ...safe } = u;
   return safe as UsuarioPublico;
 }
 
 export async function eliminarUsuarioPermanente(usuarioId: string): Promise<boolean> {
   await ensureInitialized();
+  dbDelete('usuarios', usuarioId);
   const store = sincronizarConDiscoSiCambio();
   const idx = store.usuarios.findIndex((u) => u.id === usuarioId);
-  if (idx === -1) return false;
-
-  store.usuarios.splice(idx, 1);
+  if (idx !== -1) {
+    store.usuarios.splice(idx, 1);
+  }
   store.destellos = store.destellos.filter((d) => d.usuario_id !== usuarioId);
-  persistirStore(store);
   return true;
 }
 
@@ -999,6 +981,7 @@ export async function guardarOActualizarDestello(data: {
   }
 
   persistirStore(store);
+  dbUpsert('destellos', destelloFinal);
 
   const usuario = store.usuarios.find((u) => u.id === destelloFinal.usuario_id);
   return {
@@ -1636,7 +1619,7 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
         ...data,
         imagen_url: imagenUrl,
       };
-      persistirStore(store);
+      dbUpsert('publicidades', store.publicidades[idx]);
       return store.publicidades[idx];
     }
   }
@@ -1649,21 +1632,20 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
   };
   if (!store.publicidades) store.publicidades = [];
   store.publicidades.push(nuevaPub);
-  persistirStore(store);
+  dbUpsert('publicidades', nuevaPub);
   return nuevaPub;
 }
 
 export async function eliminarPublicidad(id: string): Promise<boolean> {
   await ensureInitialized();
+  dbDelete('publicidades', id);
   const store = sincronizarConDiscoSiCambio();
   if (!store.publicidades) return false;
   const idx = store.publicidades.findIndex((p) => p.id === id);
   if (idx !== -1) {
     store.publicidades.splice(idx, 1);
-    persistirStore(store);
-    return true;
   }
-  return false;
+  return true;
 }
 
 export async function obtenerReglasGrupo(grupoId: string): Promise<ReglasConfig> {
@@ -2088,4 +2070,51 @@ export async function sincronizarPartidosProde(grupoId: string) {
 
   store.prodePartidos = nuevosPartidos;
   return { ok: true, partidosSincronizados: nuevosPartidos.length };
+}
+
+// ==============================================================================
+// MINI-JUEGO: TRIVIA DIARIA (1 intento por día por usuario)
+// ==============================================================================
+
+export async function obtenerTriviaDia(
+  fecha: string,
+  dificultad: DificultadTrivia
+): Promise<TriviaPregunta | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const preguntas = store.triviaPreguntas || [];
+  return preguntas.find((p) => p.fecha === fecha && p.difficulty === dificultad) || null;
+}
+
+export async function guardarTriviaPregunta(pregunta: TriviaPregunta): Promise<TriviaPregunta> {
+  await ensureInitialized();
+  dbUpsert('triviaPreguntas', pregunta);
+  const store = getStore();
+  if (!store.triviaPreguntas) store.triviaPreguntas = [];
+  const idx = store.triviaPreguntas.findIndex((p) => p.id === pregunta.id);
+  if (idx >= 0) {
+    store.triviaPreguntas[idx] = pregunta;
+  } else {
+    store.triviaPreguntas.push(pregunta);
+  }
+  return pregunta;
+}
+
+export async function obtenerIntentoTriviaUsuario(
+  usuarioId: string,
+  fecha: string
+): Promise<TriviaIntento | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const intentos = store.triviaIntentos || [];
+  return intentos.find((i) => i.usuario_id === usuarioId && i.fecha === fecha) || null;
+}
+
+export async function registrarIntentoTrivia(intento: TriviaIntento): Promise<TriviaIntento> {
+  await ensureInitialized();
+  dbUpsert('triviaIntentos', intento);
+  const store = getStore();
+  if (!store.triviaIntentos) store.triviaIntentos = [];
+  store.triviaIntentos.push(intento);
+  return intento;
 }

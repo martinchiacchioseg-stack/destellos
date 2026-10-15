@@ -85,7 +85,8 @@ export type TipoEventoPuntos =
   | 'ruleta_rusa_mas_reaccionada' // +3 respuesta más reaccionada
   | 'ruleta_rusa_pregunta_top'    // +1 autor de la pregunta más reaccionada
   | 'prode_acierto'               // +3 por acertar resultado L/E/V
-  | 'prode_marcador_exacto';      // +1 extra por marcador exacto
+  | 'prode_marcador_exacto'       // +1 extra por marcador exacto
+  | 'trivia_diaria';              // +10 / +25 / +50 / -5 / -15 (Trivia Diaria)
 
 export interface PuntosEvento {
   id: string;
@@ -282,7 +283,8 @@ export type UbicacionPublicidad =
   | 'fin_desafio_reto_diario'
   | 'fin_desafio_voto_cruzado'
   | 'fin_desafio_adivina'
-  | 'fin_desafio_foto_pasado';
+  | 'fin_desafio_foto_pasado'
+  | 'fin_desafio_trivia';
 
 export interface Publicidad {
   id: string;
@@ -310,3 +312,38 @@ export type ReglasGrupo = ReglasConfig & {
   fotos_borrosas_hasta_subir?: boolean;
   prode_marcador_exacto_bonus?: boolean;
 };
+
+// ==============================================================================
+// TRIVIA DIARIA FAMILIAR
+// ==============================================================================
+
+export type DificultadTrivia = 'facil' | 'medio' | 'dificil';
+
+export interface TriviaPregunta {
+  id: string;
+  fecha: string;
+  difficulty: DificultadTrivia;
+  category: string;
+  question: string;
+  options: string[];
+  correct_answer_index: number;
+  points_win: number;
+  points_penalty: number;
+  time_limit_seconds: number;
+  explanation: string;
+  fun_fact: string;
+}
+
+export interface TriviaIntento {
+  id: string;
+  usuario_id: string;
+  grupo_id: string;
+  fecha: string; // YYYY-MM-DD
+  pregunta_id: string;
+  difficulty: DificultadTrivia;
+  respuesta_elegida_index: number;
+  acerto: boolean;
+  tiempo_agotado: boolean;
+  puntos_obtenidos: number;
+  creado_en: string;
+}
