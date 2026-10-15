@@ -30,18 +30,32 @@
       "creado_en": "2026-10-15T13:34:59.782Z"
     },
     {
-      "id": "11b27df1-c916-48bd-8b26-651a355444a7",
-      "email": "sofi@familiachiaccio.com",
-      "password_hash": "$2b$10$/I3KNMqJSbWgHvgFulzRFeA77fU.f7ST8GlN6lfHD9XIJlNfUJNAu",
-      "nombre": "Sofía Chiaccio",
-      "apodo": "Sofi",
-      "avatar_url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Sof%C3%ADa%20Chiaccio",
+      "id": "af2b081d-d6cd-4cb4-a3b1-341f830e4051",
+      "email": "nicolas@familiachiaccio.com",
+      "password_hash": "$2b$10$KI.2cH8WPWjFfW7MpeE7p.TVANuZBq3KzbawSkOr0hhuT0LIf1IsW",
+      "nombre": "Nicolás Chiaccio",
+      "apodo": "Nico",
+      "avatar_url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Nicol%C3%A1s%20Chiaccio",
       "rol": "miembro",
       "grupo_id": "grupo-familia-chiaccio-001",
       "debe_cambiar_password": true,
       "intentos_fallidos": 0,
       "activo": true,
-      "creado_en": "2026-10-15T13:36:08.329Z"
+      "creado_en": "2026-10-15T14:17:31.681Z"
+    },
+    {
+      "id": "3c034b9c-e8c9-4752-96bb-4d4f27cb4a71",
+      "email": "claudio@familiachiaccio.com",
+      "password_hash": "$2b$10$tNWRq/Xw9LVn3ytc7bGxjO63SCAQznSheC13kMnPAvK5SWiA1dcTO",
+      "nombre": "Claudio Chiaccio",
+      "apodo": "Claudio",
+      "avatar_url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Claudio%20Chiaccio",
+      "rol": "miembro",
+      "grupo_id": "grupo-familia-chiaccio-001",
+      "debe_cambiar_password": true,
+      "intentos_fallidos": 0,
+      "activo": true,
+      "creado_en": "2026-10-15T14:17:31.837Z"
     }
   ],
   "grupos": [
