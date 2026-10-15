@@ -170,7 +170,7 @@ export interface SesionUsuario {
 // ==============================================================================
 
 export type NivelRuleta = 'suave' | 'picante' | 'extra_picante';
-export type EstadoRuleta = 'preguntas' | 'ruleta' | 'respuestas' | 'finalizada';
+export type EstadoRuleta = 'preguntas' | 'ruleta' | 'respuestas' | 'finalizada' | 'girada';
 
 export interface JuegoRuletaRusa {
   id: string;
@@ -186,20 +186,25 @@ export interface JuegoRuletaPregunta {
   ronda_id: string;
   autor_usuario_id: string;
   texto_pregunta: string;
+  texto?: string; // alias conveniente
   nivel: NivelRuleta;
   aprobada_ia: boolean;
   asignada_a_usuario_id?: string | null;
+  destinatario_id?: string | null; // alias
   es_bala: boolean;
   respuesta_texto?: string;
   respuesta_media_url?: string;
   respondida: boolean;
   paso_utilizado: boolean;
+  pasada?: boolean; // alias
   reacciones_risa: number;
   reacciones_fuego: number;
   reacciones_amor: number;
   creado_en: string;
   autor?: UsuarioPublico;
   asignado?: UsuarioPublico;
+  autor_nombre?: string;
+  destinatario_nombre?: string;
 }
 
 // ==============================================================================
@@ -214,6 +219,7 @@ export interface JuegoProdeFecha {
   grupo_id: string;
   torneo_nombre: string;
   numero_fecha: number;
+  nombre?: string;
   fecha_inicio: string;
   fecha_fin: string;
   cerrada: boolean;
@@ -228,6 +234,8 @@ export interface JuegoProdePartido {
   equipo_visitante: string;
   escudo_visitante?: string;
   fecha_hora_partido: string;
+  fecha_hora_texto?: string;
+  estado?: string;
   goles_local?: number | null;
   goles_visitante?: number | null;
   estado_partido: EstadoPartido;
@@ -239,11 +247,54 @@ export interface JuegoProdePronostico {
   id: string;
   partido_id: string;
   usuario_id: string;
-  pronostico: ResultadoPronostico;
+  pronostico: ResultadoPronostico | 'local' | 'empate' | 'visitante';
   goles_local_pronostico?: number | null;
   goles_visitante_pronostico?: number | null;
+  goles_local?: number | null;
+  goles_visitante?: number | null;
   corregido: boolean;
   acerto: boolean;
+  acertado?: boolean;
   puntos_sumados: number;
+  puntos_ganados?: number;
   creado_en: string;
 }
+
+// Aliases para compatibilidad de componentes
+export type JuegoRuletaRonda = JuegoRuletaRusa;
+export type ProdeFecha = JuegoProdeFecha;
+export type ProdePartido = JuegoProdePartido;
+export type ProdePronostico = JuegoProdePronostico;
+
+// ==============================================================================
+// PUBLICIDAD Y MONETIZACIÓN (Superadmin)
+// ==============================================================================
+
+export type UbicacionPublicidad = 'foto_ganadora' | 'prode' | 'post_subida';
+
+export interface Publicidad {
+  id: string;
+  titulo: string;
+  texto: string;
+  imagen_url?: string;
+  link_url?: string;
+  ubicacion: UbicacionPublicidad;
+  activa: boolean;
+  creado_en: string;
+}
+
+export interface ReglasConfig {
+  id: string;
+  grupo_id?: string | null;
+  solo_mostrar_si_todos_subieron: boolean;
+  racha_activa: boolean;
+  apurar_whatsapp_activo: boolean;
+  nivel_ruleta_maximo: NivelRuleta;
+  puntos_destello_ganador: number;
+  puntos_participacion: number;
+}
+
+export type ReglasGrupo = ReglasConfig & {
+  fotos_borrosas_hasta_subir?: boolean;
+  prode_marcador_exacto_bonus?: boolean;
+};

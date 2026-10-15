@@ -211,8 +211,32 @@ CREATE TABLE IF NOT EXISTS public.juego_prode_pronosticos (
     corregido BOOLEAN DEFAULT FALSE,
     acerto BOOLEAN DEFAULT FALSE,
     puntos_sumados INTEGER DEFAULT 0,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
     CONSTRAINT uq_prode_usuario_partido UNIQUE (partido_id, usuario_id)
+);
+
+-- 13. TABLA: publicidades (Gestión de Publicidad por Superadmin)
+CREATE TABLE IF NOT EXISTS public.publicidades (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    titulo VARCHAR(150) NOT NULL,
+    texto TEXT NOT NULL,
+    imagen_url TEXT,
+    link_url TEXT,
+    ubicacion VARCHAR(30) NOT NULL CHECK (ubicacion IN ('foto_ganadora', 'prode', 'post_subida')),
+    activa BOOLEAN DEFAULT TRUE,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+);
+
+-- 14. TABLA: reglas_config (Ajuste de reglas por Superadmin / Admin)
+CREATE TABLE IF NOT EXISTS public.reglas_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    grupo_id UUID REFERENCES public.grupos(id) ON DELETE CASCADE,
+    solo_mostrar_si_todos_subieron BOOLEAN DEFAULT TRUE,
+    racha_activa BOOLEAN DEFAULT TRUE,
+    apurar_whatsapp_activo BOOLEAN DEFAULT TRUE,
+    nivel_ruleta_maximo VARCHAR(20) DEFAULT 'picante',
+    puntos_destello_ganador INTEGER DEFAULT 10,
+    puntos_participacion INTEGER DEFAULT 1,
+    actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
 );
 
 -- Índices de alto rendimiento para consultas móviles

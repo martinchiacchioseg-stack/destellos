@@ -224,3 +224,62 @@ Devolvé ÚNICAMENTE un JSON con:
     ganadorUsuarioId: seleccionado.usuario_id,
   };
 }
+
+/**
+ * 4. Modera preguntas de la Ruleta Rusa con Gemini
+ * Rechaza ofensivas, humillantes o que expongan datos sensibles, pidiendo reformularla
+ */
+export async function moderarPreguntaRuleta(
+  textoPregunta: string,
+  nivel: 'suave' | 'picante' | 'extra_picante'
+): Promise<{ aprobada: boolean; motivoRechazo?: string }> {
+  if (!textoPregunta || textoPregunta.trim().length < 5) {
+    return { aprobada: false, motivoRechazo: 'La pregunta es demasiado corta.' };
+  }
+
+  if (!ai) {
+    // Si no hay API key, validación básica por palabras ofensivas
+    const palabrasProhibidas = ['estúpido', 'idiota', 'odio', 'hdp'];
+    const esOfensiva = palabrasProhibidas.some((p) => textoPregunta.toLowerCase().includes(p));
+    return {
+      aprobada: !esOfensiva,
+      motivoRechazo: esOfensiva ? 'Contiene términos no apropiados para el grupo familiar.' : undefined,
+    };
+  }
+
+  try {
+    const prompt = `
+Sos el moderador de "Ruleta Rusa", un juego para familias y amigos en la app "Destellos".
+El nivel seleccionado es: "${nivel}".
+La pregunta enviada es: "${textoPregunta}".
+
+Reglas estrictas de moderación:
+- Se permite el humor, el doble sentido pícaro y la curiosidad divertida (especialmente en niveles picante y extra picante).
+- Se DEBEN RECHAZAR: preguntas humillantes, acoso, odio, insultos directos, o que expongan secretos íntimos / financieros dañinos.
+
+Devolvé ÚNICAMENTE un JSON con:
+{
+  "aprobada": true o false,
+  "motivo": "explicación simpática y respetuosa para pedirle al usuario que la reformule si es falsa, o vacío si es aprobada"
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    return {
+      aprobada: parsed.aprobada ?? true,
+      motivoRechazo: parsed.motivo || undefined,
+    };
+  } catch (err) {
+    console.error('Error moderando pregunta con Gemini:', err);
+    return { aprobada: true };
+  }
+}
+

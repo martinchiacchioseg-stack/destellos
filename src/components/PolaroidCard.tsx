@@ -9,6 +9,7 @@ interface PolaroidCardProps {
   destello: Destello;
   esPropia?: boolean;
   esAdmin?: boolean;
+  esDestelloDelDia?: boolean;
   onVerDetalle?: (destello: Destello) => void;
   onModerar?: (destelloId: string) => void;
   rotacion?: number; // ángulo sutil de inclinación estilo álbum
@@ -18,6 +19,7 @@ export default function PolaroidCard({
   destello,
   esPropia = false,
   esAdmin = false,
+  esDestelloDelDia = false,
   onVerDetalle,
   onModerar,
   rotacion = 0,
@@ -61,7 +63,7 @@ export default function PolaroidCard({
       <div className="washi-tape" />
 
       {/* Corona si fue el Destello del Día */}
-      {destello.es_destello_del_dia && (
+      {(esDestelloDelDia || destello.es_destello_del_dia) && (
         <div className="absolute -top-3 -right-2 z-20 bg-gradient-to-tr from-amber-400 to-yellow-300 text-amber-950 px-2.5 py-1 rounded-full text-[11px] font-black flex items-center gap-1 shadow-md animate-bounce">
           <Crown className="w-3.5 h-3.5 fill-amber-500" />
           <span>¡DESTELLO DEL DÍA!</span>

@@ -1,8 +1,7 @@
-'use client';
-
-import { useState, useRef } from 'react';
-import { X, Upload, Camera, Film, Sparkles, Check, AlertCircle } from 'lucide-react';
-import { TipoMedia } from '@/lib/types';
+import { useState, useRef, useEffect } from 'react';
+import { X, Upload, Camera, Film, Sparkles, Check, AlertCircle, ExternalLink, Tag } from 'lucide-react';
+import { TipoMedia, Publicidad } from '@/lib/types';
+import { dispararConfeti } from '@/components/ConfettiCelebration';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -25,9 +24,33 @@ export default function UploadModal({
   const [mensajeEstado, setMensajeEstado] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
+  // Estados para la publicidad de 5 segundos previa a la confirmación
+  const [mostrarAd, setMostrarAd] = useState(false);
+  const [segundosRestantes, setSegundosRestantes] = useState(5);
+  const [adPostSubida, setAdPostSubida] = useState<Publicidad | null>(null);
+  const [confirmado, setConfirmado] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!mostrarAd) return;
+    if (segundosRestantes > 0) {
+      const timer = setTimeout(() => {
+        setSegundosRestantes((prev) => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setConfirmado(true);
+      dispararConfeti();
+      const closeTimer = setTimeout(() => {
+        onUploadSuccess();
+        onClose();
+        setMostrarAd(false);
+        setConfirmado(false);
+      }, 1800);
+      return () => clearTimeout(closeTimer);
+    }
+  }, [mostrarAd, segundosRestantes, onClose, onUploadSuccess]);
 
   // Compresión de imagen en Canvas
   const comprimirImagen = (fileOriginal: File): Promise<{ mediaUrl: string; thumbnailUrl: string }> => {
@@ -143,7 +166,6 @@ export default function UploadModal({
         finalThumbnailUrl = optimizado.thumbnailUrl;
       } else {
         setMensajeEstado('Procesando video...');
-        // En video, leemos como dataURL o blob
         finalMediaUrl = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
@@ -173,17 +195,105 @@ export default function UploadModal({
         return;
       }
 
-      // Éxito
-      onUploadSuccess();
-      onClose();
+      // Traer la publicidad de post_subida para mostrar 5 segundos
+      try {
+        const socRes = await fetch('/api/destellos/social');
+        if (socRes.ok) {
+          const socData = await socRes.json();
+          if (socData.publicidadPost) {
+            setAdPostSubida(socData.publicidadPost);
+          }
+        }
+      } catch {}
+
+      // Iniciar cuenta regresiva de 5 segundos con publicidad
+      setProcesando(false);
+      setMostrarAd(true);
+      setSegundosRestantes(5);
     } catch (err) {
       console.error('Error subiendo destello:', err);
       setError('Ocurrió un error al subir el archivo. Reintentá.');
-    } finally {
       setProcesando(false);
       setMensajeEstado('');
     }
   };
+
+  // Si está activa la publicidad de 5 segundos
+  if (mostrarAd) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-[#201D24] w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-[var(--border-soft)] text-center space-y-4 animate-in zoom-in-95 duration-300">
+          {!confirmado ? (
+            <>
+              {/* Barra de progreso de 5 segundos */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <Tag className="w-3.5 h-3.5" /> Espacio Auspiciado
+                  </span>
+                  <span>Confirmando en {segundosRestantes}s...</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#FF7043] transition-all duration-1000 ease-linear"
+                    style={{ width: `${((5 - segundosRestantes) / 5) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Publicidad configurada por Superadmin */}
+              <div className="p-4 bg-orange-50/60 dark:bg-orange-950/20 rounded-2xl border border-orange-200/50 space-y-2.5 text-left">
+                {adPostSubida?.imagen_url && (
+                  <div className="relative aspect-video rounded-xl overflow-hidden bg-black/5 shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={adPostSubida.imagen_url}
+                      alt={adPostSubida.titulo}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-xs font-black text-gray-800 dark:text-gray-100">
+                    {adPostSubida?.titulo || 'Café & Dulces Los Abuelos ☕🥐'}
+                  </h4>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                    {adPostSubida?.texto || 'Disfrutá de las mejores meriendas en familia los fines de semana.'}
+                  </p>
+                </div>
+                {adPostSubida?.link_url && (
+                  <a
+                    href={adPostSubida.link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF7043] hover:underline pt-1"
+                  >
+                    <span>Conocé más</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Confirmado tras 5 segundos */
+            <div className="py-4 space-y-2 animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-md">
+                <Check className="w-8 h-8 animate-bounce" />
+              </div>
+              <h3 className="text-lg font-black text-gray-800 dark:text-gray-100">
+                ¡Destello Confirmado! ✨
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Sumaste +1 punto y tu foto ya participa por el Destello del Día.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">

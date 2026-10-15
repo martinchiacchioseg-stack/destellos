@@ -8,6 +8,16 @@ import {
   JuegoFotoPasado,
   JuegoFotoPasadoAdivinanza,
   JuegoVotoCruzado,
+  JuegoRuletaRusa,
+  JuegoRuletaPregunta,
+  NivelRuleta,
+  JuegoProdeFecha,
+  JuegoProdePartido,
+  JuegoProdePronostico,
+  ResultadoPronostico,
+  Publicidad,
+  UbicacionPublicidad,
+  ReglasConfig,
   PuntosEvento,
   RankingItem,
   RetoDiario,
@@ -36,6 +46,13 @@ interface StateStore {
   votosCruzados: JuegoVotoCruzado[];
   fotosPasado: JuegoFotoPasado[];
   fotosPasadoAdivinanzas: JuegoFotoPasadoAdivinanza[];
+  ruletaRondas: JuegoRuletaRusa[];
+  ruletaPreguntas: JuegoRuletaPregunta[];
+  prodeFechas: JuegoProdeFecha[];
+  prodePartidos: JuegoProdePartido[];
+  prodePronosticos: JuegoProdePronostico[];
+  publicidades: Publicidad[];
+  reglas: ReglasConfig[];
   initialized: boolean;
 }
 
@@ -55,6 +72,13 @@ function getStore(): StateStore {
       votosCruzados: [],
       fotosPasado: [],
       fotosPasadoAdivinanzas: [],
+      ruletaRondas: [],
+      ruletaPreguntas: [],
+      prodeFechas: [],
+      prodePartidos: [],
+      prodePronosticos: [],
+      publicidades: [],
+      reglas: [],
       initialized: false,
     };
   }
@@ -382,6 +406,174 @@ export async function ensureInitialized() {
   store.evaluaciones = [evaluacionAyer];
   store.puntos = puntos;
   store.fotosPasado = [fotoPasadoSemanal];
+
+  // 9. Ruleta Rusa inicial
+  const rondaRuletaInicial: JuegoRuletaRusa = {
+    id: 'ronda-ruleta-001',
+    grupo_id: defaultGroupId,
+    nivel_maximo: 'picante',
+    estado: 'ruleta',
+    cerrada: false,
+    creado_en: new Date().toISOString(),
+  };
+
+  const preguntasRuletaInicial: JuegoRuletaPregunta[] = [
+    {
+      id: 'preg-001',
+      ronda_id: 'ronda-ruleta-001',
+      autor_usuario_id: miembro1Id,
+      texto_pregunta: '¿Quién fue el último en romper algo en la casa y no dijo nada?',
+      nivel: 'suave',
+      aprobada_ia: true,
+      asignada_a_usuario_id: miembro2Id,
+      es_bala: false,
+      respondida: true,
+      respuesta_texto: '¡Fue papá con la jarra de vidrio en año nuevo, yo lo vi esconder los pedazos! 😂',
+      paso_utilizado: false,
+      reacciones_risa: 3,
+      reacciones_fuego: 1,
+      reacciones_amor: 2,
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: 'preg-002',
+      ronda_id: 'ronda-ruleta-001',
+      autor_usuario_id: miembro2Id,
+      texto_pregunta: '¿Cuál fue la peor anécdota o papelón cocinando algo para la familia?',
+      nivel: 'picante',
+      aprobada_ia: true,
+      asignada_a_usuario_id: adminId,
+      es_bala: true, // ¡Bala! Debe responder con foto o video
+      respondida: true,
+      respuesta_texto: '¡Salió la bala! Acá tienen la torta quemada que intenté rescatar con dulce de leche 🎂🔥',
+      respuesta_media_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&auto=format&fit=crop&q=80',
+      paso_utilizado: false,
+      reacciones_risa: 4,
+      reacciones_fuego: 3,
+      reacciones_amor: 1,
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: 'preg-003',
+      ronda_id: 'ronda-ruleta-001',
+      autor_usuario_id: adminId,
+      texto_pregunta: '¿Qué comida típica familiar secretamente no te gusta nada?',
+      nivel: 'suave',
+      aprobada_ia: true,
+      asignada_a_usuario_id: miembro3Id,
+      es_bala: false,
+      respondida: true,
+      respuesta_texto: 'Perdón a todos... ¡pero el pastel de papas con pasas de uva me parece un crimen! 🙈',
+      paso_utilizado: false,
+      reacciones_risa: 5,
+      reacciones_fuego: 0,
+      reacciones_amor: 3,
+      creado_en: new Date().toISOString(),
+    },
+  ];
+
+  // 10. Prode del Fin de Semana inicial
+  const fechaProdeInicial: JuegoProdeFecha = {
+    id: 'prode-fecha-001',
+    grupo_id: defaultGroupId,
+    torneo_nombre: 'Liga Profesional Argentina',
+    numero_fecha: 14,
+    fecha_inicio: new Date(Date.now() + 86400000).toISOString(),
+    fecha_fin: new Date(Date.now() + 3 * 86400000).toISOString(),
+    cerrada: false,
+    creado_en: new Date().toISOString(),
+  };
+
+  const partidosProdeInicial: JuegoProdePartido[] = [
+    {
+      id: 'partido-001',
+      fecha_prode_id: 'prode-fecha-001',
+      equipo_local: 'Boca Juniors',
+      escudo_local: 'https://upload.wikimedia.org/wikipedia/commons/4/41/CABJ-Sitio-Oficial.png',
+      equipo_visitante: 'River Plate',
+      escudo_visitante: 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Escudo_del_C_A_River_Plate.svg',
+      fecha_hora_partido: new Date(Date.now() + 24 * 3600000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: 'partido-002',
+      fecha_prode_id: 'prode-fecha-001',
+      equipo_local: 'Racing Club',
+      escudo_local: 'https://upload.wikimedia.org/wikipedia/commons/5/56/Escudo_de_Racing_Club_%282014%29.svg',
+      equipo_visitante: 'Independiente',
+      escudo_visitante: 'https://upload.wikimedia.org/wikipedia/commons/d/db/Escudo_del_Club_Atl%C3%A9tico_Independiente.svg',
+      fecha_hora_partido: new Date(Date.now() + 28 * 3600000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: 'partido-003',
+      fecha_prode_id: 'prode-fecha-001',
+      equipo_local: 'San Lorenzo',
+      escudo_local: 'https://upload.wikimedia.org/wikipedia/commons/7/77/Escudo_del_Club_Atl%C3%A9tico_San_Lorenzo_de_Almagro.svg',
+      equipo_visitante: 'Huracán',
+      escudo_visitante: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Escudo_del_Club_Atl%C3%A9tico_Hurac%C3%A1n.png',
+      fecha_hora_partido: new Date(Date.now() + 48 * 3600000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+  ];
+
+  store.ruletaRondas = [rondaRuletaInicial];
+  store.ruletaPreguntas = preguntasRuletaInicial;
+  store.prodeFechas = [fechaProdeInicial];
+  store.prodePartidos = partidosProdeInicial;
+  store.prodePronosticos = [];
+
+  // 11. Publicidades iniciales configuradas por Superadmin
+  store.publicidades = [
+    {
+      id: 'pub-001',
+      titulo: 'Café & Dulces Los Abuelos ☕🥐',
+      texto: 'Las mejores medialunas calientes y café para tus tardes en familia.',
+      imagen_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&auto=format&fit=crop&q=80',
+      link_url: 'https://cafemartinez.com',
+      ubicacion: 'post_subida',
+      activa: true,
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: 'pub-002',
+      titulo: 'Álbumes y Portarretratos Recuerdos Vivos 📸✨',
+      texto: 'Imprimí las fotos ganadoras del mes en un álbum de tapa dura de colección.',
+      imagen_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+      link_url: 'https://recuerdosvivos.ar',
+      ubicacion: 'foto_ganadora',
+      activa: true,
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: 'pub-003',
+      titulo: 'Pizzería La Redonda del Domingo 🍕⚽',
+      texto: 'Los partidos del finde se miran con 2x1 en empanadas y muzzarella.',
+      imagen_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80',
+      link_url: 'https://pizzerialaredonda.ar',
+      ubicacion: 'prode',
+      activa: true,
+      creado_en: new Date().toISOString(),
+    },
+  ];
+
+  // 12. Reglas del grupo
+  store.reglas = [
+    {
+      id: 'reglas-' + defaultGroupId,
+      grupo_id: defaultGroupId,
+      solo_mostrar_si_todos_subieron: true,
+      racha_activa: true,
+      apurar_whatsapp_activo: true,
+      nivel_ruleta_maximo: 'picante',
+      puntos_destello_ganador: 10,
+      puntos_participacion: 1,
+    },
+  ];
+
   store.initialized = true;
 
   // Si Supabase está configurado, intentamos sincronizar el Superadmin si no existe en la base de datos
@@ -1256,4 +1448,575 @@ export async function obtenerEvaluacionDia(grupoId: string, fecha: string): Prom
   await ensureInitialized();
   const store = getStore();
   return store.evaluaciones.find((e) => e.grupo_id === grupoId && e.fecha === fecha) || null;
+}
+
+export async function obtenerDestelloGanadorDia(grupoId: string, fecha: string): Promise<Destello | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const d = store.destellos.find((x) => x.grupo_id === grupoId && x.fecha === fecha && x.es_destello_del_dia && !x.moderado);
+  if (!d) return null;
+  const usuario = store.usuarios.find((u) => u.id === d.usuario_id);
+  return {
+    ...d,
+    usuario: usuario ? { id: usuario.id, email: usuario.email, nombre: usuario.nombre, apodo: usuario.apodo, avatar_url: usuario.avatar_url, rol: usuario.rol, grupo_id: usuario.grupo_id, debe_cambiar_password: usuario.debe_cambiar_password, activo: usuario.activo, creado_en: usuario.creado_en } : undefined,
+  };
+}
+
+// ==============================================================================
+// RACHAS FAMILIARES (Streaks 🔥) Y MURO DE LOS COLGADOS (Fantasmas 👻)
+// ==============================================================================
+
+export async function obtenerRachaUsuario(usuarioId: string, grupoId: string): Promise<number> {
+  await ensureInitialized();
+  const store = getStore();
+  const misDestellos = store.destellos
+    .filter((d) => d.grupo_id === grupoId && d.usuario_id === usuarioId && !d.moderado)
+    .map((d) => d.fecha)
+    .sort()
+    .reverse();
+
+  if (misDestellos.length === 0) return 0;
+
+  let racha = 0;
+  const hoyStr = getFechaArgentina();
+  let fechaEsperada = new Date();
+
+  // Si hoy aún no subió, revisamos si subió ayer para no romper la racha
+  const subioHoy = misDestellos.includes(hoyStr);
+  if (!subioHoy) {
+    fechaEsperada.setDate(fechaEsperada.getDate() - 1);
+  }
+
+  while (true) {
+    const fStr = getFechaArgentina(fechaEsperada);
+    if (misDestellos.includes(fStr)) {
+      racha++;
+      fechaEsperada.setDate(fechaEsperada.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return racha;
+}
+
+export async function obtenerColgadosAyer(grupoId: string): Promise<UsuarioPublico[]> {
+  await ensureInitialized();
+  const store = getStore();
+  const ayerStr = getAyerFechaArgentina();
+  const miembros = store.usuarios.filter((u) => u.grupo_id === grupoId && u.activo && u.rol === 'miembro');
+
+  const subieronAyer = new Set(
+    store.destellos.filter((d) => d.grupo_id === grupoId && d.fecha === ayerStr && !d.moderado).map((d) => d.usuario_id)
+  );
+
+  return miembros
+    .filter((m) => !subieronAyer.has(m.id))
+    .map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
+}
+
+export async function obtenerFaltantesHoy(grupoId: string, fecha: string): Promise<UsuarioPublico[]> {
+  await ensureInitialized();
+  const store = getStore();
+  const miembros = store.usuarios.filter((u) => u.grupo_id === grupoId && u.activo && u.rol === 'miembro');
+  const subieronHoy = new Set(
+    store.destellos.filter((d) => d.grupo_id === grupoId && d.fecha === fecha && !d.moderado).map((d) => d.usuario_id)
+  );
+
+  return miembros
+    .filter((m) => !subieronHoy.has(m.id))
+    .map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
+}
+
+export function generarEnlaceApurarWhatsApp(nombreDestinatario: string, telefono?: string): string {
+  const mensajes = [
+    `¡Che ${nombreDestinatario}! Dale que todavía no subiste tu foto del día a Destellos. ¡No nos dejes con la intriga que hoy gano yo! 📸✨`,
+    `¡Hola ${nombreDestinatario}! La familia está esperando tu destello de hoy. ¡Apurate antes de las 23:59 que te sacan puntos! ⏳✨`,
+    `¡Che dormilón/a ${nombreDestinatario}! Falta tu destello del día en Destellos. Entrá acá y subilo antes de que cierre: https://destellos.vercel.app 🚀`,
+    `¡${nombreDestinatario}! Todo el grupo ya subió su destello y faltás vos solo/a. ¡No nos dejes las fotos borrosas, subí la tuya ya! 😉📲`,
+  ];
+  const mensajeElegido = mensajes[Math.floor(Math.random() * mensajes.length)];
+  const encoded = encodeURIComponent(mensajeElegido);
+
+  if (telefono && telefono.replace(/\D/g, '').length >= 8) {
+    const cleanTel = telefono.replace(/\D/g, '');
+    return `https://wa.me/${cleanTel}?text=${encoded}`;
+  }
+  return `https://wa.me/?text=${encoded}`;
+}
+
+// ==============================================================================
+// PUBLICIDADES Y MONETIZACIÓN (Superadmin)
+// ==============================================================================
+
+export async function obtenerPublicidadPorUbicacion(ubicacion: UbicacionPublicidad): Promise<Publicidad | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const activas = store.publicidades.filter((p) => p.ubicacion === ubicacion && p.activa);
+  if (activas.length === 0) return null;
+  return activas[Math.floor(Math.random() * activas.length)];
+}
+
+export async function listarPublicidades(): Promise<Publicidad[]> {
+  await ensureInitialized();
+  const store = getStore();
+  return store.publicidades;
+}
+
+export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en'> & { id?: string }): Promise<Publicidad> {
+  await ensureInitialized();
+  const store = getStore();
+
+  if (data.id) {
+    const idx = store.publicidades.findIndex((p) => p.id === data.id);
+    if (idx !== -1) {
+      store.publicidades[idx] = {
+        ...store.publicidades[idx],
+        ...data,
+      };
+      return store.publicidades[idx];
+    }
+  }
+
+  const nuevaPub: Publicidad = {
+    id: uuidv4(),
+    ...data,
+    creado_en: new Date().toISOString(),
+  };
+  store.publicidades.push(nuevaPub);
+  return nuevaPub;
+}
+
+export async function eliminarPublicidad(id: string): Promise<boolean> {
+  await ensureInitialized();
+  const store = getStore();
+  const idx = store.publicidades.findIndex((p) => p.id === id);
+  if (idx !== -1) {
+    store.publicidades.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
+export async function obtenerReglasGrupo(grupoId: string): Promise<ReglasConfig> {
+  await ensureInitialized();
+  const store = getStore();
+  const r = store.reglas.find((x) => x.grupo_id === grupoId);
+  if (r) return r;
+  return {
+    id: 'reglas-def',
+    grupo_id: grupoId,
+    solo_mostrar_si_todos_subieron: true,
+    racha_activa: true,
+    apurar_whatsapp_activo: true,
+    nivel_ruleta_maximo: 'picante',
+    puntos_destello_ganador: 10,
+    puntos_participacion: 1,
+  };
+}
+
+export async function actualizarReglasGrupo(grupoId: string, data: Partial<ReglasConfig>): Promise<ReglasConfig> {
+  await ensureInitialized();
+  const store = getStore();
+  let r = store.reglas.find((x) => x.grupo_id === grupoId);
+  if (!r) {
+    r = {
+      id: uuidv4(),
+      grupo_id: grupoId,
+      solo_mostrar_si_todos_subieron: true,
+      racha_activa: true,
+      apurar_whatsapp_activo: true,
+      nivel_ruleta_maximo: 'picante',
+      puntos_destello_ganador: 10,
+      puntos_participacion: 1,
+      ...data,
+    };
+    store.reglas.push(r);
+  } else {
+    Object.assign(r, data);
+  }
+  return r;
+}
+
+// ==============================================================================
+// MINI-JUEGO: RULETA RUSA (Etapa 6)
+// ==============================================================================
+
+export async function obtenerRondaRuletaActiva(grupoId: string) {
+  await ensureInitialized();
+  const store = getStore();
+  let ronda = store.ruletaRondas.find((r) => r.grupo_id === grupoId && !r.cerrada);
+  if (!ronda) {
+    ronda = {
+      id: uuidv4(),
+      grupo_id: grupoId,
+      nivel_maximo: 'picante',
+      estado: 'preguntas',
+      cerrada: false,
+      creado_en: new Date().toISOString(),
+    };
+    store.ruletaRondas.push(ronda);
+  }
+
+  const preguntas = store.ruletaPreguntas
+    .filter((p) => p.ronda_id === ronda?.id)
+    .map((p) => {
+      const autor = store.usuarios.find((u) => u.id === p.autor_usuario_id);
+      const asignado = p.asignada_a_usuario_id ? store.usuarios.find((u) => u.id === p.asignada_a_usuario_id) : undefined;
+      return {
+        ...p,
+        autor: autor ? { id: autor.id, email: autor.email, nombre: autor.nombre, apodo: autor.apodo, avatar_url: autor.avatar_url, rol: autor.rol, grupo_id: autor.grupo_id, debe_cambiar_password: autor.debe_cambiar_password, activo: autor.activo, creado_en: autor.creado_en } : undefined,
+        asignado: asignado ? { id: asignado.id, email: asignado.email, nombre: asignado.nombre, apodo: asignado.apodo, avatar_url: asignado.avatar_url, rol: asignado.rol, grupo_id: asignado.grupo_id, debe_cambiar_password: asignado.debe_cambiar_password, activo: asignado.activo, creado_en: asignado.creado_en } : undefined,
+      };
+    });
+
+  return { ronda, preguntas };
+}
+
+export async function abrirRondaRuleta(grupoId: string, nivelMaximo: NivelRuleta = 'picante'): Promise<JuegoRuletaRusa> {
+  await ensureInitialized();
+  const store = getStore();
+  // Cerrar anteriores
+  store.ruletaRondas.forEach((r) => {
+    if (r.grupo_id === grupoId) r.cerrada = true;
+  });
+
+  const nueva: JuegoRuletaRusa = {
+    id: uuidv4(),
+    grupo_id: grupoId,
+    nivel_maximo: nivelMaximo,
+    estado: 'preguntas',
+    cerrada: false,
+    creado_en: new Date().toISOString(),
+  };
+  store.ruletaRondas.push(nueva);
+  return nueva;
+}
+
+export async function enviarPreguntaRuleta(
+  rondaId: string,
+  autorId: string,
+  texto: string,
+  nivel: NivelRuleta
+): Promise<JuegoRuletaPregunta> {
+  await ensureInitialized();
+  const store = getStore();
+
+  const nuevaPregunta: JuegoRuletaPregunta = {
+    id: uuidv4(),
+    ronda_id: rondaId,
+    autor_usuario_id: autorId,
+    texto_pregunta: texto.trim(),
+    nivel,
+    aprobada_ia: true,
+    es_bala: false,
+    respondida: false,
+    paso_utilizado: false,
+    reacciones_risa: 0,
+    reacciones_fuego: 0,
+    reacciones_amor: 0,
+    creado_en: new Date().toISOString(),
+  };
+
+  store.ruletaPreguntas.push(nuevaPregunta);
+  return nuevaPregunta;
+}
+
+export async function girarRuleta(rondaId: string): Promise<boolean> {
+  await ensureInitialized();
+  const store = getStore();
+  const ronda = store.ruletaRondas.find((r) => r.id === rondaId);
+  if (!ronda) return false;
+
+  const preguntas = store.ruletaPreguntas.filter((p) => p.ronda_id === rondaId);
+  const miembros = store.usuarios.filter((u) => u.grupo_id === ronda.grupo_id && u.activo && u.rol === 'miembro');
+
+  if (preguntas.length === 0 || miembros.length === 0) return false;
+
+  // Asignar al azar (nunca la propia)
+  const miembrosShuffled = [...miembros].sort(() => Math.random() - 0.5);
+
+  preguntas.forEach((p, idx) => {
+    // Buscar miembro distinto del autor
+    const candidato = miembrosShuffled.find((m) => m.id !== p.autor_usuario_id) || miembros[0];
+    p.asignada_a_usuario_id = candidato.id;
+  });
+
+  // Elegir 1 recámara como "bala"
+  const balaIdx = Math.floor(Math.random() * preguntas.length);
+  preguntas[balaIdx].es_bala = true;
+
+  ronda.estado = 'respuestas';
+  return true;
+}
+
+export async function responderPreguntaRuleta(
+  preguntaId: string,
+  usuarioId: string,
+  texto?: string,
+  mediaUrl?: string
+): Promise<{ ok: boolean; puntosSumados: number }> {
+  await ensureInitialized();
+  const store = getStore();
+  const p = store.ruletaPreguntas.find((x) => x.id === preguntaId);
+  if (!p) return { ok: false, puntosSumados: 0 };
+
+  p.respondida = true;
+  p.respuesta_texto = texto?.trim();
+  p.respuesta_media_url = mediaUrl;
+
+  const ronda = store.ruletaRondas.find((r) => r.id === p.ronda_id);
+  const grupoId = ronda?.grupo_id || 'grupo-familia-perez-001';
+
+  // +2 por responder
+  await otorgarPuntos(
+    grupoId,
+    usuarioId,
+    getFechaArgentina(),
+    'ruleta_rusa_responder',
+    getPuntosPorEvento('ruleta_rusa_responder'),
+    DESCRIPCIONES_PUNTOS.ruleta_rusa_responder,
+    p.id
+  );
+
+  return { ok: true, puntosSumados: 2 };
+}
+
+export async function pasarPreguntaRuleta(preguntaId: string, usuarioId: string): Promise<JuegoRuletaPregunta | null> {
+  await ensureInitialized();
+  const store = getStore();
+  const p = store.ruletaPreguntas.find((x) => x.id === preguntaId);
+  if (!p || p.paso_utilizado) return null;
+
+  p.paso_utilizado = true;
+
+  // Recibe otra pregunta de nivel mayor si existe
+  const otraPregunta = store.ruletaPreguntas.find(
+    (x) => x.ronda_id === p.ronda_id && x.id !== p.id && x.autor_usuario_id !== usuarioId && !x.respondida
+  );
+
+  if (otraPregunta) {
+    otraPregunta.asignada_a_usuario_id = usuarioId;
+    return otraPregunta;
+  }
+  return p;
+}
+
+export async function reaccionarPreguntaRuleta(preguntaId: string, tipo: 'risa' | 'fuego' | 'amor') {
+  await ensureInitialized();
+  const store = getStore();
+  const p = store.ruletaPreguntas.find((x) => x.id === preguntaId);
+  if (!p) return null;
+
+  if (tipo === 'risa') p.reacciones_risa = (p.reacciones_risa || 0) + 1;
+  if (tipo === 'fuego') p.reacciones_fuego = (p.reacciones_fuego || 0) + 1;
+  if (tipo === 'amor') p.reacciones_amor = (p.reacciones_amor || 0) + 1;
+
+  return {
+    risa: p.reacciones_risa,
+    fuego: p.reacciones_fuego,
+    amor: p.reacciones_amor,
+  };
+}
+
+// ==============================================================================
+// MINI-JUEGO: PRODE DEL FIN DE SEMANA (Etapa 7)
+// ==============================================================================
+
+export async function obtenerFechaProdeActiva(grupoId: string) {
+  await ensureInitialized();
+  const store = getStore();
+  let fecha = store.prodeFechas.find((f) => f.grupo_id === grupoId && !f.cerrada);
+  if (!fecha) {
+    fecha = {
+      id: uuidv4(),
+      grupo_id: grupoId,
+      torneo_nombre: 'Liga Profesional Argentina',
+      numero_fecha: 14,
+      fecha_inicio: new Date().toISOString(),
+      fecha_fin: new Date(Date.now() + 4 * 86400000).toISOString(),
+      cerrada: false,
+      creado_en: new Date().toISOString(),
+    };
+    store.prodeFechas.push(fecha);
+  }
+
+  const partidos = store.prodePartidos.filter((p) => p.fecha_prode_id === fecha?.id);
+  const pronosticos = store.prodePronosticos.filter((pr) => partidos.some((p) => p.id === pr.partido_id));
+
+  return { fecha, partidos, pronosticos };
+}
+
+export async function guardarPronosticoProde(
+  partidoId: string,
+  usuarioId: string,
+  pronostico: ResultadoPronostico,
+  golesLocal?: number,
+  golesVisitante?: number
+): Promise<JuegoProdePronostico> {
+  await ensureInitialized();
+  const store = getStore();
+
+  const existIdx = store.prodePronosticos.findIndex(
+    (p) => p.partido_id === partidoId && p.usuario_id === usuarioId
+  );
+
+  if (existIdx !== -1) {
+    store.prodePronosticos[existIdx].pronostico = pronostico;
+    store.prodePronosticos[existIdx].goles_local_pronostico = golesLocal;
+    store.prodePronosticos[existIdx].goles_visitante_pronostico = golesVisitante;
+    return store.prodePronosticos[existIdx];
+  }
+
+  const nuevo: JuegoProdePronostico = {
+    id: uuidv4(),
+    partido_id: partidoId,
+    usuario_id: usuarioId,
+    pronostico,
+    goles_local_pronostico: golesLocal,
+    goles_visitante_pronostico: golesVisitante,
+    corregido: false,
+    acerto: false,
+    puntos_sumados: 0,
+    creado_en: new Date().toISOString(),
+  };
+
+  store.prodePronosticos.push(nuevo);
+  return nuevo;
+}
+
+export async function corregirPartidosProde(
+  fechaProdeId: string,
+  resultadosManuales?: Array<{ partidoId: string; golesLocal: number; golesVisitante: number }>
+) {
+  await ensureInitialized();
+  const store = getStore();
+  const fecha = store.prodeFechas.find((f) => f.id === fechaProdeId);
+  if (!fecha) return null;
+
+  const partidos = store.prodePartidos.filter((p) => p.fecha_prode_id === fechaProdeId);
+
+  for (const part of partidos) {
+    if (resultadosManuales) {
+      const manual = resultadosManuales.find((m) => m.partidoId === part.id);
+      if (manual) {
+        part.goles_local = manual.golesLocal;
+        part.goles_visitante = manual.golesVisitante;
+        part.estado_partido = 'finalizado';
+        part.resultado_final =
+          manual.golesLocal > manual.golesVisitante ? 'L' : manual.golesLocal === manual.golesVisitante ? 'E' : 'V';
+      }
+    } else {
+      // Simulación de cierre si no hay manual
+      if (part.goles_local === undefined || part.goles_local === null) {
+        part.goles_local = Math.floor(Math.random() * 3);
+        part.goles_visitante = Math.floor(Math.random() * 3);
+        part.estado_partido = 'finalizado';
+        part.resultado_final =
+          part.goles_local > part.goles_visitante ? 'L' : part.goles_local === part.goles_visitante ? 'E' : 'V';
+      }
+    }
+
+    // Corregir pronósticos para este partido
+    const pronosticos = store.prodePronosticos.filter((pr) => pr.partido_id === part.id && !pr.corregido);
+    for (const pr of pronosticos) {
+      pr.corregido = true;
+      if (pr.pronostico === part.resultado_final) {
+        pr.acerto = true;
+        let pts = getPuntosPorEvento('prode_acierto'); // +3
+        if (
+          pr.goles_local_pronostico === part.goles_local &&
+          pr.goles_visitante_pronostico === part.goles_visitante
+        ) {
+          pts += getPuntosPorEvento('prode_marcador_exacto'); // +1 extra
+        }
+        pr.puntos_sumados = pts;
+
+        await otorgarPuntos(
+          fecha.grupo_id,
+          pr.usuario_id,
+          getFechaArgentina(),
+          'prode_acierto',
+          pts,
+          `⚽ ¡Acierto en ${part.equipo_local} vs ${part.equipo_visitante}!`,
+          part.id
+        );
+      }
+    }
+  }
+
+  fecha.cerrada = true;
+  return { partidos, cerrada: true };
+}
+
+export async function sincronizarPartidosProde(grupoId: string) {
+  await ensureInitialized();
+  const store = getStore();
+  const equiposArg = [
+    { nombre: 'Boca Juniors', escudo: 'https://upload.wikimedia.org/wikipedia/commons/4/41/CABJ-Sitio-Oficial.png' },
+    { nombre: 'River Plate', escudo: 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Escudo_del_C_A_River_Plate.svg' },
+    { nombre: 'Racing Club', escudo: 'https://upload.wikimedia.org/wikipedia/commons/5/56/Escudo_de_Racing_Club_%282014%29.svg' },
+    { nombre: 'Independiente', escudo: 'https://upload.wikimedia.org/wikipedia/commons/d/db/Escudo_del_Club_Atl%C3%A9tico_Independiente.svg' },
+    { nombre: 'San Lorenzo', escudo: 'https://upload.wikimedia.org/wikipedia/commons/7/77/Escudo_del_Club_Atl%C3%A9tico_San_Lorenzo_de_Almagro.svg' },
+    { nombre: 'Huracán', escudo: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Escudo_del_Club_Atl%C3%A9tico_Hurac%C3%A1n.png' },
+    { nombre: 'Rosario Central', escudo: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Escudo_del_Club_Atl%C3%A9tico_Rosario_Central.svg' },
+    { nombre: 'Newell\'s Old Boys', escudo: 'https://upload.wikimedia.org/wikipedia/commons/8/87/Escudo_de_Newell%27s_Old_Boys.svg' },
+    { nombre: 'Estudiantes LP', escudo: 'https://upload.wikimedia.org/wikipedia/commons/9/90/Escudo_de_Estudiantes_de_La_Plata.svg' },
+    { nombre: 'Gimnasia LP', escudo: 'https://upload.wikimedia.org/wikipedia/commons/0/07/Escudo_del_Club_de_Gimnasia_y_Esgrima_La_Plata.svg' },
+    { nombre: 'Talleres de Córdoba', escudo: 'https://upload.wikimedia.org/wikipedia/commons/b/b2/Escudo_del_Club_Atl%C3%A9tico_Talleres_%28C%C3%B3rdoba%29.svg' },
+    { nombre: 'Belgrano de Córdoba', escudo: 'https://upload.wikimedia.org/wikipedia/commons/f/fc/Escudo_del_Club_Atl%C3%A9tico_Belgrano.svg' },
+  ];
+
+  const { fecha } = await obtenerFechaProdeActiva(grupoId);
+
+  // Crear 4 partidos frescos para el fin de semana
+  const nuevosPartidos: JuegoProdePartido[] = [
+    {
+      id: uuidv4(),
+      fecha_prode_id: fecha.id,
+      equipo_local: equiposArg[0].nombre,
+      escudo_local: equiposArg[0].escudo,
+      equipo_visitante: equiposArg[1].nombre,
+      escudo_visitante: equiposArg[1].escudo,
+      fecha_hora_partido: new Date(Date.now() + 2 * 86400000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(),
+      fecha_prode_id: fecha.id,
+      equipo_local: equiposArg[2].nombre,
+      escudo_local: equiposArg[2].escudo,
+      equipo_visitante: equiposArg[3].nombre,
+      escudo_visitante: equiposArg[3].escudo,
+      fecha_hora_partido: new Date(Date.now() + 2 * 86400000 + 4 * 3600000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(),
+      fecha_prode_id: fecha.id,
+      equipo_local: equiposArg[4].nombre,
+      escudo_local: equiposArg[4].escudo,
+      equipo_visitante: equiposArg[5].nombre,
+      escudo_visitante: equiposArg[5].escudo,
+      fecha_hora_partido: new Date(Date.now() + 3 * 86400000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(),
+      fecha_prode_id: fecha.id,
+      equipo_local: equiposArg[6].nombre,
+      escudo_local: equiposArg[6].escudo,
+      equipo_visitante: equiposArg[7].nombre,
+      escudo_visitante: equiposArg[7].escudo,
+      fecha_hora_partido: new Date(Date.now() + 3 * 86400000 + 4 * 3600000).toISOString(),
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    },
+  ];
+
+  store.prodePartidos = nuevosPartidos;
+  return { ok: true, partidosSincronizados: nuevosPartidos.length };
 }
