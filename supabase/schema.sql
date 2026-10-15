@@ -145,6 +145,76 @@ CREATE TABLE IF NOT EXISTS public.juego_foto_pasado_adivinanzas (
     CONSTRAINT uq_adivinanza_foto_usuario UNIQUE (foto_pasado_id, usuario_id)
 );
 
+-- 11. TABLA: juego_ruleta_rusa (Mini-juego: Ruleta Rusa)
+CREATE TABLE IF NOT EXISTS public.juego_ruleta_rusa (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
+    nivel_maximo VARCHAR(20) DEFAULT 'picante' CHECK (nivel_maximo IN ('suave', 'picante', 'extra_picante')),
+    estado VARCHAR(20) DEFAULT 'preguntas' CHECK (estado IN ('preguntas', 'ruleta', 'respuestas', 'finalizada')),
+    cerrada BOOLEAN DEFAULT FALSE,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+);
+
+CREATE TABLE IF NOT EXISTS public.juego_ruleta_preguntas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ronda_id UUID NOT NULL REFERENCES public.juego_ruleta_rusa(id) ON DELETE CASCADE,
+    autor_usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    texto_pregunta TEXT NOT NULL,
+    nivel VARCHAR(20) NOT NULL CHECK (nivel IN ('suave', 'picante', 'extra_picante')),
+    aprobada_ia BOOLEAN DEFAULT TRUE,
+    asignada_a_usuario_id UUID REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    es_bala BOOLEAN DEFAULT FALSE, -- Si es bala, debe responder con foto o video
+    respuesta_texto TEXT,
+    respuesta_media_url TEXT,
+    respondida BOOLEAN DEFAULT FALSE,
+    paso_utilizado BOOLEAN DEFAULT FALSE,
+    reacciones_risa INTEGER DEFAULT 0,
+    reacciones_fuego INTEGER DEFAULT 0,
+    reacciones_amor INTEGER DEFAULT 0,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+);
+
+-- 12. TABLA: juego_prode_fechas (Mini-juego: Prode del Fin de Semana)
+CREATE TABLE IF NOT EXISTS public.juego_prode_fechas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
+    torneo_nombre VARCHAR(120) NOT NULL DEFAULT 'Liga Profesional Argentina',
+    numero_fecha INTEGER NOT NULL,
+    fecha_inicio TIMESTAMP WITH TIME ZONE NOT NULL,
+    fecha_fin TIMESTAMP WITH TIME ZONE NOT NULL,
+    cerrada BOOLEAN DEFAULT FALSE,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+);
+
+CREATE TABLE IF NOT EXISTS public.juego_prode_partidos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    fecha_prode_id UUID NOT NULL REFERENCES public.juego_prode_fechas(id) ON DELETE CASCADE,
+    equipo_local VARCHAR(100) NOT NULL,
+    escudo_local TEXT,
+    equipo_visitante VARCHAR(100) NOT NULL,
+    escudo_visitante TEXT,
+    fecha_hora_partido TIMESTAMP WITH TIME ZONE NOT NULL,
+    goles_local INTEGER,
+    goles_visitante INTEGER,
+    estado_partido VARCHAR(20) DEFAULT 'programado' CHECK (estado_partido IN ('programado', 'en_vivo', 'finalizado', 'suspendido')),
+    resultado_final VARCHAR(5) CHECK (resultado_final IN ('L', 'E', 'V', NULL)),
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+);
+
+CREATE TABLE IF NOT EXISTS public.juego_prode_pronosticos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    partido_id UUID NOT NULL REFERENCES public.juego_prode_partidos(id) ON DELETE CASCADE,
+    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    pronostico VARCHAR(5) NOT NULL CHECK (pronostico IN ('L', 'E', 'V')),
+    goles_local_pronostico INTEGER,
+    goles_visitante_pronostico INTEGER,
+    corregido BOOLEAN DEFAULT FALSE,
+    acerto BOOLEAN DEFAULT FALSE,
+    puntos_sumados INTEGER DEFAULT 0,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
+    CONSTRAINT uq_prode_usuario_partido UNIQUE (partido_id, usuario_id)
+);
+
 -- Índices de alto rendimiento para consultas móviles
 CREATE INDEX IF NOT EXISTS idx_destellos_grupo_fecha ON public.destellos(grupo_id, fecha);
 CREATE INDEX IF NOT EXISTS idx_destellos_usuario ON public.destellos(usuario_id);
@@ -153,7 +223,7 @@ CREATE INDEX IF NOT EXISTS idx_puntos_fecha ON public.puntos_eventos(fecha);
 CREATE INDEX IF NOT EXISTS idx_retos_grupo_fecha ON public.retos_diarios(grupo_id, fecha);
 CREATE INDEX IF NOT EXISTS idx_evaluaciones_grupo_fecha ON public.evaluaciones_diarias(grupo_id, fecha);
 
--- Habilitar RLS (Row Level Security) si se requiere
+-- Habilitar RLS (Row Level Security)
 ALTER TABLE public.grupos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.destellos ENABLE ROW LEVEL SECURITY;

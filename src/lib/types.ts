@@ -79,7 +79,12 @@ export type TipoEventoPuntos =
   | 'adivina_quien_acierto'       // +1 por cada acierto
   | 'foto_pasado_acierto_exacto'  // +3
   | 'foto_pasado_acierto_cercano' // +1 (+- 2 años)
-  | 'foto_pasado_anfitrion';      // +1 por cada miembro que participó
+  | 'foto_pasado_anfitrion'       // +1 por cada miembro que participó
+  | 'ruleta_rusa_responder'       // +2 por responder
+  | 'ruleta_rusa_mas_reaccionada' // +3 respuesta más reaccionada
+  | 'ruleta_rusa_pregunta_top'    // +1 autor de la pregunta más reaccionada
+  | 'prode_acierto'               // +3 por acertar resultado L/E/V
+  | 'prode_marcador_exacto';      // +1 extra por marcador exacto
 
 export interface PuntosEvento {
   id: string;
@@ -158,4 +163,87 @@ export interface SesionUsuario {
   rol: Rol;
   grupo_id?: string | null;
   debe_cambiar_password: boolean;
+}
+
+// ==============================================================================
+// TIPOS PARA RULETA RUSA (Etapa 6)
+// ==============================================================================
+
+export type NivelRuleta = 'suave' | 'picante' | 'extra_picante';
+export type EstadoRuleta = 'preguntas' | 'ruleta' | 'respuestas' | 'finalizada';
+
+export interface JuegoRuletaRusa {
+  id: string;
+  grupo_id: string;
+  nivel_maximo: NivelRuleta;
+  estado: EstadoRuleta;
+  cerrada: boolean;
+  creado_en: string;
+}
+
+export interface JuegoRuletaPregunta {
+  id: string;
+  ronda_id: string;
+  autor_usuario_id: string;
+  texto_pregunta: string;
+  nivel: NivelRuleta;
+  aprobada_ia: boolean;
+  asignada_a_usuario_id?: string | null;
+  es_bala: boolean;
+  respuesta_texto?: string;
+  respuesta_media_url?: string;
+  respondida: boolean;
+  paso_utilizado: boolean;
+  reacciones_risa: number;
+  reacciones_fuego: number;
+  reacciones_amor: number;
+  creado_en: string;
+  autor?: UsuarioPublico;
+  asignado?: UsuarioPublico;
+}
+
+// ==============================================================================
+// TIPOS PARA PRODE DEL FIN DE SEMANA (Etapa 7)
+// ==============================================================================
+
+export type EstadoPartido = 'programado' | 'en_vivo' | 'finalizado' | 'suspendido';
+export type ResultadoPronostico = 'L' | 'E' | 'V';
+
+export interface JuegoProdeFecha {
+  id: string;
+  grupo_id: string;
+  torneo_nombre: string;
+  numero_fecha: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+  cerrada: boolean;
+  creado_en: string;
+}
+
+export interface JuegoProdePartido {
+  id: string;
+  fecha_prode_id: string;
+  equipo_local: string;
+  escudo_local?: string;
+  equipo_visitante: string;
+  escudo_visitante?: string;
+  fecha_hora_partido: string;
+  goles_local?: number | null;
+  goles_visitante?: number | null;
+  estado_partido: EstadoPartido;
+  resultado_final?: ResultadoPronostico | null;
+  creado_en: string;
+}
+
+export interface JuegoProdePronostico {
+  id: string;
+  partido_id: string;
+  usuario_id: string;
+  pronostico: ResultadoPronostico;
+  goles_local_pronostico?: number | null;
+  goles_visitante_pronostico?: number | null;
+  corregido: boolean;
+  acerto: boolean;
+  puntos_sumados: number;
+  creado_en: string;
 }
