@@ -158,7 +158,7 @@ export async function ensureInitialized() {
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       rol: 'superadmin',
       grupo_id: defaultGroupId,
-      debe_cambiar_password: true, // Superadmin en su primer ingreso DEBE cambiar contraseña
+      debe_cambiar_password: false,
       intentos_fallidos: 0,
       activo: true,
       creado_en: new Date().toISOString(),
