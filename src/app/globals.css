@@ -1,26 +1,85 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg-page: #FAF6F0;
+    --bg-card: #FFFFFF;
+    --text-main: #2D2727;
+    --text-muted: #7E7474;
+    --primary: #FF7043;
+    --primary-hover: #F4511E;
+    --accent: #FFA726;
+    --accent-soft: #FFF3E0;
+    --border-soft: #EFE7DE;
+  }
+
+  .dark {
+    --bg-page: #151318;
+    --bg-card: #201D24;
+    --text-main: #F5F1EB;
+    --text-muted: #A39BA8;
+    --primary: #FF7043;
+    --primary-hover: #FF8A65;
+    --accent: #FFB74D;
+    --accent-soft: #2D2420;
+    --border-soft: #2F2A36;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-nunito), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Sombras suaves y cálidas para tarjetas familiares */
+.shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(230, 120, 80, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-card {
+  box-shadow: 0 8px 30px rgba(70, 40, 20, 0.06);
+}
+
+.shadow-glow {
+  box-shadow: 0 0 25px rgba(255, 112, 67, 0.35);
+}
+
+/* Efecto de marco fotográfico / Polaroid */
+.polaroid-frame {
+  background: #FFFFFF;
+  padding: 12px 12px 18px 12px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark .polaroid-frame {
+  background: #201D24;
+  border: 1px solid #332E3A;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Cinta adhesiva decorativa para fotos */
+.washi-tape {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1.5deg);
+  width: 90px;
+  height: 22px;
+  background: rgba(255, 230, 200, 0.75);
+  backdrop-filter: blur(2px);
+  border-left: 2px dashed rgba(220, 160, 120, 0.5);
+  border-right: 2px dashed rgba(220, 160, 120, 0.5);
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* Safe area padding para móviles con notch y barra de navegación */
+.safe-bottom {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
 }
