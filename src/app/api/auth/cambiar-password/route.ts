@@ -65,10 +65,20 @@ export async function POST(req: NextRequest) {
     });
     await setSessionCookie(nuevoToken);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       mensaje: '¡Contraseña actualizada con éxito! Ahora podés disfrutar de Destellos ✨',
     });
+
+    response.cookies.set('destellos_session', nuevoToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Error en /api/auth/cambiar-password:', error);
     return NextResponse.json(

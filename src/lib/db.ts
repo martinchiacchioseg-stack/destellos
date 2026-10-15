@@ -538,38 +538,13 @@ export async function ensureInitialized() {
 export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | null> {
   await ensureInitialized();
   const cleanEmail = email.toLowerCase().trim();
-
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      const { data, error } = await supabaseAdmin
-        .from('usuarios')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-      if (!error && data) return data as Usuario;
-    } catch {}
-  }
-
-  const store = sincronizarConDiscoSiCambio();
-  const u = store.usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail);
-  return u || null;
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  return usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail) || null;
 }
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
   await ensureInitialized();
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      const { data, error } = await supabaseAdmin
-        .from('usuarios')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-      if (!error && data) return data as Usuario;
-    } catch {}
-  }
-
-  const store = sincronizarConDiscoSiCambio();
-  return store.usuarios.find((x) => x.id === id) || null;
+  return dbGet<Usuario>('usuarios', id);
 }
 
 export async function crearUsuario(data: {
@@ -599,121 +574,85 @@ export async function crearUsuario(data: {
     creado_en: new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      await supabaseAdmin.from('usuarios').insert(nuevoUsuario);
-    } catch (e) {
-      console.error('Error insertando usuario en Supabase:', e);
-    }
-  }
-
-  const store = sincronizarConDiscoSiCambio();
-  store.usuarios.push(nuevoUsuario);
   dbUpsert('usuarios', nuevoUsuario);
+  const store = getStore();
+  store.usuarios = dbGetAll<Usuario>('usuarios');
   return nuevoUsuario;
 }
 
 export async function actualizarPassword(usuarioId: string, nuevoPasswordPlano: string): Promise<boolean> {
   await ensureInitialized();
+  const u = dbGet<Usuario>('usuarios', usuarioId);
+  if (!u) return false;
+
   const hash = await hashPassword(nuevoPasswordPlano);
+  u.password_hash = hash;
+  u.debe_cambiar_password = false;
+  u.intentos_fallidos = 0;
+  u.bloqueado_hasta = null;
 
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      await supabaseAdmin
-        .from('usuarios')
-        .update({
-          password_hash: hash,
-          debe_cambiar_password: false,
-          intentos_fallidos: 0,
-          bloqueado_hasta: null,
-        })
-        .eq('id', usuarioId);
-    } catch (e) {
-      console.error('Error actualizando password en Supabase:', e);
-    }
-  }
-
+  dbUpsert('usuarios', u);
   const store = getStore();
-  const u = store.usuarios.find((x) => x.id === usuarioId);
-  if (u) {
-    u.password_hash = hash;
-    u.debe_cambiar_password = false;
-    u.intentos_fallidos = 0;
-    u.bloqueado_hasta = null;
-    persistirStore(store);
-    return true;
-  }
-  return false;
+  store.usuarios = dbGetAll<Usuario>('usuarios');
+  return true;
 }
 
 export async function resetearPassword(usuarioId: string, nuevaPassTemporal: string): Promise<boolean> {
   await ensureInitialized();
+  const u = dbGet<Usuario>('usuarios', usuarioId);
+  if (!u) return false;
+
   const hash = await hashPassword(nuevaPassTemporal);
+  u.password_hash = hash;
+  u.debe_cambiar_password = true; // Se vuelve a exigir el cambio obligatorio
+  u.intentos_fallidos = 0;
+  u.bloqueado_hasta = null;
 
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      await supabaseAdmin
-        .from('usuarios')
-        .update({
-          password_hash: hash,
-          debe_cambiar_password: true, // Se vuelve a exigir el cambio obligatorio
-          intentos_fallidos: 0,
-          bloqueado_hasta: null,
-        })
-        .eq('id', usuarioId);
-    } catch (e) {
-      console.error('Error reseteando password en Supabase:', e);
-    }
-  }
-
+  dbUpsert('usuarios', u);
   const store = getStore();
-  const u = store.usuarios.find((x) => x.id === usuarioId);
-  if (u) {
-    u.password_hash = hash;
-    u.debe_cambiar_password = true;
-    u.intentos_fallidos = 0;
-    u.bloqueado_hasta = null;
-    persistirStore(store);
-    return true;
-  }
-  return false;
+  store.usuarios = dbGetAll<Usuario>('usuarios');
+  return true;
 }
 
 export async function registrarIntentoFallido(email: string): Promise<number> {
   await ensureInitialized();
-  const store = getStore();
-  const u = store.usuarios.find((x) => x.email.toLowerCase().trim() === email.toLowerCase().trim());
+  const cleanEmail = email.toLowerCase().trim();
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  const u = usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail);
   if (!u) return 0;
   u.intentos_fallidos = (u.intentos_fallidos || 0) + 1;
   if (u.intentos_fallidos >= 5) {
     // Bloquear por 15 minutos
     u.bloqueado_hasta = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }
+  dbUpsert('usuarios', u);
   return u.intentos_fallidos;
 }
 
 export async function resetearIntentosFallidos(email: string): Promise<void> {
   await ensureInitialized();
-  const store = getStore();
-  const u = store.usuarios.find((x) => x.email.toLowerCase().trim() === email.toLowerCase().trim());
+  const cleanEmail = email.toLowerCase().trim();
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  const u = usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail);
   if (u) {
     u.intentos_fallidos = 0;
     u.bloqueado_hasta = null;
+    dbUpsert('usuarios', u);
   }
 }
 
 export async function listarUsuariosGrupo(grupoId: string): Promise<UsuarioPublico[]> {
   await ensureInitialized();
-  const store = sincronizarConDiscoSiCambio();
-  return store.usuarios
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  return usuarios
     .filter((u) => u.grupo_id === grupoId && u.activo)
     .map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
 }
 
 export async function listarTodosLosUsuarios(): Promise<UsuarioPublico[]> {
   await ensureInitialized();
-  const store = sincronizarConDiscoSiCambio();
-  return store.usuarios.map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  return usuarios.map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
 }
 
 export async function actualizarUsuario(
@@ -732,8 +671,7 @@ export async function actualizarUsuario(
   }
 ): Promise<UsuarioPublico | null> {
   await ensureInitialized();
-  const store = sincronizarConDiscoSiCambio();
-  const u = store.usuarios.find((x) => x.id === usuarioId);
+  const u = dbGet<Usuario>('usuarios', usuarioId);
   if (!u) return null;
 
   if (data.nombre) u.nombre = data.nombre.trim();
@@ -760,8 +698,9 @@ export async function actualizarUsuario(
     u.bloqueado_hasta = null;
   }
 
-  persistirStore(store);
   dbUpsert('usuarios', u);
+  const store = getStore();
+  store.usuarios = dbGetAll<Usuario>('usuarios');
   const { password_hash, intentos_fallidos, bloqueado_hasta, ...safe } = u;
   return safe as UsuarioPublico;
 }
@@ -769,11 +708,8 @@ export async function actualizarUsuario(
 export async function eliminarUsuarioPermanente(usuarioId: string): Promise<boolean> {
   await ensureInitialized();
   dbDelete('usuarios', usuarioId);
-  const store = sincronizarConDiscoSiCambio();
-  const idx = store.usuarios.findIndex((u) => u.id === usuarioId);
-  if (idx !== -1) {
-    store.usuarios.splice(idx, 1);
-  }
+  const store = getStore();
+  store.usuarios = dbGetAll<Usuario>('usuarios');
   store.destellos = store.destellos.filter((d) => d.usuario_id !== usuarioId);
   return true;
 }
@@ -784,14 +720,13 @@ export async function eliminarUsuarioPermanente(usuarioId: string): Promise<bool
 
 export async function listarGrupos(): Promise<Grupo[]> {
   await ensureInitialized();
-  const store = getStore();
-  return store.grupos.filter((g) => g.activo);
+  const grupos = dbGetAll<Grupo>('grupos');
+  return grupos.filter((g) => g.activo);
 }
 
 export async function buscarGrupoPorId(grupoId: string): Promise<Grupo | null> {
   await ensureInitialized();
-  const store = getStore();
-  return store.grupos.find((g) => g.id === grupoId) || null;
+  return dbGet<Grupo>('grupos', grupoId);
 }
 
 export async function crearGrupo(nombre: string, descripcion?: string): Promise<Grupo> {
@@ -805,30 +740,21 @@ export async function crearGrupo(nombre: string, descripcion?: string): Promise<
     creado_en: new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured && supabaseAdmin) {
-    try {
-      await supabaseAdmin.from('grupos').insert(nuevoGrupo);
-    } catch (e) {
-      console.error('Error insertando grupo en Supabase:', e);
-    }
-  }
-
-  const store = getStore();
-  store.grupos.push(nuevoGrupo);
   dbUpsert('grupos', nuevoGrupo);
+  const store = getStore();
+  store.grupos = dbGetAll<Grupo>('grupos');
   return nuevoGrupo;
 }
 
 export async function eliminarGrupo(grupoId: string): Promise<boolean> {
   await ensureInitialized();
+  const g = dbGet<Grupo>('grupos', grupoId);
+  if (!g) return false;
+  g.activo = false;
+  dbUpsert('grupos', g);
   const store = getStore();
-  const idx = store.grupos.findIndex((g) => g.id === grupoId);
-  if (idx !== -1) {
-    store.grupos[idx].activo = false;
-    dbUpsert('grupos', store.grupos[idx]);
-    return true;
-  }
-  return false;
+  store.grupos = dbGetAll<Grupo>('grupos');
+  return true;
 }
 
 export async function actualizarGrupo(
@@ -836,32 +762,31 @@ export async function actualizarGrupo(
   data: { nombre?: string; descripcion?: string }
 ): Promise<Grupo | null> {
   await ensureInitialized();
-  const store = getStore();
-  const g = store.grupos.find((x) => x.id === grupoId);
+  const g = dbGet<Grupo>('grupos', grupoId);
   if (!g) return null;
 
   if (data.nombre) g.nombre = data.nombre.trim();
   if (data.descripcion !== undefined) g.descripcion = data.descripcion.trim();
 
   dbUpsert('grupos', g);
+  const store = getStore();
+  store.grupos = dbGetAll<Grupo>('grupos');
   return g;
 }
 
 export async function eliminarGrupoPermanente(grupoId: string): Promise<boolean> {
   await ensureInitialized();
   dbDelete('grupos', grupoId);
-  const store = getStore();
-  const idx = store.grupos.findIndex((g) => g.id === grupoId);
-  if (idx === -1) return false;
-
-  store.grupos.splice(idx, 1);
-  // Reasignar usuarios o desactivarlos si no tienen grupo
-  store.usuarios.forEach((u) => {
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  for (const u of usuarios) {
     if (u.grupo_id === grupoId && u.rol !== 'superadmin') {
       u.activo = false;
       dbUpsert('usuarios', u);
     }
-  });
+  }
+  const store = getStore();
+  store.grupos = dbGetAll<Grupo>('grupos');
+  store.usuarios = dbGetAll<Usuario>('usuarios');
   return true;
 }
 

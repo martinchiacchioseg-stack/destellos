@@ -798,6 +798,26 @@ export default function SuperadminPage() {
               )}
 
               <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+                {grupos.length === 0 && !mostrarModalGrupo && (
+                  <div className="py-8 text-center border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-2xl bg-purple-50/50 dark:bg-purple-950/20">
+                    <Layers className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                    <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs mb-1">
+                      No hay familias ni grupos creados
+                    </h4>
+                    <p className="text-[11px] text-gray-500 max-w-xs mx-auto mb-3">
+                      Creá tu primera familia para empezar a dar de alta a los integrantes.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarModalGrupo(true)}
+                      className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      <span>+ Crear Familia o Grupo Ahora</span>
+                    </button>
+                  </div>
+                )}
+
                 {grupos.map((g) => (
                   <div key={g.id} className="py-2.5 flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -838,35 +858,59 @@ export default function SuperadminPage() {
         {/* ------------------------------------------------------------- */}
         {tabActivo === 'usuarios' && (
           <div className="bg-white dark:bg-[#201D24] p-4 rounded-3xl border border-[var(--border-soft)] shadow-soft space-y-4">
-            <div className="space-y-1">
-              <label className="text-[11px] font-black uppercase text-gray-400">
-                Seleccionar Familia / Grupo:
-              </label>
-              <select
-                value={grupoSeleccionadoId}
-                onChange={(e) => handleCambiarGrupoSeleccionado(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1E1B22] text-xs font-bold"
-              >
-                {grupos.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.nombre} ({g.total_miembros || 0} miembros)
-                  </option>
-                ))}
-              </select>
-            </div>
+            {grupos.length === 0 ? (
+              <div className="p-8 text-center border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-3xl bg-purple-50/50 dark:bg-purple-950/20">
+                <Crown className="w-10 h-10 text-purple-500 mx-auto mb-3" />
+                <h4 className="font-extrabold text-gray-800 dark:text-gray-100 text-sm">
+                  Primero creá una Familia o Grupo
+                </h4>
+                <p className="text-xs text-gray-500 mt-1.5 max-w-sm mx-auto mb-4">
+                  Para poder dar de alta integrantes, necesitás crear al menos una familia (ej: &quot;Familia Chiaccio&quot;) o grupo de amigos.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTabActivo('metricas');
+                    setMostrarModalGrupo(true);
+                  }}
+                  className="px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-lg shadow-purple-600/30 cursor-pointer"
+                >
+                  + Crear Primera Familia Ahora
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-black uppercase text-gray-400">
+                    Seleccionar Familia / Grupo:
+                  </label>
+                  <select
+                    value={grupoSeleccionadoId}
+                    onChange={(e) => handleCambiarGrupoSeleccionado(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1E1B22] text-xs font-bold"
+                  >
+                    {grupos.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.nombre} ({g.total_miembros || 0} miembros)
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <h3 className="text-xs font-black uppercase tracking-wider text-gray-500">
-                Miembros de la familia ({usuariosGrupo.length})
-              </h3>
-              <button
-                onClick={() => setMostrarModalUsuario(true)}
-                className="text-xs font-bold text-[#FF7043] flex items-center gap-1 hover:underline"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                Dar de alta usuario
-              </button>
-            </div>
+                <div className="flex items-center justify-between pt-1">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-500">
+                    Miembros de la familia ({usuariosGrupo.length})
+                  </h3>
+                  <button
+                    onClick={() => setMostrarModalUsuario(true)}
+                    className="text-xs font-bold text-[#FF7043] flex items-center gap-1 hover:underline"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    Dar de alta usuario
+                  </button>
+                </div>
+              </>
+            )}
 
             {mostrarModalUsuario && (
               <form
