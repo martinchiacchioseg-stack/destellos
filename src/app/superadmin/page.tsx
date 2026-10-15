@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
@@ -123,14 +123,19 @@ export default function SuperadminPage() {
         const listaGrupos = gData.grupos || [];
         setGrupos(listaGrupos);
         if (listaGrupos.length > 0) {
-          const guardado = typeof window !== 'undefined' ? localStorage.getItem('destellos_superadmin_grupo_id') : null;
-          const existe = listaGrupos.some((g: any) => g.id === guardado);
-          const finalId = existe && guardado ? guardado : (grupoSeleccionadoId || listaGrupos[0].id);
-          setGrupoSeleccionadoId(finalId);
-          setAdminGrupoId(finalId);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('destellos_superadmin_grupo_id', finalId);
-          }
+          setGrupoSeleccionadoId((prevId) => {
+            if (prevId && listaGrupos.some((g: any) => g.id === prevId)) {
+              return prevId;
+            }
+            const guardado = typeof window !== 'undefined' ? localStorage.getItem('destellos_superadmin_grupo_id') : null;
+            const existe = listaGrupos.some((g: any) => g.id === guardado);
+            const finalId = existe && guardado ? guardado : listaGrupos[0].id;
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('destellos_superadmin_grupo_id', finalId);
+            }
+            return finalId;
+          });
+          setAdminGrupoId((prev) => prev || listaGrupos[0].id);
         }
       }
       if (admRes.ok) {
@@ -148,22 +153,39 @@ export default function SuperadminPage() {
     }
   };
 
+  const isEditingOrModalOpen = Boolean(
+    mostrarModalGrupo ||
+    mostrarModalAdmin ||
+    mostrarModalUsuario ||
+    mostrarModalAd ||
+    usuarioEditando ||
+    grupoEditando ||
+    subiendoImagenAd
+  );
+  const isEditingRef = useRef(isEditingOrModalOpen);
+  isEditingRef.current = isEditingOrModalOpen;
+
+  const grupoSeleccionadoIdRef = useRef(grupoSeleccionadoId);
+  grupoSeleccionadoIdRef.current = grupoSeleccionadoId;
+
   useEffect(() => {
     cargarTodo();
-    // Auto-recarga periódica silenciosa cada 7 segundos para reflejar altas y cambios
+    // Auto-recarga periódica silenciosa cada 8 segundos para reflejar altas y cambios
     const interval = setInterval(() => {
+      if (isEditingRef.current) return;
       cargarTodo();
-      if (grupoSeleccionadoId) {
-        fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`)
+      const currentGId = grupoSeleccionadoIdRef.current;
+      if (currentGId) {
+        fetch(`/api/superadmin/usuarios?grupoId=${currentGId}`)
           .then((res) => res.json())
           .then((data) => {
-            if (data.usuarios) setUsuariosGrupo(data.usuarios);
+            if (data.usuarios && !isEditingRef.current) setUsuariosGrupo(data.usuarios);
           })
           .catch(() => {});
       }
-    }, 7000);
+    }, 8000);
     return () => clearInterval(interval);
-  }, [router, grupoSeleccionadoId]);
+  }, [router]);
 
   // Cargar usuarios y reglas del grupo seleccionado al cambiar
   useEffect(() => {

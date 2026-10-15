@@ -48,6 +48,7 @@ export default function HomePage() {
   const [reglasGrupo, setReglasGrupo] = useState<ReglasGrupo | null>(null);
   const [destelloGanadorAyer, setDestelloGanadorAyer] = useState<Destello | null>(null);
   const [destelloAyerRevelado, setDestelloAyerRevelado] = useState(false);
+  const [puntosTotales, setPuntosTotales] = useState<number>(10);
 
   // Modales
   const [modalUploadAbierto, setModalUploadAbierto] = useState(false);
@@ -56,13 +57,15 @@ export default function HomePage() {
   const cargarDatos = async (silencioso = false) => {
     if (!silencioso) setCargando(true);
     try {
-      const meRes = await fetch('/api/auth/me');
-      const meData = await meRes.json();
-      if (!meData.authenticated) {
-        router.push('/login');
-        return;
+      if (!usuario) {
+        const meRes = await fetch('/api/auth/me');
+        const meData = await meRes.json();
+        if (!meData.authenticated) {
+          router.push('/login');
+          return;
+        }
+        setUsuario(meData.usuario);
       }
-      setUsuario(meData.usuario);
 
       const [hoyRes, socRes] = await Promise.all([
         fetch('/api/destellos/hoy'),
@@ -71,21 +74,61 @@ export default function HomePage() {
 
       if (hoyRes.ok) {
         const hoyData = await hoyRes.json();
-        setMiDestello(hoyData.miDestello);
-        setDestellosGrupo(hoyData.destellosGrupo || []);
+        setMiDestello((prev) => {
+          if (!prev && !hoyData.miDestello) return prev;
+          if (
+            prev?.id === hoyData.miDestello?.id &&
+            prev?.actualizado_en === hoyData.miDestello?.actualizado_en &&
+            prev?.media_url === hoyData.miDestello?.media_url
+          ) {
+            return prev;
+          }
+          return hoyData.miDestello;
+        });
+
+        setDestellosGrupo((prev) => {
+          const nuevos = hoyData.destellosGrupo || [];
+          if (
+            prev.length === nuevos.length &&
+            prev.every(
+              (d, i) =>
+                d.id === nuevos[i]?.id &&
+                d.actualizado_en === nuevos[i]?.actualizado_en &&
+                d.media_url === nuevos[i]?.media_url
+            )
+          ) {
+            return prev;
+          }
+          return nuevos;
+        });
+
         if (hoyData.tiempoRestante) {
-          setTiempoRestante(hoyData.tiempoRestante);
+          setTiempoRestante((prev) => {
+            if (prev.texto === hoyData.tiempoRestante.texto) return prev;
+            return hoyData.tiempoRestante;
+          });
         }
       }
 
       if (socRes.ok) {
         const socData = await socRes.json();
-        setRacha(socData.racha || 1);
-        setFaltantesHoy(socData.faltantesHoy || []);
-        setColgadosAyer(socData.colgadosAyer || []);
-        setPublicidadGanadora(socData.publicidadGanadora || null);
+        setRacha((prev) => (prev === socData.racha ? prev : (socData.racha || 1)));
+        if (typeof socData.puntosTotales === 'number') {
+          setPuntosTotales((prev) => (prev === socData.puntosTotales ? prev : socData.puntosTotales));
+        }
+        setFaltantesHoy((prev) => {
+          const nuevos = socData.faltantesHoy || [];
+          if (prev.length === nuevos.length && prev.every((f, i) => f.id === nuevos[i]?.id)) return prev;
+          return nuevos;
+        });
+        setColgadosAyer((prev) => {
+          const nuevos = socData.colgadosAyer || [];
+          if (prev.length === nuevos.length && prev.every((c, i) => c.id === nuevos[i]?.id)) return prev;
+          return nuevos;
+        });
+        setPublicidadGanadora((prev) => (prev?.id === socData.publicidadGanadora?.id ? prev : (socData.publicidadGanadora || null)));
         setReglasGrupo(socData.reglas || null);
-        setDestelloGanadorAyer(socData.destelloGanadorAyer || null);
+        setDestelloGanadorAyer((prev) => (prev?.id === socData.destelloGanadorAyer?.id ? prev : (socData.destelloGanadorAyer || null)));
       }
     } catch (err) {
       console.error('Error cargando hoy:', err);
@@ -126,6 +169,7 @@ export default function HomePage() {
 
   const hoyFormateado = formatFechaBonita(getFechaArgentina());
   const otrosDestellosHoy = destellosGrupo.filter((d) => d.usuario_id !== usuario?.id);
+  const faltantesDelResto = faltantesHoy.filter((m) => m.id !== usuario?.id);
 
   // Regla: ¿Deben desenfocarse las fotos?
   // Si el usuario no subió todavía o si faltan miembros y la regla está activa
@@ -133,7 +177,7 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 flex flex-col pb-20">
-      <Header usuario={usuario} puntosTotales={16} />
+      <Header usuario={usuario} puntosTotales={puntosTotales} />
 
       <main className="p-4 space-y-4 max-w-lg mx-auto w-full">
         {/* Saludo y Racha - Tarjeta Superior Familia Chiaccio */}
@@ -176,29 +220,29 @@ export default function HomePage() {
         </div>
 
         {/* ------------------------------------------------------------------- */}
-        {/* REVELADO DEL DESTELLO DE AYER (Elegido por Gemini) */}
+        {/* REVELADO DEL DESTELLO DE AYER (Elegido por Gemini - Color Dorado) */}
         {/* ------------------------------------------------------------------- */}
         {destelloGanadorAyer && (
-          <div className="bg-white dark:bg-[#201D24] p-5 rounded-3xl border border-[var(--border-soft)] shadow-soft space-y-3">
+          <div className="bg-gradient-to-br from-yellow-50/90 via-amber-50/70 to-orange-50/60 dark:from-amber-950/25 dark:via-yellow-950/15 dark:to-orange-950/20 p-5 rounded-3xl border-2 border-amber-300/90 dark:border-amber-700/60 shadow-soft space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
-                  <Crown className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+                  <Crown className="w-4 h-4 fill-white/20" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-gray-800 dark:text-gray-100">
+                  <h3 className="text-sm font-black text-amber-950 dark:text-amber-100">
                     Destello de Ayer 🏆
                   </h3>
-                  <p className="text-[11px] text-gray-400">Elegido por Gemini (+10 pts)</p>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-medium">Elegido por Gemini (+10 pts)</p>
                 </div>
               </div>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-100 shadow-xs">
                 Ganador
               </span>
             </div>
 
             {!destelloAyerRevelado ? (
-              <div className="p-6 rounded-2xl bg-gradient-to-tr from-amber-500/10 via-orange-500/10 to-yellow-500/10 border-2 border-dashed border-amber-300 text-center space-y-3">
+              <div className="p-6 rounded-2xl bg-white/70 dark:bg-[#1E1B22]/70 border-2 border-dashed border-amber-300 text-center space-y-3">
                 <div className="w-12 h-12 rounded-full bg-amber-400 text-white flex items-center justify-center mx-auto shadow-md animate-bounce">
                   <Sparkles className="w-6 h-6" />
                 </div>
@@ -238,49 +282,63 @@ export default function HomePage() {
         )}
 
         {/* ------------------------------------------------------------------- */}
-        {/* BOTÓN APURAR POR WHATSAPP: ¿Quiénes faltan hoy? */}
+        {/* BOTÓN APURAR POR WHATSAPP: ¿Quiénes faltan hoy? (Color Verde Esmeralda) */}
         {/* ------------------------------------------------------------------- */}
-        {faltantesHoy.length > 0 && (
-          <div className="bg-emerald-500/10 dark:bg-emerald-950/20 p-4 rounded-3xl border border-emerald-200/80 dark:border-emerald-900/40 space-y-3 shadow-sm">
+        {faltantesDelResto.length > 0 && (
+          <div className="bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-green-500/15 dark:from-emerald-950/40 dark:to-teal-950/30 p-4 rounded-3xl border-2 border-emerald-400/80 dark:border-emerald-700 space-y-3 shadow-md">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-sm">
-                  <MessageCircle className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md">
+                  <MessageCircle className="w-4 h-4 fill-white/20" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-200">
-                    ¿Quiénes faltan subir hoy? ({faltantesHoy.length})
+                  <h4 className="text-xs font-black text-emerald-950 dark:text-emerald-200">
+                    ¿Quiénes faltan subir hoy? ({faltantesDelResto.length})
                   </h4>
-                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300">
+                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">
                     ¡Avisales por WhatsApp para que no pierdan la racha!
                   </p>
                 </div>
               </div>
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                WhatsApp 📲
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {faltantesHoy.map((m) => (
+              {faltantesDelResto.map((m) => (
                 <div
                   key={m.id}
-                  className="p-2.5 bg-white dark:bg-[#1E1B22] rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between gap-2 shadow-xs"
+                  className="p-2.5 bg-white dark:bg-[#1E1B22] rounded-2xl border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-between gap-2 shadow-xs"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 font-black text-xs flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center shrink-0">
                       {m.apodo ? m.apodo[0].toUpperCase() : m.nombre[0].toUpperCase()}
                     </div>
-                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">
-                      {m.apodo || m.nombre}
-                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">
+                        {m.apodo || m.nombre}
+                      </span>
+                      {m.telefono ? (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-0.5">
+                          📱 {m.telefono}
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-gray-400">
+                          (WhatsApp directo)
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <a
                     href={m.enlaceWhatsApp}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black flex items-center gap-1 shrink-0 shadow-sm transition-colors"
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-[11px] font-black flex items-center gap-1.5 shrink-0 shadow-sm transition-transform"
                   >
-                    <MessageCircle className="w-3 h-3 fill-white/20" />
-                    <span>Apurar 📲</span>
+                    <MessageCircle className="w-3.5 h-3.5 fill-white/20" />
+                    <span>Avisar 📲</span>
                   </a>
                 </div>
               ))}
@@ -323,19 +381,19 @@ export default function HomePage() {
         )}
 
         {/* ------------------------------------------------------------------- */}
-        {/* SECCIÓN: TU DESTELLO DE HOY (Color Azul / Índigo) */}
+        {/* SECCIÓN: TU DESTELLO DE HOY (Color Azul Celeste / Índigo) */}
         {/* ------------------------------------------------------------------- */}
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-sky-50/80 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-sky-950/30 border-2 border-indigo-200/90 dark:border-indigo-800 shadow-soft space-y-3">
+        <div className="p-4 rounded-3xl bg-gradient-to-br from-sky-50/90 via-blue-50/70 to-indigo-50/80 dark:from-sky-950/30 dark:via-blue-950/20 dark:to-indigo-950/30 border-2 border-sky-300/90 dark:border-sky-800 shadow-soft space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+              <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-sm">
                 <Camera className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+                <h3 className="text-xs font-black uppercase tracking-wider text-sky-950 dark:text-sky-200">
                   Tu Destello de hoy
                 </h3>
-                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                <p className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
                   {miDestello ? '¡Ya sumaste tu foto del día!' : 'Subí 1 foto para no perder la racha'}
                 </p>
               </div>
@@ -345,7 +403,7 @@ export default function HomePage() {
                 <Check className="w-3 h-3" /> ¡Subido! +1 pt
               </span>
             ) : (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-300">
                 Pendiente
               </span>
             )}
@@ -353,8 +411,8 @@ export default function HomePage() {
 
           {!miDestello ? (
             /* Botón grande para subir si todavía no subió */
-            <div className="bg-white dark:bg-[#201D24] p-5 rounded-2xl border-2 border-dashed border-indigo-300/80 shadow-xs text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 text-white flex items-center justify-center mx-auto shadow-md shadow-indigo-500/20">
+            <div className="bg-white dark:bg-[#201D24] p-5 rounded-2xl border-2 border-dashed border-sky-300/80 shadow-xs text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center mx-auto shadow-md shadow-sky-500/20">
                 <Camera className="w-7 h-7" />
               </div>
               <div>
@@ -368,7 +426,7 @@ export default function HomePage() {
 
               <button
                 onClick={() => setModalUploadAbierto(true)}
-                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold text-sm shadow-md shadow-indigo-500/30 flex items-center justify-center gap-2 transition-transform active:scale-98"
+                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-extrabold text-sm shadow-md shadow-sky-500/30 flex items-center justify-center gap-2 transition-transform active:scale-98"
               >
                 <Sparkles className="w-5 h-5 fill-white/20" />
                 <span>Subir mi destello de hoy 📸</span>
@@ -384,13 +442,13 @@ export default function HomePage() {
                 rotacion={-0.5}
               />
 
-              <div className="flex items-center justify-between gap-2 p-3 bg-white dark:bg-[#201D24] rounded-2xl border border-indigo-100 dark:border-indigo-900 shadow-sm">
+              <div className="flex items-center justify-between gap-2 p-3 bg-white dark:bg-[#201D24] rounded-2xl border border-sky-100 dark:border-sky-900 shadow-sm">
                 <div className="text-[11px] text-gray-500 dark:text-gray-400">
                   ¿Querés cambiarla? Podés hasta las <b>23:59 hs</b>.
                 </div>
                 <button
                   onClick={() => setModalUploadAbierto(true)}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
+                  className="px-3 py-1.5 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 hover:bg-sky-200 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Reemplazar</span>
@@ -401,30 +459,30 @@ export default function HomePage() {
         </div>
 
         {/* ------------------------------------------------------------------- */}
-        {/* SECCIÓN: DESTELLOS DEL GRUPO HOY (Color Púrpura / Rosa Atardecer) */}
+        {/* SECCIÓN: DESTELLOS DEL GRUPO HOY (Color Rosa / Fucsia / Morado) */}
         {/* ------------------------------------------------------------------- */}
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-purple-50/90 via-fuchsia-50/70 to-pink-50/80 dark:from-purple-950/30 dark:via-fuchsia-950/20 dark:to-pink-950/30 border-2 border-purple-200/90 dark:border-purple-800 shadow-soft space-y-3">
+        <div className="p-4 rounded-3xl bg-gradient-to-br from-rose-50/90 via-pink-50/70 to-fuchsia-50/80 dark:from-rose-950/30 dark:via-pink-950/20 dark:to-fuchsia-950/30 border-2 border-rose-300/90 dark:border-rose-800 shadow-soft space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+              <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-sm">
                 <Users className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-purple-950 dark:text-purple-200">
+                <h3 className="text-xs font-black uppercase tracking-wider text-rose-950 dark:text-rose-200">
                   Destellos del grupo hoy ({destellosGrupo.length})
                 </h3>
-                <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                <p className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
                   Fotos compartidas por la familia hoy
                 </p>
               </div>
             </div>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 rounded-full">
+            <span className="text-[11px] font-bold px-2.5 py-0.5 bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 rounded-full">
               {otrosDestellosHoy.length} familiares
             </span>
           </div>
 
           {otrosDestellosHoy.length === 0 ? (
-            <div className="p-5 bg-white dark:bg-[#201D24] rounded-2xl border border-purple-100 dark:border-purple-900/60 text-center text-xs text-gray-500">
+            <div className="p-5 bg-white dark:bg-[#201D24] rounded-2xl border border-rose-100 dark:border-rose-900/60 text-center text-xs text-gray-500">
               Aún no hay fotos de otros miembros hoy. ¡Avisales al grupo que ya arrancó el día! 📲
             </div>
           ) : (

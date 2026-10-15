@@ -9,6 +9,7 @@ import {
   obtenerReglasGrupo,
   obtenerDestelloGanadorDia,
   obtenerGrupoIdPorDefecto,
+  obtenerHistorialPuntos,
 } from '@/lib/db';
 import { getFechaArgentina, getAyerFechaArgentina } from '@/lib/date-utils';
 
@@ -22,7 +23,7 @@ export async function GET() {
   const fechaHoy = getFechaArgentina();
   const fechaAyer = getAyerFechaArgentina();
 
-  const [colgadosAyer, faltantesHoyRaw, racha, publicidadPost, publicidadGanadora, reglas, destelloGanadorAyer] =
+  const [colgadosAyer, faltantesHoyRaw, racha, publicidadPost, publicidadGanadora, reglas, destelloGanadorAyer, historialPuntos] =
     await Promise.all([
       obtenerColgadosAyer(grupoId),
       obtenerFaltantesHoy(grupoId, fechaHoy),
@@ -31,7 +32,10 @@ export async function GET() {
       obtenerPublicidadPorUbicacion('foto_ganadora'),
       obtenerReglasGrupo(grupoId),
       obtenerDestelloGanadorDia(grupoId, fechaAyer),
+      obtenerHistorialPuntos(session.id),
     ]);
+
+  const puntosTotales = (historialPuntos || []).reduce((acc, p) => acc + (p.puntos || 0), 0);
 
   const faltantesHoy = faltantesHoyRaw.map((m) => ({
     ...m,
@@ -46,5 +50,6 @@ export async function GET() {
     publicidadGanadora,
     reglas,
     destelloGanadorAyer,
+    puntosTotales,
   });
 }

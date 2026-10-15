@@ -32,6 +32,7 @@ import path from 'path';
 import { getPuntosPorEvento, DESCRIPCIONES_PUNTOS } from './puntos';
 import { supabaseAdmin, isSupabaseConfigured } from './supabase';
 import { elegirDestelloDelDia } from './gemini';
+import { procesarYGuardarMedia } from './storage';
 
 // ==============================================================================
 // ALMACENAMIENTO PERSISTENTE EN DISCO (JSON) + SINCRONIZACIÓN MULTI-WORKER
@@ -44,29 +45,65 @@ const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'destellos_store.json');
 const globalState = global as unknown as {
   __destellos_store?: StateStore;
   __destellos_store_mtime?: number;
+  __destellos_store_version?: number;
 };
+
+function pausarSincrono(ms: number) {
+  const fin = Date.now() + ms;
+  while (Date.now() < fin) {}
+}
 
 export function persistirStore(store: StateStore) {
   try {
+    // Protección vital: NUNCA persistir un store vacío si ya existe el archivo en disco
+    if (!store.usuarios || store.usuarios.length === 0) {
+      if (fs.existsSync(DATA_FILE_PATH)) {
+        console.warn('Protección activa: Intento de persistir store vacío cancelado para proteger usuarios.');
+        return;
+      }
+    }
+
     const dir = path.dirname(DATA_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
+
+    store._version = (store._version || 0) + 1;
+    store._updated_at = new Date().toISOString();
+
     const json = JSON.stringify(store, null, 2);
-    // Escritura atómica para evitar archivos corruptos o lecturas parciales entre workers
+
+    // Escritura atómica con reintentos para evitar colisiones de bloqueo en Windows (EBUSY / EPERM)
     const tempFile = `${DATA_FILE_PATH}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}.tmp`;
-    try {
-      fs.writeFileSync(tempFile, json, 'utf-8');
-      fs.renameSync(tempFile, DATA_FILE_PATH);
-    } catch {
-      fs.writeFileSync(DATA_FILE_PATH, json, 'utf-8');
+    let escrito = false;
+
+    for (let intento = 0; intento < 8; intento++) {
       try {
-        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-      } catch {}
+        fs.writeFileSync(tempFile, json, 'utf-8');
+        fs.renameSync(tempFile, DATA_FILE_PATH);
+        escrito = true;
+        break;
+      } catch (err: any) {
+        pausarSincrono(15 + Math.random() * 20);
+      }
     }
+
+    if (!escrito) {
+      try {
+        fs.writeFileSync(DATA_FILE_PATH, json, 'utf-8');
+      } catch (e) {
+        console.error('Error en fallback directo de escritura:', e);
+      }
+    }
+
+    try {
+      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+    } catch {}
+
     try {
       const stats = fs.statSync(DATA_FILE_PATH);
       globalState.__destellos_store_mtime = stats.mtimeMs;
+      globalState.__destellos_store_version = store._version;
     } catch {}
   } catch (err) {
     console.error('Error al persistir store en disco:', err);
@@ -74,19 +111,63 @@ export function persistirStore(store: StateStore) {
 }
 
 export function cargarStoreDesdeArchivo(): StateStore | null {
-  try {
-    if (fs.existsSync(DATA_FILE_PATH)) {
+  for (let intento = 0; intento < 10; intento++) {
+    try {
+      if (!fs.existsSync(DATA_FILE_PATH)) return null;
       const data = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
+      if (!data || data.trim().length === 0) {
+        pausarSincrono(15 + Math.random() * 15);
+        continue;
+      }
       const parsed = JSON.parse(data);
-      if (parsed && Array.isArray(parsed.usuarios)) {
+      if (parsed && Array.isArray(parsed.usuarios) && parsed.usuarios.length > 0) {
         return parsed;
       }
+    } catch (err: any) {
+      if (err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'EACCES') {
+        pausarSincrono(15 + Math.random() * 20);
+        continue;
+      }
+      console.error('Error al leer store desde archivo:', err);
     }
-  } catch (err) {}
+  }
   return null;
 }
 
+export function sincronizarConDiscoSiCambio(): StateStore {
+  const store = getStore();
+  try {
+    if (fs.existsSync(DATA_FILE_PATH)) {
+      const stats = fs.statSync(DATA_FILE_PATH);
+      const currentMtime = globalState.__destellos_store_mtime || 0;
+      const currentVersion = globalState.__destellos_store_version || 0;
+
+      if (
+        stats.mtimeMs > currentMtime ||
+        !store.initialized ||
+        !store.usuarios ||
+        store.usuarios.length === 0
+      ) {
+        const desdeDisco = cargarStoreDesdeArchivo();
+        if (desdeDisco && Array.isArray(desdeDisco.usuarios) && desdeDisco.usuarios.length > 0) {
+          if ((desdeDisco._version || 0) >= currentVersion || stats.mtimeMs > currentMtime) {
+            Object.assign(store, desdeDisco);
+            store.initialized = true;
+            globalState.__destellos_store_mtime = stats.mtimeMs;
+            globalState.__destellos_store_version = desdeDisco._version || 1;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error al sincronizar con disco:', err);
+  }
+  return store;
+}
+
 interface StateStore {
+  _version?: number;
+  _updated_at?: string;
   usuarios: Usuario[];
   grupos: Grupo[];
   retos: RetoDiario[];
@@ -130,6 +211,7 @@ export function getStore(): StateStore {
       initialized: false,
     };
     globalState.__destellos_store_mtime = 0;
+    globalState.__destellos_store_version = 0;
   }
 
   // Sincronizar automáticamente con el archivo en disco si cambió o no se ha inicializado
@@ -142,12 +224,12 @@ export function getStore(): StateStore {
         !globalState.__destellos_store.initialized ||
         globalState.__destellos_store.usuarios.length === 0
       ) {
-        const data = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
-        const parsed = JSON.parse(data);
-        if (parsed && Array.isArray(parsed.usuarios)) {
-          Object.assign(globalState.__destellos_store, parsed);
+        const desdeDisco = cargarStoreDesdeArchivo();
+        if (desdeDisco && Array.isArray(desdeDisco.usuarios) && desdeDisco.usuarios.length > 0) {
+          Object.assign(globalState.__destellos_store, desdeDisco);
           globalState.__destellos_store.initialized = true;
           globalState.__destellos_store_mtime = stats.mtimeMs;
+          globalState.__destellos_store_version = desdeDisco._version || 1;
         }
       }
     }
@@ -160,7 +242,7 @@ export function getStore(): StateStore {
 
 export async function obtenerGrupoIdPorDefecto(): Promise<string> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   if (store.grupos && store.grupos.length > 0) {
     const activo = store.grupos.find((g) => g.activo);
     if (activo) return activo.id;
@@ -169,22 +251,56 @@ export async function obtenerGrupoIdPorDefecto(): Promise<string> {
   return DEFAULT_GRUPO_ID;
 }
 
+export function migrarMediaExistenteADisco() {
+  const store = getStore();
+  let modificado = false;
+
+  (store.destellos || []).forEach((d) => {
+    if (d.media_url && d.media_url.startsWith('data:')) {
+      d.media_url = procesarYGuardarMedia(d.media_url, `destello-${d.usuario_id}`);
+      modificado = true;
+    }
+    if (d.thumbnail_url && d.thumbnail_url.startsWith('data:')) {
+      d.thumbnail_url = procesarYGuardarMedia(d.thumbnail_url, `thumb-${d.usuario_id}`);
+      modificado = true;
+    }
+  });
+
+  (store.publicidades || []).forEach((p) => {
+    if (p.imagen_url && p.imagen_url.startsWith('data:')) {
+      p.imagen_url = procesarYGuardarMedia(p.imagen_url, 'pub');
+      modificado = true;
+    }
+  });
+
+  if (modificado) {
+    persistirStore(store);
+  }
+}
+
 /**
- * Inicialización inicial (Seed) de Superadmin y datos de bienvenida
+ * Inicialización segura de Superadmin y datos de bienvenida.
+ * NUNCA sobreescribe si el archivo en disco ya existe.
  */
 export async function ensureInitialized() {
   const store = getStore();
   if (store.initialized && store.usuarios && store.usuarios.length > 0) return;
 
-  // 1. Intentar cargar desde el archivo persistente en disco (evita pérdida de datos al reiniciar)
-  const guardadoEnDisco = cargarStoreDesdeArchivo();
-  if (guardadoEnDisco && guardadoEnDisco.usuarios && guardadoEnDisco.usuarios.length > 0) {
-    Object.assign(store, guardadoEnDisco);
-    store.initialized = true;
-    try {
-      const stats = fs.statSync(DATA_FILE_PATH);
-      globalState.__destellos_store_mtime = stats.mtimeMs;
-    } catch {}
+  // 1. Si el archivo en disco existe, cargarlo y NUNCA ejecutar el seed destructivo
+  if (fs.existsSync(DATA_FILE_PATH)) {
+    const guardadoEnDisco = cargarStoreDesdeArchivo();
+    if (guardadoEnDisco && guardadoEnDisco.usuarios && guardadoEnDisco.usuarios.length > 0) {
+      Object.assign(store, guardadoEnDisco);
+      store.initialized = true;
+      try {
+        const stats = fs.statSync(DATA_FILE_PATH);
+        globalState.__destellos_store_mtime = stats.mtimeMs;
+        globalState.__destellos_store_version = guardadoEnDisco._version || 1;
+      } catch {}
+      migrarMediaExistenteADisco();
+      return;
+    }
+    // Si existe el archivo pero falló la lectura puntual por concurrencia, no borrar nada
     return;
   }
 
@@ -494,7 +610,7 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
     } catch {}
   }
 
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   const u = store.usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail);
   return u || null;
 }
@@ -512,7 +628,7 @@ export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
     } catch {}
   }
 
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   return store.usuarios.find((x) => x.id === id) || null;
 }
 
@@ -551,7 +667,7 @@ export async function crearUsuario(data: {
     }
   }
 
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   store.usuarios.push(nuevoUsuario);
   persistirStore(store);
   return nuevoUsuario;
@@ -648,7 +764,7 @@ export async function resetearIntentosFallidos(email: string): Promise<void> {
 
 export async function listarUsuariosGrupo(grupoId: string): Promise<UsuarioPublico[]> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   return store.usuarios
     .filter((u) => u.grupo_id === grupoId && u.activo)
     .map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
@@ -656,7 +772,7 @@ export async function listarUsuariosGrupo(grupoId: string): Promise<UsuarioPubli
 
 export async function listarTodosLosUsuarios(): Promise<UsuarioPublico[]> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   return store.usuarios.map(({ password_hash, intentos_fallidos, bloqueado_hasta, ...safe }) => safe);
 }
 
@@ -674,7 +790,7 @@ export async function actualizarUsuario(
   }
 ): Promise<UsuarioPublico | null> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   const u = store.usuarios.find((x) => x.id === usuarioId);
   if (!u) return null;
 
@@ -699,7 +815,7 @@ export async function actualizarUsuario(
 
 export async function eliminarUsuarioPermanente(usuarioId: string): Promise<boolean> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   const idx = store.usuarios.findIndex((u) => u.id === usuarioId);
   if (idx === -1) return false;
 
@@ -852,7 +968,25 @@ export async function guardarOActualizarDestello(data: {
   reto_verificacion_detalle?: string;
 }): Promise<Destello> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
+
+  // Optimización de imágenes: si vienen en base64, se guardan en disco /public/uploads/
+  let mediaUrl = data.media_url;
+  let thumbUrl = data.thumbnail_url || data.media_url;
+
+  if (mediaUrl && mediaUrl.startsWith('data:')) {
+    mediaUrl = procesarYGuardarMedia(mediaUrl, `destello-${data.usuario_id}`);
+  }
+  if (thumbUrl && thumbUrl.startsWith('data:')) {
+    thumbUrl = procesarYGuardarMedia(thumbUrl, `thumb-${data.usuario_id}`);
+  }
+
+  const datosLimpios = {
+    ...data,
+    media_url: mediaUrl,
+    thumbnail_url: thumbUrl,
+  };
+
   const existIdx = store.destellos.findIndex(
     (x) => x.grupo_id === data.grupo_id && x.usuario_id === data.usuario_id && x.fecha === data.fecha
   );
@@ -863,14 +997,14 @@ export async function guardarOActualizarDestello(data: {
   if (esActualizacion) {
     destelloFinal = {
       ...store.destellos[existIdx],
-      ...data,
+      ...datosLimpios,
       actualizado_en: new Date().toISOString(),
     };
     store.destellos[existIdx] = destelloFinal;
   } else {
     destelloFinal = {
       id: uuidv4(),
-      ...data,
+      ...datosLimpios,
       es_destello_del_dia: false,
       votos_comunidad: 0,
       es_favorito_comunidad: false,
@@ -916,7 +1050,7 @@ export async function guardarOActualizarDestello(data: {
 
 export async function listarDestellosDia(grupoId: string, fecha: string): Promise<Destello[]> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   return store.destellos
     .filter((d) => d.grupo_id === grupoId && d.fecha === fecha && !d.moderado)
     .map((d) => {
@@ -1464,9 +1598,9 @@ export async function obtenerRachaUsuario(usuarioId: string, grupoId: string): P
 
 export async function obtenerColgadosAyer(grupoId: string): Promise<UsuarioPublico[]> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
   const ayerStr = getAyerFechaArgentina();
-  const miembros = store.usuarios.filter((u) => u.grupo_id === grupoId && u.activo && u.rol === 'miembro');
+  const miembros = store.usuarios.filter((u) => u.grupo_id === grupoId && u.activo);
 
   const subieronAyer = new Set(
     store.destellos.filter((d) => d.grupo_id === grupoId && d.fecha === ayerStr && !d.moderado).map((d) => d.usuario_id)
@@ -1479,8 +1613,8 @@ export async function obtenerColgadosAyer(grupoId: string): Promise<UsuarioPubli
 
 export async function obtenerFaltantesHoy(grupoId: string, fecha: string): Promise<UsuarioPublico[]> {
   await ensureInitialized();
-  const store = getStore();
-  const miembros = store.usuarios.filter((u) => u.grupo_id === grupoId && u.activo && u.rol === 'miembro');
+  const store = sincronizarConDiscoSiCambio();
+  const miembros = store.usuarios.filter((u) => u.grupo_id === grupoId && u.activo);
   const subieronHoy = new Set(
     store.destellos.filter((d) => d.grupo_id === grupoId && d.fecha === fecha && !d.moderado).map((d) => d.usuario_id)
   );
@@ -1513,21 +1647,27 @@ export function generarEnlaceApurarWhatsApp(nombreDestinatario: string, telefono
 
 export async function obtenerPublicidadPorUbicacion(ubicacion: UbicacionPublicidad): Promise<Publicidad | null> {
   await ensureInitialized();
-  const store = getStore();
-  const activas = store.publicidades.filter((p) => p.ubicacion === ubicacion && p.activa);
+  const store = sincronizarConDiscoSiCambio();
+  const activas = (store.publicidades || []).filter((p) => p.ubicacion === ubicacion && p.activa);
   if (activas.length === 0) return null;
   return activas[Math.floor(Math.random() * activas.length)];
 }
 
 export async function listarPublicidades(): Promise<Publicidad[]> {
   await ensureInitialized();
-  const store = getStore();
-  return store.publicidades;
+  const store = sincronizarConDiscoSiCambio();
+  return store.publicidades || [];
 }
 
 export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en'> & { id?: string }): Promise<Publicidad> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
+
+  // Optimización crítica: si la imagen vino en base64, guardarla en disco /public/uploads/
+  let imagenUrl = data.imagen_url;
+  if (imagenUrl && imagenUrl.startsWith('data:')) {
+    imagenUrl = procesarYGuardarMedia(imagenUrl, 'pub');
+  }
 
   if (data.id) {
     const idx = store.publicidades.findIndex((p) => p.id === data.id);
@@ -1535,6 +1675,7 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
       store.publicidades[idx] = {
         ...store.publicidades[idx],
         ...data,
+        imagen_url: imagenUrl,
       };
       persistirStore(store);
       return store.publicidades[idx];
@@ -1544,8 +1685,10 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
   const nuevaPub: Publicidad = {
     id: uuidv4(),
     ...data,
+    imagen_url: imagenUrl,
     creado_en: new Date().toISOString(),
   };
+  if (!store.publicidades) store.publicidades = [];
   store.publicidades.push(nuevaPub);
   persistirStore(store);
   return nuevaPub;
@@ -1553,7 +1696,8 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
 
 export async function eliminarPublicidad(id: string): Promise<boolean> {
   await ensureInitialized();
-  const store = getStore();
+  const store = sincronizarConDiscoSiCambio();
+  if (!store.publicidades) return false;
   const idx = store.publicidades.findIndex((p) => p.id === id);
   if (idx !== -1) {
     store.publicidades.splice(idx, 1);

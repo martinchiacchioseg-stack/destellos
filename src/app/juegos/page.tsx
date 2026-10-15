@@ -499,33 +499,51 @@ export default function JuegosPage() {
       />
 
       <main className="p-4 space-y-4 max-w-lg mx-auto w-full">
-        {/* Selector de Juegos (Pills horizontales scrolleables con colores temáticos) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const activo = tabActivo === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTabActivo(t.id)}
-                className={`px-3.5 py-2.5 rounded-2xl font-black text-xs shrink-0 flex items-center gap-1.5 transition-all shadow-sm ${
-                  activo ? t.activoClase : t.inactivoClase
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${activo ? 'animate-bounce' : ''}`} />
-                <span>{t.label}</span>
-                {t.badge && (
-                  <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                      activo ? t.badgeActivoClase : t.badgeInactivoClase
-                    }`}
-                  >
-                    {t.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        {/* Encabezado con Paleta de Juegos */}
+        <div className="bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 p-4 rounded-3xl text-white shadow-lg space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
+                <Gamepad2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white">Desafíos & Mini-Juegos 🎮</h2>
+                <p className="text-[11px] text-purple-100 font-medium">Jugá, sumá puntos y desafiá a la familia</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/20">
+              6 Desafíos
+            </span>
+          </div>
+
+          {/* Selector de Juegos (Pills horizontales scrolleables con colores temáticos) */}
+          <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-1 scrollbar-none">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              const activo = tabActivo === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTabActivo(t.id)}
+                  className={`px-3.5 py-2.5 rounded-2xl font-black text-xs shrink-0 flex items-center gap-1.5 transition-all shadow-sm ${
+                    activo ? t.activoClase : t.inactivoClase
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${activo ? 'animate-bounce' : ''}`} />
+                  <span>{t.label}</span>
+                  {t.badge && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                        activo ? t.badgeActivoClase : t.badgeInactivoClase
+                      }`}
+                    >
+                      {t.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ------------------------------------------------------------------------- */}
@@ -533,9 +551,9 @@ export default function JuegosPage() {
         {/* ------------------------------------------------------------------------- */}
         {tabActivo === 'ruleta' && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-rose-500/10 p-5 rounded-3xl border border-amber-200 dark:border-amber-900/50 shadow-soft">
+            <div className="bg-gradient-to-br from-purple-500/15 via-indigo-500/10 to-fuchsia-500/10 p-5 rounded-3xl border border-purple-200 dark:border-purple-800 shadow-soft">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#FF7043] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center">
                   <RotateCw className="w-4 h-4 animate-spin-slow" />
                 </div>
                 <div>
@@ -550,13 +568,13 @@ export default function JuegosPage() {
 
               {/* Botón Admin para abrir ronda */}
               {!rondaRuleta && (usuario?.rol === 'admin' || usuario?.rol === 'superadmin') && (
-                <div className="mt-4 p-4 bg-white dark:bg-[#201D24] rounded-2xl border text-center space-y-2">
+                <div className="mt-4 p-4 bg-white dark:bg-[#201D24] rounded-2xl border border-purple-200 dark:border-purple-800 text-center space-y-2">
                   <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
                     No hay ronda activa. Como administrador podés abrir la Ruleta de la semana:
                   </p>
                   <button
                     onClick={handleAbrirRondaRuleta}
-                    className="w-full py-3 px-4 rounded-xl bg-[#FF7043] text-white font-black text-xs hover:bg-[#F4511E] shadow-md shadow-orange-500/20"
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-purple-500/20"
                   >
                     Abrir Nueva Ronda de Ruleta 🎯
                   </button>
