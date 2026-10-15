@@ -90,20 +90,27 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-              Contraseña
-            </label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                Contraseña
+              </label>
+              <span className="text-[10px] text-gray-400">
+                (opcional para primer ingreso o 000000)
+              </span>
+            </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
               <input
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="000000 o dejá en blanco"
                 className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
               />
             </div>
+            <p className="text-[11px] text-gray-400 mt-1">
+              Podés ingresar con tu clave, con <strong>000000</strong> o dejarla en blanco para configurar tu nueva clave.
+            </p>
           </div>
 
           <button

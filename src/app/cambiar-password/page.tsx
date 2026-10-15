@@ -52,8 +52,8 @@ export default function CambiarPasswordPage() {
     e.preventDefault();
     setError(null);
 
-    if (passwordNuevo.length < 8) {
-      setError('La nueva contraseña debe tener como mínimo 8 caracteres.');
+    if (passwordNuevo.length < 6) {
+      setError('La nueva contraseña debe tener como mínimo 6 caracteres.');
       return;
     }
 
@@ -62,7 +62,7 @@ export default function CambiarPasswordPage() {
       return;
     }
 
-    if (passwordActual === passwordNuevo) {
+    if (passwordActual && passwordActual === passwordNuevo) {
       setError('La nueva contraseña debe ser diferente a la contraseña temporal actual.');
       return;
     }
@@ -174,17 +174,21 @@ export default function CambiarPasswordPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                Contraseña actual / temporal
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                  Contraseña actual
+                </label>
+                <span className="text-[10px] text-gray-400">
+                  (opcional si ingresaste con 000000 o sin clave)
+                </span>
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
                 <input
                   type="password"
-                  required
                   value={passwordActual}
                   onChange={(e) => setPasswordActual(e.target.value)}
-                  placeholder="La que te asignaron (ej. 000000 o qwerty1234)"
+                  placeholder="000000 o dejá en blanco"
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
                 />
               </div>
@@ -192,14 +196,14 @@ export default function CambiarPasswordPage() {
 
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                Nueva contraseña personal (mín. 8 caracteres)
+                Nueva contraseña personal (mín. 6 caracteres)
               </label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
                 <input
                   type="password"
                   required
-                  minLength={8}
+                  minLength={6}
                   value={passwordNuevo}
                   onChange={(e) => setPasswordNuevo(e.target.value)}
                   placeholder="Tu clave secreta nueva"
@@ -217,7 +221,7 @@ export default function CambiarPasswordPage() {
                 <input
                   type="password"
                   required
-                  minLength={8}
+                  minLength={6}
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   placeholder="Repetí la clave nueva"
