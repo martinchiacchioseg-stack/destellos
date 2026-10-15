@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { Sparkles, Shield, Crown } from 'lucide-react';
 import { SesionUsuario } from '@/lib/types';
 
+import AnimatedLogo from '@/components/AnimatedLogo';
+
 interface HeaderProps {
   usuario?: (SesionUsuario & { grupo_nombre?: string | null }) | null;
   puntosTotales?: number;
@@ -14,20 +16,8 @@ export default function Header({ usuario, puntosTotales = 0 }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 bg-[var(--bg-page)]/90 backdrop-blur-md px-4 py-3 border-b border-[var(--border-soft)] flex items-center justify-between">
-      <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-        <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[#FF7043] to-[#FFA726] flex items-center justify-center text-white shadow-md shadow-[#FF7043]/30">
-          <Sparkles className="w-5 h-5 fill-white/20" />
-        </div>
-        <div>
-          <div className="flex items-center gap-1">
-            <h1 className="text-xl font-extrabold tracking-tight text-[#FF7043] leading-none">
-              Destellos<span className="text-amber-400">✨</span>
-            </h1>
-          </div>
-          <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 tracking-wider uppercase">
-            un clic familiar
-          </p>
-        </div>
+      <div className="cursor-pointer" onClick={() => router.push('/')}>
+        <AnimatedLogo variant="header" />
       </div>
 
       <div className="flex items-center gap-2">

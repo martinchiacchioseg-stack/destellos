@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Lock, Mail, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,20 +52,11 @@ export default function LoginPage() {
 
   return (
     <div className="flex-1 flex flex-col justify-between p-6 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6F0] to-[#F5EFE6] dark:from-[#18161A] dark:via-[#151318] dark:to-[#0F0D12]">
-      {/* Encabezado e Identidad */}
-      <div className="pt-8 text-center">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#FF7043] via-[#FFA726] to-[#FFCC80] shadow-xl shadow-[#FF7043]/30 mb-4 transform hover:scale-105 transition-transform">
-          <Sparkles className="w-10 h-10 text-white fill-white/20 animate-pulse" />
-        </div>
+      {/* Encabezado e Identidad con Logotipos Alternables cada 5 segundos */}
+      <div className="pt-4 text-center">
+        <AnimatedLogo variant="full" className="mx-auto" />
 
-        <h1 className="text-4xl font-extrabold text-[#FF7043] tracking-tight">
-          Destellos<span className="text-amber-400">✨</span>
-        </h1>
-        <p className="text-sm font-semibold tracking-widest uppercase text-gray-500 dark:text-gray-400 mt-1">
-          un clic familiar
-        </p>
-
-        <p className="text-sm text-gray-600 dark:text-gray-300 mt-3 max-w-xs mx-auto">
+        <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 max-w-xs mx-auto">
           Un espacio cálido y diario para compartir recuerdos familiares, jugar y celebrar el destello del día.
         </p>
       </div>
