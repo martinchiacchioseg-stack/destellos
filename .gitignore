@@ -47,3 +47,4 @@ next-env.d.ts
 /data/*.tmp
 /public/uploads/*
 !/public/uploads/.gitkeep
+/data/destellos_store*.json
