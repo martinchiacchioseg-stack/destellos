@@ -33,6 +33,15 @@ import { getPuntosPorEvento, DESCRIPCIONES_PUNTOS } from './puntos';
 import { supabaseAdmin, isSupabaseConfigured } from './supabase';
 import { elegirDestelloDelDia } from './gemini';
 import { procesarYGuardarMedia } from './storage';
+import {
+  COLLECTIONS,
+  cargarTodo as cargarTodoDeBase,
+  guardarCambios as guardarCambiosEnBase,
+  leerVersion as leerVersionDeBase,
+  cantidadUsuarios as cantidadUsuariosEnBase,
+  importarSiVacia as importarSiVaciaEnBase,
+  hacerBackup as hacerBackupBase,
+} from './sqlite-store';
 
 // ==============================================================================
 // ALMACENAMIENTO PERSISTENTE EN DISCO (JSON) + SINCRONIZACIÓN MULTI-WORKER
@@ -40,130 +49,13 @@ import { procesarYGuardarMedia } from './storage';
 
 export const DEFAULT_GRUPO_ID = 'grupo-familia-chiaccio-001';
 
-const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'destellos_store.json');
+const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'destellos_store.json'); // solo para migrar el JSON viejo
 
 const globalState = global as unknown as {
   __destellos_store?: StateStore;
-  __destellos_store_mtime?: number;
   __destellos_store_version?: number;
+  __destellos_flush_queued?: boolean;
 };
-
-function pausarSincrono(ms: number) {
-  const fin = Date.now() + ms;
-  while (Date.now() < fin) {}
-}
-
-export function persistirStore(store: StateStore) {
-  try {
-    // Protección vital: NUNCA persistir un store vacío si ya existe el archivo en disco
-    if (!store.usuarios || store.usuarios.length === 0) {
-      if (fs.existsSync(DATA_FILE_PATH)) {
-        console.warn('Protección activa: Intento de persistir store vacío cancelado para proteger usuarios.');
-        return;
-      }
-    }
-
-    const dir = path.dirname(DATA_FILE_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    store._version = (store._version || 0) + 1;
-    store._updated_at = new Date().toISOString();
-
-    const json = JSON.stringify(store, null, 2);
-
-    // Escritura atómica con reintentos para evitar colisiones de bloqueo en Windows (EBUSY / EPERM)
-    const tempFile = `${DATA_FILE_PATH}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}.tmp`;
-    let escrito = false;
-
-    for (let intento = 0; intento < 8; intento++) {
-      try {
-        fs.writeFileSync(tempFile, json, 'utf-8');
-        fs.renameSync(tempFile, DATA_FILE_PATH);
-        escrito = true;
-        break;
-      } catch (err: any) {
-        pausarSincrono(15 + Math.random() * 20);
-      }
-    }
-
-    if (!escrito) {
-      try {
-        fs.writeFileSync(DATA_FILE_PATH, json, 'utf-8');
-      } catch (e) {
-        console.error('Error en fallback directo de escritura:', e);
-      }
-    }
-
-    try {
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    } catch {}
-
-    try {
-      const stats = fs.statSync(DATA_FILE_PATH);
-      globalState.__destellos_store_mtime = stats.mtimeMs;
-      globalState.__destellos_store_version = store._version;
-    } catch {}
-  } catch (err) {
-    console.error('Error al persistir store en disco:', err);
-  }
-}
-
-export function cargarStoreDesdeArchivo(): StateStore | null {
-  for (let intento = 0; intento < 10; intento++) {
-    try {
-      if (!fs.existsSync(DATA_FILE_PATH)) return null;
-      const data = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
-      if (!data || data.trim().length === 0) {
-        pausarSincrono(15 + Math.random() * 15);
-        continue;
-      }
-      const parsed = JSON.parse(data);
-      if (parsed && Array.isArray(parsed.usuarios) && parsed.usuarios.length > 0) {
-        return parsed;
-      }
-    } catch (err: any) {
-      if (err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'EACCES') {
-        pausarSincrono(15 + Math.random() * 20);
-        continue;
-      }
-      console.error('Error al leer store desde archivo:', err);
-    }
-  }
-  return null;
-}
-
-export function sincronizarConDiscoSiCambio(): StateStore {
-  const store = getStore();
-  try {
-    if (fs.existsSync(DATA_FILE_PATH)) {
-      const stats = fs.statSync(DATA_FILE_PATH);
-      const currentMtime = globalState.__destellos_store_mtime || 0;
-      const currentVersion = globalState.__destellos_store_version || 0;
-
-      if (
-        stats.mtimeMs > currentMtime ||
-        !store.initialized ||
-        !store.usuarios ||
-        store.usuarios.length === 0
-      ) {
-        const desdeDisco = cargarStoreDesdeArchivo();
-        if (desdeDisco && Array.isArray(desdeDisco.usuarios) && desdeDisco.usuarios.length > 0) {
-          if ((desdeDisco._version || 0) >= currentVersion || stats.mtimeMs > currentMtime) {
-            Object.assign(store, desdeDisco);
-            store.initialized = true;
-            globalState.__destellos_store_mtime = stats.mtimeMs;
-            globalState.__destellos_store_version = desdeDisco._version || 1;
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error al sincronizar con disco:', err);
-  }
-  return store;
-}
 
 interface StateStore {
   _version?: number;
@@ -188,6 +80,95 @@ interface StateStore {
   initialized: boolean;
 }
 
+/**
+ * Reemplaza los datos en memoria por los de la base preservando la identidad de los
+ * objetos existentes (las referencias que otras funciones ya tengan siguen siendo válidas).
+ */
+function reconciliarConBase(store: StateStore, data: Record<string, any[]>) {
+  const s = store as unknown as Record<string, any[]>;
+  for (const c of COLLECTIONS) {
+    const viejos = new Map<any, any>();
+    (s[c] || []).forEach((o) => {
+      if (o && o.id !== undefined) viejos.set(o.id, o);
+    });
+    s[c] = (data[c] || []).map((fresco) => {
+      const viejo = fresco && fresco.id !== undefined ? viejos.get(fresco.id) : undefined;
+      if (!viejo) return fresco;
+      if (JSON.stringify(viejo) !== JSON.stringify(fresco)) {
+        for (const k of Object.keys(viejo)) if (!(k in fresco)) delete viejo[k];
+        Object.assign(viejo, fresco);
+      }
+      return viejo;
+    });
+  }
+}
+
+function recargarDesdeBase(store: StateStore) {
+  const { data, version } = cargarTodoDeBase();
+  reconciliarConBase(store, data);
+  store.initialized = true;
+  globalState.__destellos_store_version = version;
+}
+
+/** Primera carga: lee la base; si está vacía e hay un JSON viejo, lo migra una única vez. */
+function cargaInicial(store: StateStore) {
+  if (cantidadUsuariosEnBase() === 0 && fs.existsSync(DATA_FILE_PATH)) {
+    try {
+      const viejo = JSON.parse(fs.readFileSync(DATA_FILE_PATH, 'utf-8'));
+      if (importarSiVaciaEnBase(viejo)) {
+        console.log('[db] Datos del JSON anterior migrados a SQLite.');
+      }
+    } catch (e) {
+      console.error('[db] No se pudo migrar el JSON anterior:', e);
+    }
+  }
+  if (cantidadUsuariosEnBase() > 0) {
+    recargarDesdeBase(store);
+    try {
+      hacerBackupBase();
+    } catch {}
+  }
+}
+
+/**
+ * Guarda de inmediato los cambios pendientes de este proceso (solo las filas que cambiaron).
+ * Se mantiene el nombre por compatibilidad con el resto del código.
+ */
+export function persistirStore(store: StateStore) {
+  try {
+    const r = guardarCambiosEnBase(store as unknown as Record<string, any>, globalState.__destellos_store_version || 0);
+    if (r.changed) {
+      globalState.__destellos_store_version = r.version;
+      store._version = r.version;
+      store._updated_at = new Date().toISOString();
+    }
+  } catch (err) {
+    console.error('Error al persistir store en SQLite:', err);
+  }
+}
+
+/** Sincroniza: primero guarda lo pendiente de este proceso y luego trae lo que escribieron otros. */
+function sincronizarInterno(store: StateStore) {
+  try {
+    if (!store.initialized) {
+      cargaInicial(store);
+      return;
+    }
+    const r = guardarCambiosEnBase(store as unknown as Record<string, any>, globalState.__destellos_store_version || 0);
+    if (r.externo || leerVersionDeBase() !== r.version) {
+      recargarDesdeBase(store);
+    } else {
+      globalState.__destellos_store_version = r.version;
+    }
+  } catch (err) {
+    console.error('Error al sincronizar con SQLite:', err);
+  }
+}
+
+export function sincronizarConDiscoSiCambio(): StateStore {
+  return getStore();
+}
+
 export function getStore(): StateStore {
   if (!globalState.__destellos_store) {
     globalState.__destellos_store = {
@@ -210,34 +191,23 @@ export function getStore(): StateStore {
       reglas: [],
       initialized: false,
     };
-    globalState.__destellos_store_mtime = 0;
     globalState.__destellos_store_version = 0;
   }
 
-  // Sincronizar automáticamente con el archivo en disco si cambió o no se ha inicializado
-  try {
-    if (fs.existsSync(DATA_FILE_PATH)) {
-      const stats = fs.statSync(DATA_FILE_PATH);
-      const currentMtime = globalState.__destellos_store_mtime || 0;
-      if (
-        stats.mtimeMs > currentMtime ||
-        !globalState.__destellos_store.initialized ||
-        globalState.__destellos_store.usuarios.length === 0
-      ) {
-        const desdeDisco = cargarStoreDesdeArchivo();
-        if (desdeDisco && Array.isArray(desdeDisco.usuarios) && desdeDisco.usuarios.length > 0) {
-          Object.assign(globalState.__destellos_store, desdeDisco);
-          globalState.__destellos_store.initialized = true;
-          globalState.__destellos_store_mtime = stats.mtimeMs;
-          globalState.__destellos_store_version = desdeDisco._version || 1;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error al sincronizar store con disco:', err);
+  const store = globalState.__destellos_store;
+  sincronizarInterno(store);
+
+  // Autoguardado: cualquier cambio hecho por quien llamó a getStore() se guarda al terminar
+  // el turno actual, aunque la función no llame explícitamente a persistirStore().
+  if (store.initialized && !globalState.__destellos_flush_queued) {
+    globalState.__destellos_flush_queued = true;
+    setTimeout(() => {
+      globalState.__destellos_flush_queued = false;
+      persistirStore(store);
+    }, 0);
   }
 
-  return globalState.__destellos_store;
+  return store;
 }
 
 export async function obtenerGrupoIdPorDefecto(): Promise<string> {
@@ -286,21 +256,10 @@ export async function ensureInitialized() {
   const store = getStore();
   if (store.initialized && store.usuarios && store.usuarios.length > 0) return;
 
-  // 1. Si el archivo en disco existe, cargarlo y NUNCA ejecutar el seed destructivo
-  if (fs.existsSync(DATA_FILE_PATH)) {
-    const guardadoEnDisco = cargarStoreDesdeArchivo();
-    if (guardadoEnDisco && guardadoEnDisco.usuarios && guardadoEnDisco.usuarios.length > 0) {
-      Object.assign(store, guardadoEnDisco);
-      store.initialized = true;
-      try {
-        const stats = fs.statSync(DATA_FILE_PATH);
-        globalState.__destellos_store_mtime = stats.mtimeMs;
-        globalState.__destellos_store_version = guardadoEnDisco._version || 1;
-      } catch {}
-      migrarMediaExistenteADisco();
-      return;
-    }
-    // Si existe el archivo pero falló la lectura puntual por concurrencia, no borrar nada
+  // 1. Si la base de datos ya tiene usuarios, cargarla y NUNCA ejecutar el seed
+  if (cantidadUsuariosEnBase() > 0) {
+    getStore(); // carga/sincroniza desde SQLite
+    if (store.initialized) migrarMediaExistenteADisco();
     return;
   }
 
@@ -1683,8 +1642,8 @@ export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en
   }
 
   const nuevaPub: Publicidad = {
-    id: uuidv4(),
     ...data,
+    id: data.id || uuidv4(),
     imagen_url: imagenUrl,
     creado_en: new Date().toISOString(),
   };

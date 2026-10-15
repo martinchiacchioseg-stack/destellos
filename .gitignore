@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Base de datos local SQLite, backups y archivos subidos
+/data/destellos.db*
+/data/backups/
+/data/*.tmp
+/public/uploads/*
+!/public/uploads/.gitkeep
