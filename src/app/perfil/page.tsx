@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
-import { LogOut, Moon, Sun, Shield, Crown, Sparkles, KeyRound, Users } from 'lucide-react';
+import { LogOut, Moon, Sun, Shield, Crown, Sparkles, KeyRound, Users, Camera, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { SesionUsuario } from '@/lib/types';
 
 export default function PerfilPage() {
@@ -12,6 +12,9 @@ export default function PerfilPage() {
   const [usuario, setUsuario] = useState<(SesionUsuario & { grupo_nombre?: string }) | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [cargando, setCargando] = useState(true);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     // Cargar sesión actual
@@ -49,6 +52,57 @@ export default function PerfilPage() {
     router.refresh();
   };
 
+  // Subir y cambiar foto de perfil
+  const handleCambiarFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoFoto(true);
+    setFeedback(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const MAX = 600;
+        let w = img.width;
+        let h = img.height;
+        if (w > h && w > MAX) {
+          h = Math.round((h * MAX) / w);
+          w = MAX;
+        } else if (h > MAX) {
+          w = Math.round((w * MAX) / h);
+          h = MAX;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          try {
+            const res = await fetch('/api/auth/perfil', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ avatar_url: dataUrl }),
+            });
+            const data = await res.json();
+            if (res.ok && data.usuario) {
+              setUsuario((prev) => prev ? { ...prev, avatar_url: data.usuario.avatar_url } : null);
+              setFeedback('¡Foto de perfil actualizada correctamente! ✨');
+              setTimeout(() => setFeedback(null), 3500);
+            }
+          } catch (err) {
+            console.error('Error al subir foto:', err);
+          }
+        }
+        setSubiendoFoto(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (cargando) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 text-sm text-gray-400">
@@ -62,18 +116,69 @@ export default function PerfilPage() {
       <Header usuario={usuario} puntosTotales={16} />
 
       <main className="p-4 space-y-4">
+        {/* Input oculto para cambiar foto */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCambiarFoto}
+        />
+
         {/* Tarjeta de Usuario */}
         <div className="bg-white dark:bg-[#201D24] p-6 rounded-3xl shadow-soft border border-[var(--border-soft)] text-center relative overflow-hidden">
-          <div className="w-20 h-20 rounded-full mx-auto ring-4 ring-[#FF7043]/20 overflow-hidden bg-orange-100 mb-3 shadow-md">
-            {usuario?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={usuario.avatar_url} alt={usuario.nombre} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-2xl font-bold text-[#FF7043] flex items-center justify-center h-full">
-                {usuario?.nombre?.charAt(0)}
-              </span>
-            )}
+          {/* Avatar con botón de cámara */}
+          <div className="relative w-24 h-24 mx-auto mb-3">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="w-24 h-24 rounded-full ring-4 ring-[#FF7043]/30 overflow-hidden bg-orange-100 shadow-md cursor-pointer group relative"
+              title="Hacé clic para cambiar tu foto de perfil"
+            >
+              {usuario?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={usuario.avatar_url} alt={usuario.nombre} className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
+              ) : (
+                <span className="text-3xl font-bold text-[#FF7043] flex items-center justify-center h-full">
+                  {usuario?.nombre?.charAt(0)}
+                </span>
+              )}
+
+              {/* Overlay oscuro al pasar el cursor o subiendo */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                {subiendoFoto ? (
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6" />
+                )}
+              </div>
+            </div>
+
+            {/* Botón flotante para cambiar foto */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={subiendoFoto}
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#FF7043] text-white shadow-md flex items-center justify-center hover:bg-[#F4511E] transition-all active:scale-95 border-2 border-white dark:border-[#201D24]"
+              title="Cambiar foto de perfil"
+            >
+              {subiendoFoto ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+            </button>
           </div>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={subiendoFoto}
+            className="text-xs font-bold text-[#FF7043] hover:underline inline-flex items-center gap-1 mb-2"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>{subiendoFoto ? 'Actualizando foto...' : 'Cambiar foto de perfil'}</span>
+          </button>
+
+          {feedback && (
+            <div className="mb-3 p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center gap-1.5 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{feedback}</span>
+            </div>
+          )}
 
           <h2 className="text-xl font-extrabold text-gray-800 dark:text-gray-100">
             {usuario?.nombre}

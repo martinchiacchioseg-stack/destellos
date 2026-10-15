@@ -722,10 +722,12 @@ export async function actualizarUsuario(
     nombre?: string;
     apodo?: string;
     telefono?: string;
+    avatar_url?: string;
     email?: string;
     rol?: 'superadmin' | 'admin' | 'miembro';
     grupo_id?: string | null;
     passwordTemporal?: string;
+    debe_cambiar_password?: boolean;
     activo?: boolean;
   }
 ): Promise<UsuarioPublico | null> {
@@ -741,6 +743,16 @@ export async function actualizarUsuario(
   if (data.rol) u.rol = data.rol;
   if (data.grupo_id !== undefined) u.grupo_id = data.grupo_id;
   if (data.activo !== undefined) u.activo = data.activo;
+  if (data.avatar_url !== undefined) {
+    let url = data.avatar_url;
+    if (url && url.startsWith('data:')) {
+      url = procesarYGuardarMedia(url, `avatar-${usuarioId}`);
+    }
+    u.avatar_url = url;
+  }
+  if (data.debe_cambiar_password !== undefined) {
+    u.debe_cambiar_password = data.debe_cambiar_password;
+  }
   if (data.passwordTemporal) {
     u.password_hash = await hashPassword(data.passwordTemporal);
     u.debe_cambiar_password = true;
@@ -803,7 +815,7 @@ export async function crearGrupo(nombre: string, descripcion?: string): Promise<
 
   const store = getStore();
   store.grupos.push(nuevoGrupo);
-  persistirStore(store);
+  dbUpsert('grupos', nuevoGrupo);
   return nuevoGrupo;
 }
 
@@ -813,7 +825,7 @@ export async function eliminarGrupo(grupoId: string): Promise<boolean> {
   const idx = store.grupos.findIndex((g) => g.id === grupoId);
   if (idx !== -1) {
     store.grupos[idx].activo = false;
-    persistirStore(store);
+    dbUpsert('grupos', store.grupos[idx]);
     return true;
   }
   return false;
@@ -831,12 +843,13 @@ export async function actualizarGrupo(
   if (data.nombre) g.nombre = data.nombre.trim();
   if (data.descripcion !== undefined) g.descripcion = data.descripcion.trim();
 
-  persistirStore(store);
+  dbUpsert('grupos', g);
   return g;
 }
 
 export async function eliminarGrupoPermanente(grupoId: string): Promise<boolean> {
   await ensureInitialized();
+  dbDelete('grupos', grupoId);
   const store = getStore();
   const idx = store.grupos.findIndex((g) => g.id === grupoId);
   if (idx === -1) return false;
@@ -846,9 +859,9 @@ export async function eliminarGrupoPermanente(grupoId: string): Promise<boolean>
   store.usuarios.forEach((u) => {
     if (u.grupo_id === grupoId && u.rol !== 'superadmin') {
       u.activo = false;
+      dbUpsert('usuarios', u);
     }
   });
-  persistirStore(store);
   return true;
 }
 

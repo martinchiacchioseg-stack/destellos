@@ -42,7 +42,21 @@ export async function POST(req: NextRequest) {
 
     const existe = await buscarUsuarioPorEmail(email);
     if (existe) {
-      return NextResponse.json({ error: 'Ya existe un usuario con este correo.' }, { status: 400 });
+      const actualizado = await actualizarUsuario(existe.id, {
+        nombre,
+        apodo: apodo || existe.apodo,
+        telefono: telefono || existe.telefono,
+        rol: existe.rol === 'superadmin' ? 'superadmin' : (rol || 'miembro'),
+        grupo_id: grupoId,
+        passwordTemporal: passwordTemporal && passwordTemporal !== '000000' ? passwordTemporal : undefined,
+        activo: true,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        mensaje: `Usuario ${actualizado?.nombre || nombre} vinculado al grupo exitosamente.`,
+        usuario: actualizado,
+      });
     }
 
     const nuevo = await crearUsuario({

@@ -3,6 +3,7 @@ import { getCurrentSession } from '@/lib/auth';
 import {
   listarUsuariosGrupo,
   crearUsuario,
+  actualizarUsuario,
   buscarUsuarioPorEmail,
   obtenerGrupoIdPorDefecto,
   buscarUsuarioPorId,
@@ -49,10 +50,19 @@ export async function POST(req: NextRequest) {
 
     const existente = await buscarUsuarioPorEmail(email);
     if (existente) {
-      return NextResponse.json(
-        { error: 'Ya existe un usuario registrado con ese email.' },
-        { status: 400 }
-      );
+      const actualizado = await actualizarUsuario(existente.id, {
+        nombre,
+        apodo: apodo || existente.apodo,
+        telefono: telefono || existente.telefono,
+        grupo_id: grupoId,
+        passwordTemporal,
+        activo: true,
+      });
+      return NextResponse.json({
+        ok: true,
+        mensaje: `Usuario ${actualizado?.nombre || nombre} vinculado al grupo exitosamente.`,
+        usuario: actualizado,
+      });
     }
 
     const nuevoUsuario = await crearUsuario({

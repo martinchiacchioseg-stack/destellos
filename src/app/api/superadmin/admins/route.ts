@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { listarTodosLosUsuarios, crearUsuario, buscarUsuarioPorEmail, buscarUsuarioPorId } from '@/lib/db';
+import { listarTodosLosUsuarios, crearUsuario, buscarUsuarioPorEmail, buscarUsuarioPorId, actualizarUsuario } from '@/lib/db';
 
 export async function GET() {
   const session = await getCurrentSession();
@@ -38,7 +38,18 @@ export async function POST(req: NextRequest) {
 
     const existe = await buscarUsuarioPorEmail(email);
     if (existe) {
-      return NextResponse.json({ error: 'Ya existe un usuario con este email.' }, { status: 400 });
+      const actualizado = await actualizarUsuario(existe.id, {
+        nombre,
+        rol: existe.rol === 'superadmin' ? 'superadmin' : 'admin',
+        grupo_id: grupoId,
+        passwordTemporal: passwordTemporal && passwordTemporal !== '000000' ? passwordTemporal : undefined,
+        activo: true,
+      });
+      return NextResponse.json({
+        ok: true,
+        mensaje: `Usuario ${actualizado?.nombre || nombre} asignado como administrador del grupo.`,
+        admin: actualizado,
+      });
     }
 
     const nuevoAdmin = await crearUsuario({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession, verifyPassword, createSessionToken, setSessionCookie } from '@/lib/auth';
-import { buscarUsuarioPorId, actualizarPassword } from '@/lib/db';
+import { buscarUsuarioPorId, actualizarPassword, actualizarUsuario } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { passwordActual, passwordNuevo } = body;
+    const { passwordActual, passwordNuevo, avatar_url } = body;
 
     if (!passwordActual || !passwordNuevo) {
       return NextResponse.json(
@@ -60,9 +60,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let finalAvatar = session.avatar_url;
+    if (avatar_url) {
+      const uAct = await actualizarUsuario(usuario.id, { avatar_url });
+      if (uAct?.avatar_url) finalAvatar = uAct.avatar_url;
+    }
+
     // Actualizar token de sesión con debe_cambiar_password = false
     const nuevoToken = await createSessionToken({
       ...session,
+      avatar_url: finalAvatar,
       debe_cambiar_password: false,
     });
     await setSessionCookie(nuevoToken);

@@ -212,16 +212,23 @@ export default function SuperadminPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setFeedback({ tipo: 'error', texto: data.error });
+        setFeedback({ tipo: 'error', texto: data.error || 'Error al crear grupo.' });
       } else {
-        setFeedback({ tipo: 'ok', texto: data.mensaje });
+        setFeedback({ tipo: 'ok', texto: data.mensaje || 'Familia creada con éxito.' });
         setNombreGrupo('');
         setDescGrupo('');
         setMostrarModalGrupo(false);
+        if (data.grupo?.id) {
+          setGrupoSeleccionadoId(data.grupo.id);
+          setAdminGrupoId(data.grupo.id);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('destellos_superadmin_grupo_id', data.grupo.id);
+          }
+        }
         cargarTodo();
       }
-    } catch {
-      setFeedback({ tipo: 'error', texto: 'Error de conexión.' });
+    } catch (err: any) {
+      setFeedback({ tipo: 'error', texto: err?.message || 'Error al conectar con el servidor.' });
     }
   };
 

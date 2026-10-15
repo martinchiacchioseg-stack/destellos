@@ -74,10 +74,10 @@ export interface EvaluacionDiaria {
 
 export type TipoEventoPuntos =
   | 'participacion_diaria'        // +1
-  | 'destello_del_dia'            // +10 (Gemini)
+  | 'destello_del_dia'            // +50 (Gemini Árbitro)
   | 'cumplir_reto'                // +2 (Reto temático)
   | 'votacion_comunidad_ganador'  // +5 (Más votado por el grupo)
-  | 'adivina_quien_acierto'       // +1 por cada acierto
+  | 'adivina_quien_acierto'       // +10 por cada acierto
   | 'foto_pasado_acierto_exacto'  // +3
   | 'foto_pasado_acierto_cercano' // +1 (+- 2 años)
   | 'foto_pasado_anfitrion'       // +1 por cada miembro que participó
