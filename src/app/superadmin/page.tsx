@@ -24,7 +24,7 @@ import {
   Image as ImageIcon,
   X,
 } from 'lucide-react';
-import { SesionUsuario, Publicidad, ReglasGrupo } from '@/lib/types';
+import { SesionUsuario, Publicidad, ReglasGrupo, UbicacionPublicidad } from '@/lib/types';
 
 type TabSuperadmin = 'metricas' | 'usuarios' | 'publicidad' | 'reglas';
 
@@ -83,7 +83,7 @@ export default function SuperadminPage() {
   const [adTexto, setAdTexto] = useState('');
   const [adImagenUrl, setAdImagenUrl] = useState('');
   const [adLinkUrl, setAdLinkUrl] = useState('');
-  const [adUbicacion, setAdUbicacion] = useState<'foto_ganadora' | 'prode' | 'post_subida'>('post_subida');
+  const [adUbicacion, setAdUbicacion] = useState<UbicacionPublicidad>('post_subida');
   const [subiendoImagenAd, setSubiendoImagenAd] = useState(false);
 
   const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
@@ -1039,11 +1039,23 @@ export default function SuperadminPage() {
                     onChange={(e) => setAdUbicacion(e.target.value as any)}
                     className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] mt-0.5"
                   >
-                    <option value="post_subida">
-                      Post-Subida (5 segundos antes de confirmar foto) ⏱️
-                    </option>
-                    <option value="foto_ganadora">Foto Ganadora (Debajo del Destello de Ayer) 🏆</option>
-                    <option value="prode">Prode del Fin de Semana ⚽</option>
+                    <optgroup label="⏱️ Intersticiales de Menú (5 segundos)">
+                      <option value="interstitial_juegos">Menú: Al ingresar a Juegos 🎮</option>
+                      <option value="interstitial_ranking">Menú: Al ingresar a Ranking 🥇</option>
+                      <option value="post_subida">Subida: 5s antes de confirmar foto diaria 📸</option>
+                    </optgroup>
+                    <optgroup label="🏁 Fin de Desafíos y Mini-Juegos">
+                      <option value="fin_desafio_ruleta">Al finalizar / girar Ruleta Rusa 🎯</option>
+                      <option value="fin_desafio_prode">Al guardar pronósticos del Prode ⚽</option>
+                      <option value="fin_desafio_reto_diario">Al completar Reto Diario ✨</option>
+                      <option value="fin_desafio_voto_cruzado">Al emitir voto en Votación Cruzada 🗳️</option>
+                      <option value="fin_desafio_adivina">Al responder ¿Quién es quién? 👶</option>
+                      <option value="fin_desafio_foto_pasado">Al adivinar Foto del Pasado 🕰️</option>
+                    </optgroup>
+                    <optgroup label="📌 Banners Fijos en Pantallas">
+                      <option value="foto_ganadora">Debajo del Destello de Ayer en Inicio 🏆</option>
+                      <option value="prode">Banner en sección Prode del Finde ⚽</option>
+                    </optgroup>
                   </select>
                 </div>
 

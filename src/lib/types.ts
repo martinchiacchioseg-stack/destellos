@@ -270,7 +270,18 @@ export type ProdePronostico = JuegoProdePronostico;
 // PUBLICIDAD Y MONETIZACIÓN (Superadmin)
 // ==============================================================================
 
-export type UbicacionPublicidad = 'foto_ganadora' | 'prode' | 'post_subida';
+export type UbicacionPublicidad =
+  | 'post_subida'
+  | 'foto_ganadora'
+  | 'prode'
+  | 'interstitial_juegos'
+  | 'interstitial_ranking'
+  | 'fin_desafio_ruleta'
+  | 'fin_desafio_prode'
+  | 'fin_desafio_reto_diario'
+  | 'fin_desafio_voto_cruzado'
+  | 'fin_desafio_adivina'
+  | 'fin_desafio_foto_pasado';
 
 export interface Publicidad {
   id: string;

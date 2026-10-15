@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import RuletaTambor from '@/components/RuletaTambor';
 import SponsorAd from '@/components/SponsorAd';
+import InterstitialAdModal from '@/components/InterstitialAdModal';
 import { dispararConfeti } from '@/components/ConfettiCelebration';
 import {
   Gamepad2,
@@ -35,6 +36,7 @@ import {
   ProdePronostico,
   RetoDiario,
   Publicidad,
+  UbicacionPublicidad,
 } from '@/lib/types';
 import UploadModal from '@/components/UploadModal';
 
@@ -46,6 +48,8 @@ export default function JuegosPage() {
   const [cargando, setCargando] = useState(true);
   const [puntosTotales, setPuntosTotales] = useState(16);
   const [modalUploadAbierto, setModalUploadAbierto] = useState(false);
+  const [mostrarAdEntradaJuegos, setMostrarAdEntradaJuegos] = useState(true);
+  const [adDesafioUbicacion, setAdDesafioUbicacion] = useState<UbicacionPublicidad | null>(null);
 
   // Estados de Ruleta Rusa
   const [rondaRuleta, setRondaRuleta] = useState<JuegoRuletaRonda | null>(null);
@@ -266,6 +270,7 @@ export default function JuegosPage() {
         dispararConfeti();
         setRespuestaRuleta('');
         cargarJuego('ruleta');
+        setAdDesafioUbicacion('fin_desafio_ruleta');
       }
     } catch {
       setErrorRuleta('Error al guardar respuesta.');
@@ -319,6 +324,7 @@ export default function JuegosPage() {
 
       if (res.ok) {
         cargarJuego('prode');
+        setAdDesafioUbicacion('fin_desafio_prode');
       }
     } catch {}
   };
@@ -351,6 +357,7 @@ export default function JuegosPage() {
         setMiVotoId(destelloId);
         dispararConfeti();
         cargarJuego('voto');
+        setAdDesafioUbicacion('fin_desafio_voto_cruzado');
       }
     } catch {}
   };
@@ -372,6 +379,7 @@ export default function JuegosPage() {
       if (res.ok) {
         dispararConfeti();
         cargarJuego('adivina');
+        setAdDesafioUbicacion('fin_desafio_adivina');
       }
     } catch {}
   };
@@ -395,6 +403,7 @@ export default function JuegosPage() {
       if (res.ok) {
         dispararConfeti();
         cargarJuego('pasado');
+        setAdDesafioUbicacion('fin_desafio_foto_pasado');
       }
     } catch {}
   };
@@ -411,6 +420,20 @@ export default function JuegosPage() {
   return (
     <div className="flex-1 flex flex-col pb-20">
       <Header usuario={usuario} puntosTotales={puntosTotales} />
+
+      {/* Publicidad intersticial de 5 segundos al entrar a Juegos */}
+      <InterstitialAdModal
+        ubicacion="interstitial_juegos"
+        isOpen={mostrarAdEntradaJuegos}
+        onClose={() => setMostrarAdEntradaJuegos(false)}
+      />
+
+      {/* Publicidad intersticial al terminar cualquiera de los desafíos */}
+      <InterstitialAdModal
+        ubicacion={adDesafioUbicacion || undefined}
+        isOpen={Boolean(adDesafioUbicacion)}
+        onClose={() => setAdDesafioUbicacion(null)}
+      />
 
       <main className="p-4 space-y-4 max-w-lg mx-auto w-full">
         {/* Selector de Juegos (Pills horizontales scrolleables) */}

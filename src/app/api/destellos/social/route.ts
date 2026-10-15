@@ -26,7 +26,7 @@ export async function GET() {
       obtenerColgadosAyer(grupoId),
       obtenerFaltantesHoy(grupoId, fechaHoy),
       obtenerRachaUsuario(session.id, grupoId),
-      obtenerPublicidadPorUbicacion('post_subida'),
+      (await obtenerPublicidadPorUbicacion('post_subida')) || (await obtenerPublicidadPorUbicacion('fin_desafio_reto_diario')),
       obtenerPublicidadPorUbicacion('foto_ganadora'),
       obtenerReglasGrupo(grupoId),
       obtenerDestelloGanadorDia(grupoId, fechaAyer),

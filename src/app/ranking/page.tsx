@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
+import InterstitialAdModal from '@/components/InterstitialAdModal';
 import { Trophy, Crown, Sparkles, Award, Medal, Flame, Star, TrendingUp } from 'lucide-react';
 import { SesionUsuario } from '@/lib/types';
 
@@ -22,6 +23,7 @@ export default function RankingPage() {
   const [periodo, setPeriodo] = useState<'diario' | 'semanal' | 'total'>('total');
   const [ranking, setRanking] = useState<ItemRanking[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [mostrarAdRanking, setMostrarAdRanking] = useState(true);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -60,6 +62,12 @@ export default function RankingPage() {
   return (
     <div className="flex-1 flex flex-col pb-20">
       <Header usuario={usuario} puntosTotales={miItem?.puntos || 16} />
+
+      <InterstitialAdModal
+        ubicacion="interstitial_ranking"
+        isOpen={mostrarAdRanking}
+        onClose={() => setMostrarAdRanking(false)}
+      />
 
       <main className="p-4 space-y-4 max-w-lg mx-auto w-full">
         {/* Cabecera con selector de períodos */}
