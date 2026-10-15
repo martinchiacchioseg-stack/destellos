@@ -28,14 +28,14 @@ export default function Header({ usuario, puntosTotales = 0 }: HeaderProps) {
         </div>
 
 
-        {usuario?.rol === 'admin' && (
+        {(usuario?.rol === 'admin' || usuario?.rol === 'superadmin') && (
           <button
-            onClick={() => router.push('/admin')}
-            className="flex items-center gap-1 px-2.5 py-1 bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-800"
-            title="Panel de Administración"
+            onClick={() => router.push(usuario.rol === 'superadmin' ? '/superadmin' : '/admin')}
+            className="flex items-center gap-1 px-2.5 py-1 bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 shadow-sm"
+            title={usuario.rol === 'superadmin' ? 'Panel Superadmin' : 'Panel de Administración'}
           >
             <Shield className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Admin</span>
+            <span className="hidden sm:inline">{usuario.rol === 'superadmin' ? 'Superadmin' : 'Admin'}</span>
           </button>
         )}
 
