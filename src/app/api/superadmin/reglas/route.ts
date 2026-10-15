@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerReglasGrupo, actualizarReglasGrupo } from '@/lib/db';
+import { obtenerReglasGrupo, actualizarReglasGrupo, obtenerGrupoIdPorDefecto } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const grupoId = searchParams.get('grupoId') || 'grupo-familia-perez-001';
+  const grupoId = searchParams.get('grupoId') || (await obtenerGrupoIdPorDefecto());
   const reglas = await obtenerReglasGrupo(grupoId);
   return NextResponse.json({ reglas });
 }
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { grupoId, ...data } = body;
-    const targetGrupo = grupoId || 'grupo-familia-perez-001';
+    const targetGrupo = grupoId || (await obtenerGrupoIdPorDefecto());
 
     const actualizadas = await actualizarReglasGrupo(targetGrupo, data);
     return NextResponse.json({

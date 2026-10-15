@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerFotosParaAdivinar, registrarAdivinanzas } from '@/lib/db';
+import { obtenerFotosParaAdivinar, registrarAdivinanzas, obtenerGrupoIdPorDefecto } from '@/lib/db';
 import { getFechaArgentina, getAyerFechaArgentina } from '@/lib/date-utils';
 
 export async function GET(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
   const { searchParams } = new URL(req.url);
   // Por defecto se juega con las de hoy o ayer
   const fecha = searchParams.get('fecha') || getAyerFechaArgentina();
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
     }
 
-    const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+    const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
     const { fecha, respuestas } = await req.json();
 
     if (!respuestas || !Array.isArray(respuestas) || respuestas.length === 0) {

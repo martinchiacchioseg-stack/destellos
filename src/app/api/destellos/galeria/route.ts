@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { listarGaleria, listarUsuariosGrupo } from '@/lib/db';
+import { listarGaleria, listarUsuariosGrupo, obtenerGrupoIdPorDefecto } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
   const { searchParams } = new URL(req.url);
   const usuarioId = searchParams.get('usuario_id');
   const tipoMedia = searchParams.get('tipo_media');

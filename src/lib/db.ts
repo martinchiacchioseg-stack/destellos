@@ -34,10 +34,17 @@ import { supabaseAdmin, isSupabaseConfigured } from './supabase';
 import { elegirDestelloDelDia } from './gemini';
 
 // ==============================================================================
-// ALMACENAMIENTO PERSISTENTE EN DISCO (JSON) + MEMORIA REACTIVA
+// ALMACENAMIENTO PERSISTENTE EN DISCO (JSON) + SINCRONIZACIÓN MULTI-WORKER
 // ==============================================================================
 
+export const DEFAULT_GRUPO_ID = 'grupo-familia-chiaccio-001';
+
 const DATA_FILE_PATH = path.join(process.cwd(), 'data', 'destellos_store.json');
+
+const globalState = global as unknown as {
+  __destellos_store?: StateStore;
+  __destellos_store_mtime?: number;
+};
 
 export function persistirStore(store: StateStore) {
   try {
@@ -45,9 +52,24 @@ export function persistirStore(store: StateStore) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(store, null, 2), 'utf-8');
+    const json = JSON.stringify(store, null, 2);
+    // Escritura atómica para evitar archivos corruptos o lecturas parciales entre workers
+    const tempFile = `${DATA_FILE_PATH}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}.tmp`;
+    try {
+      fs.writeFileSync(tempFile, json, 'utf-8');
+      fs.renameSync(tempFile, DATA_FILE_PATH);
+    } catch {
+      fs.writeFileSync(DATA_FILE_PATH, json, 'utf-8');
+      try {
+        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+      } catch {}
+    }
+    try {
+      const stats = fs.statSync(DATA_FILE_PATH);
+      globalState.__destellos_store_mtime = stats.mtimeMs;
+    } catch {}
   } catch (err) {
-    // Si corre en un entorno read-only (serverless sin fs write), no rompe
+    console.error('Error al persistir store en disco:', err);
   }
 }
 
@@ -85,10 +107,7 @@ interface StateStore {
   initialized: boolean;
 }
 
-// Global singleton para persistencia entre requests en el runtime de Node
-const globalState = global as unknown as { __destellos_store?: StateStore };
-
-function getStore(): StateStore {
+export function getStore(): StateStore {
   if (!globalState.__destellos_store) {
     globalState.__destellos_store = {
       usuarios: [],
@@ -110,8 +129,44 @@ function getStore(): StateStore {
       reglas: [],
       initialized: false,
     };
+    globalState.__destellos_store_mtime = 0;
   }
+
+  // Sincronizar automáticamente con el archivo en disco si cambió o no se ha inicializado
+  try {
+    if (fs.existsSync(DATA_FILE_PATH)) {
+      const stats = fs.statSync(DATA_FILE_PATH);
+      const currentMtime = globalState.__destellos_store_mtime || 0;
+      if (
+        stats.mtimeMs > currentMtime ||
+        !globalState.__destellos_store.initialized ||
+        globalState.__destellos_store.usuarios.length === 0
+      ) {
+        const data = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
+        const parsed = JSON.parse(data);
+        if (parsed && Array.isArray(parsed.usuarios)) {
+          Object.assign(globalState.__destellos_store, parsed);
+          globalState.__destellos_store.initialized = true;
+          globalState.__destellos_store_mtime = stats.mtimeMs;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error al sincronizar store con disco:', err);
+  }
+
   return globalState.__destellos_store;
+}
+
+export async function obtenerGrupoIdPorDefecto(): Promise<string> {
+  await ensureInitialized();
+  const store = getStore();
+  if (store.grupos && store.grupos.length > 0) {
+    const activo = store.grupos.find((g) => g.activo);
+    if (activo) return activo.id;
+    return store.grupos[0].id;
+  }
+  return DEFAULT_GRUPO_ID;
 }
 
 /**
@@ -119,20 +174,24 @@ function getStore(): StateStore {
  */
 export async function ensureInitialized() {
   const store = getStore();
-  if (store.initialized) return;
+  if (store.initialized && store.usuarios && store.usuarios.length > 0) return;
 
   // 1. Intentar cargar desde el archivo persistente en disco (evita pérdida de datos al reiniciar)
   const guardadoEnDisco = cargarStoreDesdeArchivo();
   if (guardadoEnDisco && guardadoEnDisco.usuarios && guardadoEnDisco.usuarios.length > 0) {
     Object.assign(store, guardadoEnDisco);
     store.initialized = true;
+    try {
+      const stats = fs.statSync(DATA_FILE_PATH);
+      globalState.__destellos_store_mtime = stats.mtimeMs;
+    } catch {}
     return;
   }
 
   const superadminEmail = process.env.SUPERADMIN_EMAIL || 'martinchiaccio.seg@gmail.com';
   const superadminPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234';
 
-  const defaultGroupId = 'grupo-familia-chiaccio-001';
+  const defaultGroupId = DEFAULT_GRUPO_ID;
   const superadminId = 'usr-superadmin-001';
 
   const passHashSuper = await hashPassword(superadminPass);
@@ -1669,7 +1728,7 @@ export async function responderPreguntaRuleta(
   p.respuesta_media_url = mediaUrl;
 
   const ronda = store.ruletaRondas.find((r) => r.id === p.ronda_id);
-  const grupoId = ronda?.grupo_id || 'grupo-familia-perez-001';
+  const grupoId = ronda?.grupo_id || (await obtenerGrupoIdPorDefecto());
 
   // +2 por responder
   await otorgarPuntos(

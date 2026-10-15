@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerDestelloUsuarioDia, listarDestellosDia } from '@/lib/db';
+import { obtenerDestelloUsuarioDia, listarDestellosDia, obtenerGrupoIdPorDefecto } from '@/lib/db';
 import { getFechaArgentina, getTiempoRestanteCierre } from '@/lib/date-utils';
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
   const fechaHoy = getFechaArgentina();
 
   // 1. Destello propio de hoy (si ya subió)

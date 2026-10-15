@@ -38,10 +38,20 @@ export default function SuperadminPage() {
   const [publicidades, setPublicidades] = useState<Publicidad[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // Selector de grupo para usuarios y reglas
+  // Selector de grupo para usuarios y reglas (persiste entre recargas)
   const [grupoSeleccionadoId, setGrupoSeleccionadoId] = useState<string>('');
   const [usuariosGrupo, setUsuariosGrupo] = useState<any[]>([]);
   const [reglasGrupo, setReglasGrupo] = useState<ReglasGrupo | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const guardado = localStorage.getItem('destellos_superadmin_grupo_id');
+      if (guardado) {
+        setGrupoSeleccionadoId(guardado);
+        setAdminGrupoId(guardado);
+      }
+    }
+  }, []);
 
   // Modal nuevo grupo
   const [mostrarModalGrupo, setMostrarModalGrupo] = useState(false);
@@ -108,10 +118,17 @@ export default function SuperadminPage() {
       if (metRes.ok) setMetricas(await metRes.json());
       if (grupRes.ok) {
         const gData = await grupRes.json();
-        setGrupos(gData.grupos || []);
-        if (gData.grupos?.length > 0 && !grupoSeleccionadoId) {
-          setGrupoSeleccionadoId(gData.grupos[0].id);
-          setAdminGrupoId(gData.grupos[0].id);
+        const listaGrupos = gData.grupos || [];
+        setGrupos(listaGrupos);
+        if (listaGrupos.length > 0) {
+          const guardado = typeof window !== 'undefined' ? localStorage.getItem('destellos_superadmin_grupo_id') : null;
+          const existe = listaGrupos.some((g: any) => g.id === guardado);
+          const finalId = existe && guardado ? guardado : (grupoSeleccionadoId || listaGrupos[0].id);
+          setGrupoSeleccionadoId(finalId);
+          setAdminGrupoId(finalId);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('destellos_superadmin_grupo_id', finalId);
+          }
         }
       }
       if (admRes.ok) {
@@ -251,16 +268,29 @@ export default function SuperadminPage() {
     }
   };
 
+  const handleCambiarGrupoSeleccionado = (id: string) => {
+    setGrupoSeleccionadoId(id);
+    setAdminGrupoId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('destellos_superadmin_grupo_id', id);
+    }
+  };
+
   // Crear Usuario por Familia
   const handleCrearUsuarioFamilia = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
     try {
+      const targetGrupoId = grupoSeleccionadoId || (grupos[0]?.id || '');
+      if (!targetGrupoId) {
+        setFeedback({ tipo: 'error', texto: 'Debés seleccionar una familia antes de dar de alta un usuario.' });
+        return;
+      }
       const res = await fetch('/api/superadmin/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          grupoId: grupoSeleccionadoId,
+          grupoId: targetGrupoId,
           nombre: nuevoUsuarioNombre,
           apodo: nuevoUsuarioApodo,
           email: nuevoUsuarioEmail,
@@ -278,11 +308,12 @@ export default function SuperadminPage() {
         setNuevoUsuarioEmail('');
         setMostrarModalUsuario(false);
         // Recargar usuarios del grupo
-        const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`);
+        const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${targetGrupoId}`);
         if (uRes.ok) {
           const uData = await uRes.json();
           setUsuariosGrupo(uData.usuarios || []);
         }
+        cargarTodo();
       }
     } catch {
       setFeedback({ tipo: 'error', texto: 'Error al crear usuario.' });
@@ -762,12 +793,12 @@ export default function SuperadminPage() {
               </label>
               <select
                 value={grupoSeleccionadoId}
-                onChange={(e) => setGrupoSeleccionadoId(e.target.value)}
+                onChange={(e) => handleCambiarGrupoSeleccionado(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1E1B22] text-xs font-bold"
               >
                 {grupos.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {g.nombre}
+                    {g.nombre} ({g.total_miembros || 0} miembros)
                   </option>
                 ))}
               </select>
@@ -1249,12 +1280,12 @@ export default function SuperadminPage() {
               </label>
               <select
                 value={grupoSeleccionadoId}
-                onChange={(e) => setGrupoSeleccionadoId(e.target.value)}
+                onChange={(e) => handleCambiarGrupoSeleccionado(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1E1B22] text-xs font-bold"
               >
                 {grupos.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {g.nombre}
+                    {g.nombre} ({g.total_miembros || 0} miembros)
                   </option>
                 ))}
               </select>

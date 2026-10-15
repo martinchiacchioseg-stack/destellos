@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { guardarOActualizarDestello, obtenerDestelloUsuarioDia } from '@/lib/db';
+import { guardarOActualizarDestello, obtenerDestelloUsuarioDia, obtenerGrupoIdPorDefecto } from '@/lib/db';
 import { getFechaArgentina, getHoraArgentina } from '@/lib/date-utils';
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
     }
 
-    const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+    const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
     const fechaHoy = getFechaArgentina();
 
     // Comprobamos si el día ya cerró (después de las 23:59:59)

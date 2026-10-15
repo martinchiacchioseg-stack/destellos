@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { listarUsuariosGrupo, crearUsuario, buscarUsuarioPorEmail } from '@/lib/db';
+import {
+  listarUsuariosGrupo,
+  crearUsuario,
+  buscarUsuarioPorEmail,
+  obtenerGrupoIdPorDefecto,
+  buscarUsuarioPorId,
+} from '@/lib/db';
 
 export async function GET() {
   const session = await getCurrentSession();
@@ -8,11 +14,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
   }
 
-  if (!session.grupo_id && session.rol !== 'superadmin') {
-    return NextResponse.json({ error: 'No tenés un grupo asignado.' }, { status: 400 });
-  }
-
-  const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+  const usuarioDb = await buscarUsuarioPorId(session.id);
+  const grupoId = usuarioDb?.grupo_id || session.grupo_id || (await obtenerGrupoIdPorDefecto());
   const usuarios = await listarUsuariosGrupo(grupoId);
 
   return NextResponse.json({ usuarios });
@@ -25,7 +28,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
     }
 
-    const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+    const usuarioDb = await buscarUsuarioPorId(session.id);
+    const grupoId = usuarioDb?.grupo_id || session.grupo_id || (await obtenerGrupoIdPorDefecto());
     const body = await req.json();
     const { email, nombre, apodo, passwordTemporal } = body;
 

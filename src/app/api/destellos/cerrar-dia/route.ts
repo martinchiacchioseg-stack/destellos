@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { cerrarDiaGrupo } from '@/lib/db';
+import { cerrarDiaGrupo, obtenerGrupoIdPorDefecto } from '@/lib/db';
 import { getFechaArgentina, getAyerFechaArgentina } from '@/lib/date-utils';
 
 export async function POST(req: NextRequest) {
@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { grupoId, fecha } = await req.json();
-    const targetGrupo = grupoId || session.grupo_id || 'grupo-familia-perez-001';
+    const defaultG = await obtenerGrupoIdPorDefecto();
+    const targetGrupo = grupoId || session.grupo_id || defaultG;
     const targetFecha = fecha || getFechaArgentina();
 
     const resultado = await cerrarDiaGrupo(targetGrupo, targetFecha);
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   // Para pruebas rápidas desde el navegador o herramientas
   const fechaHoy = getFechaArgentina();
-  const res = await cerrarDiaGrupo('grupo-familia-perez-001', fechaHoy);
+  const defaultG = await obtenerGrupoIdPorDefecto();
+  const res = await cerrarDiaGrupo(defaultG, fechaHoy);
   return NextResponse.json(res);
 }

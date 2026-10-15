@@ -14,6 +14,34 @@
       "activo": true,
       "creado_en": "2026-10-15T12:08:12.394Z",
       "bloqueado_hasta": null
+    },
+    {
+      "id": "de95a658-9a50-44a3-9004-df0614d4c969",
+      "email": "loli@familiachiaccio.com",
+      "password_hash": "$2b$10$G.4j8x954LuR7EMlbiw7fO2OIOae3r0X8h4NkEzqGEgq26U705Mx2",
+      "nombre": "Loli Chiaccio",
+      "apodo": "Loli",
+      "avatar_url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Loli%20Chiaccio",
+      "rol": "miembro",
+      "grupo_id": "grupo-familia-chiaccio-001",
+      "debe_cambiar_password": true,
+      "intentos_fallidos": 0,
+      "activo": true,
+      "creado_en": "2026-10-15T13:34:59.782Z"
+    },
+    {
+      "id": "11b27df1-c916-48bd-8b26-651a355444a7",
+      "email": "sofi@familiachiaccio.com",
+      "password_hash": "$2b$10$/I3KNMqJSbWgHvgFulzRFeA77fU.f7ST8GlN6lfHD9XIJlNfUJNAu",
+      "nombre": "Sofía Chiaccio",
+      "apodo": "Sofi",
+      "avatar_url": "https://api.dicebear.com/7.x/adventurer/svg?seed=Sof%C3%ADa%20Chiaccio",
+      "rol": "miembro",
+      "grupo_id": "grupo-familia-chiaccio-001",
+      "debe_cambiar_password": true,
+      "intentos_fallidos": 0,
+      "activo": true,
+      "creado_en": "2026-10-15T13:36:08.329Z"
     }
   ],
   "grupos": [

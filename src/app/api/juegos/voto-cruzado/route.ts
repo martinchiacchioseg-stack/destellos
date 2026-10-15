@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { registrarVotoCruzado, obtenerVotoUsuarioHoy, listarDestellosDia } from '@/lib/db';
+import { registrarVotoCruzado, obtenerVotoUsuarioHoy, listarDestellosDia, obtenerGrupoIdPorDefecto } from '@/lib/db';
 import { getFechaArgentina } from '@/lib/date-utils';
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
   const fechaHoy = getFechaArgentina();
 
   const miVotoDestelloId = await obtenerVotoUsuarioHoy(grupoId, fechaHoy, session.id);
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
     }
 
-    const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+    const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
     const fechaHoy = getFechaArgentina();
     const { destelloId } = await req.json();
 

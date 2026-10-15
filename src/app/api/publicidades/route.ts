@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { obtenerPublicidadPorUbicacion } from '@/lib/db';
 import { UbicacionPublicidad } from '@/lib/types';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

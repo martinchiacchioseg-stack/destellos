@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { listarGrupos, listarTodosLosUsuarios, listarGaleria } from '@/lib/db';
+import { listarGrupos, listarTodosLosUsuarios, listarGaleria, obtenerGrupoIdPorDefecto } from '@/lib/db';
 
 export async function GET() {
   const session = await getCurrentSession();
@@ -10,7 +10,8 @@ export async function GET() {
 
   const grupos = await listarGrupos();
   const usuarios = await listarTodosLosUsuarios();
-  const destellos = await listarGaleria('grupo-familia-perez-001', 500);
+  const defaultGrupoId = await obtenerGrupoIdPorDefecto();
+  const destellos = await listarGaleria(defaultGrupoId, 1000);
 
   const totalUsuarios = usuarios.length;
   const totalGrupos = grupos.length;

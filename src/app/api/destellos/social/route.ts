@@ -8,6 +8,7 @@ import {
   obtenerPublicidadPorUbicacion,
   obtenerReglasGrupo,
   obtenerDestelloGanadorDia,
+  obtenerGrupoIdPorDefecto,
 } from '@/lib/db';
 import { getFechaArgentina, getAyerFechaArgentina } from '@/lib/date-utils';
 
@@ -17,7 +18,7 @@ export async function GET() {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || 'grupo-familia-perez-001';
+  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
   const fechaHoy = getFechaArgentina();
   const fechaAyer = getAyerFechaArgentina();
 
