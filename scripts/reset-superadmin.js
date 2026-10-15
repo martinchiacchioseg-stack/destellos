@@ -10,7 +10,7 @@ const row = db.prepare("SELECT data FROM c_usuarios WHERE id = 'usr-superadmin-0
 if (row) {
   const u = JSON.parse(row.data);
   u.password_hash = hash;
-  u.debe_cambiar_password = true;
+  u.debe_cambiar_password = false;
   u.intentos_fallidos = 0;
   u.bloqueado_hasta = null;
   u.activo = true;
@@ -31,7 +31,7 @@ if (row) {
     avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     rol: 'superadmin',
     grupo_id: null,
-    debe_cambiar_password: true,
+    debe_cambiar_password: false,
     intentos_fallidos: 0,
     bloqueado_hasta: null,
     activo: true,
