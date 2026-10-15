@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
     }
 
-    const { grupoId, email, nombre, apodo, passwordTemporal, rol } = await req.json();
+    const { grupoId, email, nombre, apodo, telefono, passwordTemporal, rol } = await req.json();
 
     if (!grupoId || !email || !nombre || !passwordTemporal) {
       return NextResponse.json(
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       email,
       nombre,
       apodo,
+      telefono,
       passwordTemporal,
       rol: rol || 'miembro',
       grupo_id: grupoId,
@@ -71,7 +72,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
     }
 
-    const { id, nombre, apodo, email, rol, grupo_id, passwordTemporal } = await req.json();
+    const { id, nombre, apodo, telefono, email, rol, grupo_id, passwordTemporal } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID de usuario requerido.' }, { status: 400 });
     }
@@ -79,6 +80,7 @@ export async function PUT(req: NextRequest) {
     const actualizado = await actualizarUsuario(id, {
       nombre,
       apodo,
+      telefono,
       email,
       rol,
       grupo_id,

@@ -35,7 +35,7 @@ export async function GET() {
 
   const faltantesHoy = faltantesHoyRaw.map((m) => ({
     ...m,
-    enlaceWhatsApp: generarEnlaceApurarWhatsApp(m.apodo || m.nombre.split(' ')[0]),
+    enlaceWhatsApp: generarEnlaceApurarWhatsApp(m.apodo || m.nombre.split(' ')[0], m.telefono),
   }));
 
   return NextResponse.json({

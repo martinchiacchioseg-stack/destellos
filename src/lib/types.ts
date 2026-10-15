@@ -6,6 +6,7 @@ export interface Usuario {
   password_hash: string;
   nombre: string;
   apodo?: string;
+  telefono?: string;
   avatar_url?: string;
   rol: Rol;
   grupo_id?: string | null;

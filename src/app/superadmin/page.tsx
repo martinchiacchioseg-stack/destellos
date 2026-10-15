@@ -77,12 +77,14 @@ export default function SuperadminPage() {
   const [nuevoUsuarioEmail, setNuevoUsuarioEmail] = useState('');
   const [nuevoUsuarioPassTemp, setNuevoUsuarioPassTemp] = useState('familia2026');
   const [nuevoUsuarioRol, setNuevoUsuarioRol] = useState<'miembro' | 'admin'>('miembro');
+  const [nuevoUsuarioTelefono, setNuevoUsuarioTelefono] = useState('');
 
   // Modales de Edición de Usuario
   const [usuarioEditando, setUsuarioEditando] = useState<any | null>(null);
   const [editUsuarioNombre, setEditUsuarioNombre] = useState('');
   const [editUsuarioApodo, setEditUsuarioApodo] = useState('');
   const [editUsuarioEmail, setEditUsuarioEmail] = useState('');
+  const [editUsuarioTelefono, setEditUsuarioTelefono] = useState('');
   const [editUsuarioRol, setEditUsuarioRol] = useState<'miembro' | 'admin'>('miembro');
   const [editUsuarioPass, setEditUsuarioPass] = useState('');
 
@@ -148,9 +150,22 @@ export default function SuperadminPage() {
 
   useEffect(() => {
     cargarTodo();
-  }, [router]);
+    // Auto-recarga periódica silenciosa cada 7 segundos para reflejar altas y cambios
+    const interval = setInterval(() => {
+      cargarTodo();
+      if (grupoSeleccionadoId) {
+        fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.usuarios) setUsuariosGrupo(data.usuarios);
+          })
+          .catch(() => {});
+      }
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [router, grupoSeleccionadoId]);
 
-  // Cargar usuarios y reglas del grupo seleccionado
+  // Cargar usuarios y reglas del grupo seleccionado al cambiar
   useEffect(() => {
     if (!grupoSeleccionadoId) return;
 
@@ -294,6 +309,7 @@ export default function SuperadminPage() {
           nombre: nuevoUsuarioNombre,
           apodo: nuevoUsuarioApodo,
           email: nuevoUsuarioEmail,
+          telefono: nuevoUsuarioTelefono,
           passwordTemporal: nuevoUsuarioPassTemp,
           rol: nuevoUsuarioRol,
         }),
@@ -306,6 +322,7 @@ export default function SuperadminPage() {
         setNuevoUsuarioNombre('');
         setNuevoUsuarioApodo('');
         setNuevoUsuarioEmail('');
+        setNuevoUsuarioTelefono('');
         setMostrarModalUsuario(false);
         // Recargar usuarios del grupo
         const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${targetGrupoId}`);
@@ -326,6 +343,7 @@ export default function SuperadminPage() {
     setEditUsuarioNombre(u.nombre || '');
     setEditUsuarioApodo(u.apodo || '');
     setEditUsuarioEmail(u.email || '');
+    setEditUsuarioTelefono(u.telefono || '');
     setEditUsuarioRol(u.rol || 'miembro');
     setEditUsuarioPass('');
   };
@@ -342,6 +360,7 @@ export default function SuperadminPage() {
           nombre: editUsuarioNombre,
           apodo: editUsuarioApodo,
           email: editUsuarioEmail,
+          telefono: editUsuarioTelefono,
           rol: editUsuarioRol,
           passwordTemporal: editUsuarioPass ? editUsuarioPass : undefined,
         }),
@@ -394,11 +413,14 @@ export default function SuperadminPage() {
       navigator.clipboard.writeText(texto).catch(() => {});
     }
 
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    const cleanTel = (u.telefono || '').replace(/\D/g, '');
+    const waUrl = cleanTel
+      ? `https://wa.me/${cleanTel}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(waUrl, '_blank');
     setFeedback({
       tipo: 'ok',
-      texto: `📲 Enlace de WhatsApp preparado para ${u.nombre}. ¡También se copió el mensaje al portapapeles!`,
+      texto: `📲 Enlace de WhatsApp preparado para ${u.nombre}${cleanTel ? ` (${u.telefono})` : ''}. ¡También se copió el mensaje al portapapeles!`,
     });
   };
 
@@ -840,14 +862,23 @@ export default function SuperadminPage() {
                     className="p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
                   />
                 </div>
-                <input
-                  type="email"
-                  required
-                  placeholder="Email del usuario"
-                  value={nuevoUsuarioEmail}
-                  onChange={(e) => setNuevoUsuarioEmail(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email del usuario"
+                    value={nuevoUsuarioEmail}
+                    onChange={(e) => setNuevoUsuarioEmail(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="WhatsApp (ej: +54 9 11 1234-5678)"
+                    value={nuevoUsuarioTelefono}
+                    onChange={(e) => setNuevoUsuarioTelefono(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24]"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="text"
@@ -914,14 +945,23 @@ export default function SuperadminPage() {
                     className="p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
                   />
                 </div>
-                <input
-                  type="email"
-                  required
-                  placeholder="Email del usuario"
-                  value={editUsuarioEmail}
-                  onChange={(e) => setEditUsuarioEmail(e.target.value)}
-                  className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email del usuario"
+                    value={editUsuarioEmail}
+                    onChange={(e) => setEditUsuarioEmail(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="WhatsApp (ej: +54 9 11 1234-5678)"
+                    value={editUsuarioTelefono}
+                    onChange={(e) => setEditUsuarioTelefono(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-gray-200 bg-white dark:bg-[#201D24] dark:text-white"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="text"
@@ -977,7 +1017,18 @@ export default function SuperadminPage() {
                         {u.rol}
                       </span>
                     </div>
-                    <p className="text-[10px] text-gray-400 truncate">{u.email}</p>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <p className="text-[10px] text-gray-400 truncate">{u.email}</p>
+                      {u.telefono ? (
+                        <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded font-semibold flex items-center gap-1">
+                          📱 {u.telefono}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded">
+                          Sin WhatsApp
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">

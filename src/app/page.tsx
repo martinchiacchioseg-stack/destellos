@@ -23,6 +23,7 @@ import {
   Eye,
   Lock,
   ExternalLink,
+  Check,
 } from 'lucide-react';
 import { Destello, SesionUsuario, Publicidad, ReglasGrupo, UsuarioPublico } from '@/lib/types';
 import { formatFechaBonita, getFechaArgentina } from '@/lib/date-utils';
@@ -52,7 +53,8 @@ export default function HomePage() {
   const [modalUploadAbierto, setModalUploadAbierto] = useState(false);
   const [destelloSeleccionado, setDestelloSeleccionado] = useState<Destello | null>(null);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (silencioso = false) => {
+    if (!silencioso) setCargando(true);
     try {
       const meRes = await fetch('/api/auth/me');
       const meData = await meRes.json();
@@ -94,6 +96,19 @@ export default function HomePage() {
 
   useEffect(() => {
     cargarDatos();
+
+    // Auto-recarga silenciosa periódica cada 6 segundos
+    const timer = setInterval(() => {
+      cargarDatos(true);
+    }, 6000);
+
+    const onFocus = () => cargarDatos(true);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [router]);
 
   const handleRevelarAyer = () => {
@@ -121,39 +136,41 @@ export default function HomePage() {
       <Header usuario={usuario} puntosTotales={16} />
 
       <main className="p-4 space-y-4 max-w-lg mx-auto w-full">
-        {/* Saludo y Racha */}
-        <div className="bg-gradient-to-br from-[#FFF8EE] to-[#FFF0E0] dark:from-[#241F2B] dark:to-[#1D1923] p-5 rounded-3xl border border-[#FFE0B2] dark:border-[#382F40] shadow-soft relative overflow-hidden">
-          <div className="flex items-center justify-between text-xs font-bold text-[#FF7043] uppercase tracking-wider mb-1">
-            <span>{hoyFormateado}</span>
-            <span className="flex items-center gap-1">
-              <Heart className="w-3.5 h-3.5 fill-[#FF7043]" />
-              {usuario?.grupo_nombre || 'Familia'}
+        {/* Saludo y Racha - Tarjeta Superior Familia Chiaccio */}
+        <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-[#FF7043] p-5 rounded-3xl border-2 border-amber-300/40 shadow-lg text-white relative overflow-hidden">
+          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider mb-2">
+            <span className="bg-black/20 backdrop-blur-sm px-2.5 py-1 rounded-full text-white/95">
+              {hoyFormateado}
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full font-black text-white shadow-sm">
+              <Heart className="w-3.5 h-3.5 fill-white text-white" />
+              <span>{usuario?.grupo_nombre || 'Familia Chiaccio'}</span>
             </span>
           </div>
 
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between gap-2">
             <div>
-              <h2 className="text-xl font-extrabold text-gray-800 dark:text-gray-100 tracking-tight">
+              <h2 className="text-xl font-black text-white tracking-tight drop-shadow-sm">
                 ¡Qué hacés, {usuario?.apodo || usuario?.nombre?.split(' ')[0]}! ✨
               </h2>
-              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+              <p className="text-xs text-orange-50 mt-1 leading-relaxed">
                 Compartí tu momento del día antes del cierre de las 23:59 hs.
               </p>
             </div>
 
             {/* Contador de Racha Consecutiva 🔥 */}
-            <div className="flex flex-col items-center p-2 rounded-2xl bg-orange-500/10 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 shadow-sm">
+            <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm shrink-0">
               <div className="flex items-center gap-1 text-base font-black">
-                <Flame className="w-5 h-5 fill-orange-500 animate-pulse" />
+                <Flame className="w-5 h-5 fill-amber-300 text-amber-200 animate-pulse" />
                 <span>{racha}</span>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-tight">Días Racha</span>
+              <span className="text-[9px] font-black uppercase tracking-tight text-orange-100">Días Racha</span>
             </div>
           </div>
 
           {/* Contador de tiempo al cierre */}
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/40 px-3 py-1 rounded-full w-fit">
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
+          <div className="mt-3.5 flex items-center gap-1.5 text-[11px] font-extrabold text-white bg-black/25 backdrop-blur-md px-3 py-1 rounded-full w-fit border border-white/10">
+            <Clock className="w-3.5 h-3.5 text-amber-300" />
             <span>Cierre diario en {tiempoRestante.texto || 'pocas horas'}</span>
           </div>
         </div>
@@ -306,29 +323,42 @@ export default function HomePage() {
         )}
 
         {/* ------------------------------------------------------------------- */}
-        {/* SECCIÓN: TU DESTELLO DE HOY */}
+        {/* SECCIÓN: TU DESTELLO DE HOY (Color Azul / Índigo) */}
         {/* ------------------------------------------------------------------- */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-extrabold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
-              <Camera className="w-4 h-4 text-[#FF7043]" />
-              Tu Destello de hoy
-            </h3>
-            {miDestello && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                ¡Subido! +1 pt
+        <div className="p-4 rounded-3xl bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-sky-50/80 dark:from-indigo-950/30 dark:via-blue-950/20 dark:to-sky-950/30 border-2 border-indigo-200/90 dark:border-indigo-800 shadow-soft space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+                  Tu Destello de hoy
+                </h3>
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                  {miDestello ? '¡Ya sumaste tu foto del día!' : 'Subí 1 foto para no perder la racha'}
+                </p>
+              </div>
+            </div>
+            {miDestello ? (
+              <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white shadow-sm flex items-center gap-1">
+                <Check className="w-3 h-3" /> ¡Subido! +1 pt
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                Pendiente
               </span>
             )}
           </div>
 
           {!miDestello ? (
             /* Botón grande para subir si todavía no subió */
-            <div className="bg-white dark:bg-[#201D24] p-6 rounded-3xl border-2 border-dashed border-[#FF7043]/40 shadow-soft text-center space-y-3">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#FF7043] to-[#FFA726] text-white flex items-center justify-center mx-auto shadow-md shadow-[#FF7043]/30">
-                <Camera className="w-8 h-8" />
+            <div className="bg-white dark:bg-[#201D24] p-5 rounded-2xl border-2 border-dashed border-indigo-300/80 shadow-xs text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 text-white flex items-center justify-center mx-auto shadow-md shadow-indigo-500/20">
+                <Camera className="w-7 h-7" />
               </div>
               <div>
-                <h4 className="text-base font-extrabold text-gray-800 dark:text-gray-100">
+                <h4 className="text-sm font-extrabold text-gray-800 dark:text-gray-100">
                   ¿Todavía no subiste tu destello?
                 </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xs mx-auto">
@@ -338,7 +368,7 @@ export default function HomePage() {
 
               <button
                 onClick={() => setModalUploadAbierto(true)}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#FF7043] to-[#FFA726] hover:from-[#F4511E] hover:to-[#FB8C00] text-white font-extrabold text-sm shadow-md shadow-[#FF7043]/30 flex items-center justify-center gap-2 transition-transform active:scale-98"
+                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold text-sm shadow-md shadow-indigo-500/30 flex items-center justify-center gap-2 transition-transform active:scale-98"
               >
                 <Sparkles className="w-5 h-5 fill-white/20" />
                 <span>Subir mi destello de hoy 📸</span>
@@ -354,13 +384,13 @@ export default function HomePage() {
                 rotacion={-0.5}
               />
 
-              <div className="flex items-center justify-between gap-2 p-3 bg-white dark:bg-[#201D24] rounded-2xl border border-[var(--border-soft)] shadow-sm">
+              <div className="flex items-center justify-between gap-2 p-3 bg-white dark:bg-[#201D24] rounded-2xl border border-indigo-100 dark:border-indigo-900 shadow-sm">
                 <div className="text-[11px] text-gray-500 dark:text-gray-400">
                   ¿Querés cambiarla? Podés hasta las <b>23:59 hs</b>.
                 </div>
                 <button
                   onClick={() => setModalUploadAbierto(true)}
-                  className="px-3 py-1.5 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-[#FF7043] hover:bg-orange-200 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
+                  className="px-3 py-1.5 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Reemplazar</span>
@@ -371,21 +401,30 @@ export default function HomePage() {
         </div>
 
         {/* ------------------------------------------------------------------- */}
-        {/* SECCIÓN: DESTELLOS DEL GRUPO HOY (Con Blur si aplica) */}
+        {/* SECCIÓN: DESTELLOS DEL GRUPO HOY (Color Púrpura / Rosa Atardecer) */}
         {/* ------------------------------------------------------------------- */}
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-extrabold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-purple-600" />
-              Destellos del grupo hoy ({destellosGrupo.length})
-            </h3>
-            <span className="text-[11px] text-gray-400 font-semibold">
-              {otrosDestellosHoy.length} de familiares
+        <div className="p-4 rounded-3xl bg-gradient-to-br from-purple-50/90 via-fuchsia-50/70 to-pink-50/80 dark:from-purple-950/30 dark:via-fuchsia-950/20 dark:to-pink-950/30 border-2 border-purple-200/90 dark:border-purple-800 shadow-soft space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-purple-950 dark:text-purple-200">
+                  Destellos del grupo hoy ({destellosGrupo.length})
+                </h3>
+                <p className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                  Fotos compartidas por la familia hoy
+                </p>
+              </div>
+            </div>
+            <span className="text-[11px] font-bold px-2.5 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 rounded-full">
+              {otrosDestellosHoy.length} familiares
             </span>
           </div>
 
           {otrosDestellosHoy.length === 0 ? (
-            <div className="p-5 bg-white dark:bg-[#201D24] rounded-3xl border border-[var(--border-soft)] text-center text-xs text-gray-400">
+            <div className="p-5 bg-white dark:bg-[#201D24] rounded-2xl border border-purple-100 dark:border-purple-900/60 text-center text-xs text-gray-500">
               Aún no hay fotos de otros miembros hoy. ¡Avisales al grupo que ya arrancó el día! 📲
             </div>
           ) : (

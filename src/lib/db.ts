@@ -521,6 +521,7 @@ export async function crearUsuario(data: {
   passwordTemporal: string;
   nombre: string;
   apodo?: string;
+  telefono?: string;
   rol: 'admin' | 'miembro';
   grupo_id?: string;
 }): Promise<Usuario> {
@@ -532,6 +533,7 @@ export async function crearUsuario(data: {
     password_hash: hash,
     nombre: data.nombre.trim(),
     apodo: data.apodo?.trim() || data.nombre.split(' ')[0],
+    telefono: data.telefono?.trim() || undefined,
     avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(data.nombre)}`,
     rol: data.rol,
     grupo_id: data.grupo_id || null,
@@ -663,6 +665,7 @@ export async function actualizarUsuario(
   data: {
     nombre?: string;
     apodo?: string;
+    telefono?: string;
     email?: string;
     rol?: 'superadmin' | 'admin' | 'miembro';
     grupo_id?: string | null;
@@ -677,6 +680,7 @@ export async function actualizarUsuario(
 
   if (data.nombre) u.nombre = data.nombre.trim();
   if (data.apodo !== undefined) u.apodo = data.apodo.trim();
+  if (data.telefono !== undefined) u.telefono = data.telefono.trim();
   if (data.email) u.email = data.email.toLowerCase().trim();
   if (data.rol) u.rol = data.rol;
   if (data.grupo_id !== undefined) u.grupo_id = data.grupo_id;

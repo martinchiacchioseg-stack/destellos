@@ -4,8 +4,7 @@ import { UbicacionPublicidad } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const ubicacion = searchParams.get('ubicacion') as UbicacionPublicidad | null;
+    const ubicacion = req.nextUrl.searchParams.get('ubicacion') as UbicacionPublicidad | null;
     if (!ubicacion) {
       return NextResponse.json({ error: 'Ubicación requerida.' }, { status: 400 });
     }

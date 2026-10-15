@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const usuarioDb = await buscarUsuarioPorId(session.id);
     const grupoId = usuarioDb?.grupo_id || session.grupo_id || (await obtenerGrupoIdPorDefecto());
     const body = await req.json();
-    const { email, nombre, apodo, passwordTemporal } = body;
+    const { email, nombre, apodo, telefono, passwordTemporal } = body;
 
     if (!email || !nombre || !passwordTemporal) {
       return NextResponse.json(
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       email,
       nombre,
       apodo,
+      telefono,
       passwordTemporal,
       rol: 'miembro',
       grupo_id: grupoId,

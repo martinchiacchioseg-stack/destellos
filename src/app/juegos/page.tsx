@@ -408,13 +408,76 @@ export default function JuegosPage() {
     } catch {}
   };
 
-  const tabs: { id: TabJuego; label: string; icon: any; badge?: string }[] = [
-    { id: 'ruleta', label: 'Ruleta Rusa', icon: RotateCw, badge: 'Etapa 6' },
-    { id: 'prode', label: 'Prode', icon: Trophy, badge: 'Etapa 7' },
-    { id: 'reto', label: 'Reto Diario', icon: Flame, badge: '+2 pts' },
-    { id: 'voto', label: 'Voto Cruzado', icon: Vote, badge: '+1 pt' },
-    { id: 'adivina', label: 'Adiviná Quién', icon: HelpCircle, badge: '+1 pt' },
-    { id: 'pasado', label: 'Foto del Pasado', icon: Calendar, badge: '+3 pts' },
+  const tabs: {
+    id: TabJuego;
+    label: string;
+    icon: any;
+    badge?: string;
+    activoClase: string;
+    inactivoClase: string;
+    badgeActivoClase: string;
+    badgeInactivoClase: string;
+  }[] = [
+    {
+      id: 'ruleta',
+      label: 'Ruleta Rusa',
+      icon: RotateCw,
+      badge: 'Etapa 6',
+      activoClase: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/30 scale-102 ring-2 ring-purple-300',
+      inactivoClase: 'bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200',
+    },
+    {
+      id: 'prode',
+      label: 'Prode',
+      icon: Trophy,
+      badge: 'Etapa 7',
+      activoClase: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-500/30 scale-102 ring-2 ring-emerald-300',
+      inactivoClase: 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200',
+    },
+    {
+      id: 'reto',
+      label: 'Reto Diario',
+      icon: Flame,
+      badge: '+2 pts',
+      activoClase: 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-orange-500/30 scale-102 ring-2 ring-orange-300',
+      inactivoClase: 'bg-orange-50/80 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:bg-orange-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200',
+    },
+    {
+      id: 'voto',
+      label: 'Voto Cruzado',
+      icon: Vote,
+      badge: '+1 pt',
+      activoClase: 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-cyan-500/30 scale-102 ring-2 ring-cyan-300',
+      inactivoClase: 'bg-cyan-50/80 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 hover:bg-cyan-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-200',
+    },
+    {
+      id: 'adivina',
+      label: 'Adiviná Quién',
+      icon: HelpCircle,
+      badge: '+1 pt',
+      activoClase: 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-pink-500/30 scale-102 ring-2 ring-pink-300',
+      inactivoClase: 'bg-pink-50/80 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800 hover:bg-pink-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-200',
+    },
+    {
+      id: 'pasado',
+      label: 'Foto del Pasado',
+      icon: Calendar,
+      badge: '+3 pts',
+      activoClase: 'bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-amber-500/30 scale-102 ring-2 ring-amber-300',
+      inactivoClase: 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100',
+      badgeActivoClase: 'bg-white/30 text-white',
+      badgeInactivoClase: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+    },
   ];
 
   return (
@@ -436,7 +499,7 @@ export default function JuegosPage() {
       />
 
       <main className="p-4 space-y-4 max-w-lg mx-auto w-full">
-        {/* Selector de Juegos (Pills horizontales scrolleables) */}
+        {/* Selector de Juegos (Pills horizontales scrolleables con colores temáticos) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {tabs.map((t) => {
             const Icon = t.icon;
@@ -446,9 +509,7 @@ export default function JuegosPage() {
                 key={t.id}
                 onClick={() => setTabActivo(t.id)}
                 className={`px-3.5 py-2.5 rounded-2xl font-black text-xs shrink-0 flex items-center gap-1.5 transition-all shadow-sm ${
-                  activo
-                    ? 'bg-gradient-to-r from-[#FF7043] to-[#FFA726] text-white shadow-orange-500/20 scale-102'
-                    : 'bg-white dark:bg-[#201D24] text-gray-700 dark:text-gray-300 border border-[var(--border-soft)] hover:bg-orange-50/50'
+                  activo ? t.activoClase : t.inactivoClase
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${activo ? 'animate-bounce' : ''}`} />
@@ -456,7 +517,7 @@ export default function JuegosPage() {
                 {t.badge && (
                   <span
                     className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                      activo ? 'bg-white/30 text-white' : 'bg-orange-100 text-[#FF7043]'
+                      activo ? t.badgeActivoClase : t.badgeInactivoClase
                     }`}
                   >
                     {t.badge}

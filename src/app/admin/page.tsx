@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoApodo, setNuevoApodo] = useState('');
   const [nuevoEmail, setNuevoEmail] = useState('');
+  const [nuevoTelefono, setNuevoTelefono] = useState('');
   const [nuevaPassTemporal, setNuevaPassTemporal] = useState('familia2026');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
@@ -50,6 +51,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     cargarDatos();
+    const timer = setInterval(() => {
+      cargarDatos();
+    }, 7000);
+    return () => clearInterval(timer);
   }, [router]);
 
   const handleCrearMiembro = async (e: React.FormEvent) => {
@@ -65,6 +70,7 @@ export default function AdminPage() {
           nombre: nuevoNombre,
           apodo: nuevoApodo,
           email: nuevoEmail,
+          telefono: nuevoTelefono,
           passwordTemporal: nuevaPassTemporal,
         }),
       });
@@ -80,6 +86,7 @@ export default function AdminPage() {
       setNuevoNombre('');
       setNuevoApodo('');
       setNuevoEmail('');
+      setNuevoTelefono('');
       setMostrarModalNuevo(false);
       cargarDatos();
     } catch {
@@ -228,18 +235,32 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={nuevoEmail}
-                  onChange={(e) => setNuevoEmail(e.target.value)}
-                  placeholder="lucia@ejemplo.com"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2A2630] dark:text-white"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={nuevoEmail}
+                    onChange={(e) => setNuevoEmail(e.target.value)}
+                    placeholder="lucia@ejemplo.com"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2A2630] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    WhatsApp (opcional)
+                  </label>
+                  <input
+                    type="tel"
+                    value={nuevoTelefono}
+                    onChange={(e) => setNuevoTelefono(e.target.value)}
+                    placeholder="+54 9 11 ..."
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2A2630] dark:text-white"
+                  />
+                </div>
               </div>
 
               <div>
@@ -303,7 +324,7 @@ export default function AdminPage() {
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
                         {m.nombre}
                       </p>
@@ -318,7 +339,14 @@ export default function AdminPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-400">{m.email}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-[10px] text-gray-400">{m.email}</p>
+                      {m.telefono && (
+                        <span className="font-mono text-[9px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded font-semibold">
+                          📱 {m.telefono}
+                        </span>
+                      )}
+                    </div>
                     {m.debe_cambiar_password && (
                       <span className="inline-block text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.2 rounded mt-0.5">
                         Pendiente cambio de contraseña
