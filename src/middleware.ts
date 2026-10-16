@@ -15,6 +15,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/auth/login') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/logos') ||
+    pathname.startsWith('/uploads') ||
+    pathname.match(/\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/) ||
     pathname.startsWith('/api/crons') // Crons se protegen por su propio secret
   ) {
     return NextResponse.next();
@@ -99,7 +102,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - logos (logos estáticos)
+     * - uploads (imágenes subidas)
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|logos|uploads).*)',
   ],
 };
