@@ -182,15 +182,33 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
 
   const esSuper = esSuperAdminEmail(cleanEmail);
 
-  const encontrado = usuarios.find((x) => {
-    const uEmail = x.email.toLowerCase().trim();
-    if (uEmail === cleanEmail) return true;
-    if (esSuper && (x.rol === 'superadmin' || esSuperAdminEmail(uEmail))) {
-      return true;
-    }
-    return false;
-  });
+  if (esSuper) {
+    const superEncontrado = usuarios.find((x) => x.rol === 'superadmin' || esSuperAdminEmail(x.email));
+    if (superEncontrado) return superEncontrado;
 
+    // Crear y persistir de inmediato si no estuviera en la colección
+    const superadmin: Usuario = {
+      id: 'usr-superadmin-001',
+      email: 'martinchiacchio.seg@gmail.com',
+      password_hash: await hashPassword(process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234'),
+      nombre: 'Martín (Superadmin)',
+      apodo: 'Martín',
+      telefono: '+54 9 2241 52-7357',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      rol: 'superadmin',
+      grupo_id: null,
+      debe_cambiar_password: true,
+      intentos_fallidos: 0,
+      bloqueado_hasta: null,
+      activo: true,
+      racha: 0,
+      creado_en: new Date().toISOString(),
+    };
+    dbUpsert('usuarios', superadmin);
+    return superadmin;
+  }
+
+  const encontrado = usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail);
   return encontrado || null;
 }
 

@@ -125,7 +125,9 @@ export default function LoginPage() {
                 <span>Ingresando...</span>
               ) : (
                 <>
-                  <span>Ingresar a Destellos</span>
+                  <span>
+                    {password.trim() ? 'Ingresar con contraseña' : 'Entrar sin clave (Primer ingreso)'}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
