@@ -344,3 +344,62 @@ Devolvé ÚNICAMENTE un JSON:
   }
 }
 
+/**
+ * Valida en segundo plano y genera el aviso al administrador con Gemini
+ */
+export async function procesarAltaIntegranteConGemini(data: {
+  nombre: string;
+  apodo?: string;
+  grupoNombre: string;
+  adminNombre: string;
+  whatsapp?: string;
+}): Promise<{ mensajeAdmin: string; mensajeBienvenida: string }> {
+  const fallbackMensajeAdmin = `¡Hola ${data.adminNombre}! ${data.nombre}${data.apodo ? ` ("${data.apodo}")` : ''} acaba de sumarse a la familia ${data.grupoNombre}. Ya puede compartir fotos y participar de los juegos diarios.`;
+  const fallbackBienvenida = `¡Bienvenido/a ${data.nombre} a la familia ${data.grupoNombre}! Disfrutá de cada destello diario.`;
+
+  if (!ai) {
+    return {
+      mensajeAdmin: fallbackMensajeAdmin,
+      mensajeBienvenida: fallbackBienvenida,
+    };
+  }
+
+  try {
+    const prompt = `
+Sos el asistente de "Destellos — un clic familiar by Rolφ", una app de Argentina donde las familias comparten fotos y juegan juntas.
+Un nuevo integrante se sumó a una familia:
+- Integrante: ${data.nombre} ${data.apodo ? `(Apodo: "${data.apodo}")` : ''}
+- Familia / Grupo: ${data.grupoNombre}
+- Administrador de la familia: ${data.adminNombre}
+
+Generá:
+1. "mensajeAdmin": Un mensaje cálido, alegre y afectuoso para notificar por email al administrador que este familiar se unió a la app. Estilo argentino familiar y cercano (máximo 3 oraciones).
+2. "mensajeBienvenida": Una breve frase de bienvenida para el nuevo integrante.
+
+Respondé ÚNICAMENTE un JSON:
+{
+  "mensajeAdmin": "texto...",
+  "mensajeBienvenida": "texto..."
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json', temperature: 0.7 },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    return {
+      mensajeAdmin: parsed.mensajeAdmin || fallbackMensajeAdmin,
+      mensajeBienvenida: parsed.mensajeBienvenida || fallbackBienvenida,
+    };
+  } catch (err) {
+    console.warn('[Gemini] Error procesando alta de integrante:', err);
+    return {
+      mensajeAdmin: fallbackMensajeAdmin,
+      mensajeBienvenida: fallbackBienvenida,
+    };
+  }
+}
+

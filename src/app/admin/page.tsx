@@ -4,14 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
-import { Shield, PlusCircle, Trash2, KeyRound, Copy, Check, Users } from 'lucide-react';
-import { SesionUsuario, UsuarioPublico } from '@/lib/types';
+import { Shield, PlusCircle, Trash2, KeyRound, Copy, Check, Users, Bell, X } from 'lucide-react';
+import { SesionUsuario, UsuarioPublico, NotificacionAdmin } from '@/lib/types';
 
 export default function AdminPage() {
   const router = useRouter();
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null);
   const [miembros, setMiembros] = useState<UsuarioPublico[]>([]);
   const [cargando, setCargando] = useState(true);
+
+  // Avisos al Administrador (Campanita)
+  const [notificaciones, setNotificaciones] = useState<NotificacionAdmin[]>([]);
+  const [noLeidas, setNoLeidas] = useState(0);
+  const [mostrarModalNotifs, setMostrarModalNotifs] = useState(false);
+  const [grupoCodigo, setGrupoCodigo] = useState<string>('CHIA-1938');
 
   // Formulario nuevo miembro
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState(false);
@@ -45,11 +51,26 @@ export default function AdminPage() {
       if (miembrosRes.ok) {
         setMiembros(miembrosData.usuarios || []);
       }
+
+      // Cargar avisos / notificaciones de nuevos integrantes
+      const notifRes = await fetch('/api/admin/notificaciones');
+      if (notifRes.ok) {
+        const notifData = await notifRes.json();
+        setNotificaciones(notifData.notificaciones || []);
+        setNoLeidas(notifData.noLeidas || 0);
+      }
     } catch {
       console.error('Error cargando panel admin');
     } finally {
       setCargando(false);
     }
+  };
+
+  const handleMarcarLeidas = async () => {
+    try {
+      await fetch('/api/admin/notificaciones', { method: 'POST' });
+      setNoLeidas(0);
+    } catch {}
   };
 
   useEffect(() => {
@@ -121,15 +142,55 @@ export default function AdminPage() {
       <Header usuario={usuario} puntosTotales={10} />
 
       <main className="p-4 space-y-4">
-        {/* Banner del Panel */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-[#FF7043] p-5 rounded-3xl text-white shadow-md">
-          <div className="flex items-center gap-2 mb-1">
-            <Shield className="w-5 h-5" />
-            <h2 className="text-lg font-black tracking-tight">Administración de Grupo</h2>
+        {/* Banner del Panel con Campanita */}
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-[#FF7043] p-5 rounded-3xl text-white shadow-md flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="w-5 h-5" />
+              <h2 className="text-lg font-black tracking-tight">Panel del Administrador</h2>
+            </div>
+            <p className="text-xs text-blue-100">
+              Espacio de tu familia y avisos de nuevos integrantes
+            </p>
           </div>
-          <p className="text-xs text-blue-100">
-            Gestioná los miembros de tu grupo familiar
-          </p>
+
+          {/* Campanita con contador de no leídos */}
+          <button
+            onClick={() => {
+              setMostrarModalNotifs(true);
+              handleMarcarLeidas();
+            }}
+            className="relative p-2.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white transition cursor-pointer shrink-0"
+            title="Avisos y nuevos integrantes"
+          >
+            <Bell className="w-5 h-5" />
+            {noLeidas > 0 && (
+              <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-black text-[10px] ring-2 ring-white animate-bounce">
+                {noLeidas}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Tarjeta del Código de Familia para invitar */}
+        <div className="p-4 rounded-3xl bg-white dark:bg-[#1C1822] border border-orange-200/80 dark:border-orange-950 shadow-sm flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase text-gray-400">Código de tu Familia</p>
+            <p className="text-lg font-mono font-black text-[#FF7043] tracking-widest select-all">
+              {grupoCodigo || 'CHIA-1938'}
+            </p>
+            <p className="text-[11px] text-gray-500">Compartí este código a tus familiares para que ingresen</p>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(grupoCodigo || 'CHIA-1938');
+              setMensaje({ tipo: 'ok', texto: '¡Código de familia copiado para enviar por WhatsApp!' });
+            }}
+            className="py-2 px-3 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-[#FF7043] font-bold text-xs flex items-center gap-1.5 cursor-pointer hover:bg-orange-100 transition shrink-0"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>Copiar</span>
+          </button>
         </div>
 
         {mensaje && (
@@ -291,6 +352,65 @@ export default function AdminPage() {
             >
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Campanita: Avisos de Nuevos Integrantes */}
+      {mostrarModalNotifs && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl max-w-sm w-full shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="w-5 h-5 text-[#FF7043]" />
+                <h3 className="text-base font-black text-gray-900 dark:text-white">
+                  Avisos al Administrador
+                </h3>
+              </div>
+              <button
+                onClick={() => setMostrarModalNotifs(false)}
+                className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {notificaciones.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-6">
+                No hay avisos recientes todavía.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {notificaciones.map((n) => (
+                  <div
+                    key={n.id}
+                    className="p-3 rounded-2xl bg-gray-50 dark:bg-[#25202D] border border-gray-100 dark:border-gray-800 space-y-2"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-100 text-[#FF7043] font-bold flex items-center justify-center shrink-0">
+                        {n.nuevo_usuario_avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={n.nuevo_usuario_avatar} alt={n.nuevo_usuario_nombre || ''} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{n.nuevo_usuario_nombre?.charAt(0) || '✨'}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-black text-gray-900 dark:text-white">
+                          {n.titulo}
+                        </h4>
+                        <p className="text-[10px] text-gray-400">
+                          {new Date(n.creado_en).toLocaleDateString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed bg-white dark:bg-[#1C1822] p-2.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                      {n.mensaje}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

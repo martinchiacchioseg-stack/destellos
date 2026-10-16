@@ -8,6 +8,10 @@ export interface Grupo {
   emoji_or_logo?: string;
   hora_limite: string; // HH:MM (ej: "22:00")
   codigo_invitacion?: string;
+  codigo_familia?: string;
+  admin_id?: string;
+  admin_email?: string;
+  admin_nombre?: string;
   descripcion?: string;
   estado: EstadoGrupo;
   activo: boolean;
@@ -22,6 +26,8 @@ export interface Usuario {
   nombre: string;
   apodo?: string;
   telefono?: string;
+  whatsapp?: string;
+  fecha_nacimiento?: string;
   avatar_url?: string;
   rol: Rol;
   grupo_id?: string | null;
@@ -30,10 +36,26 @@ export interface Usuario {
   bloqueado_hasta?: string | null;
   activo: boolean;
   racha: number;
+  codigo_recuperacion?: string;
+  codigo_recuperacion_expira?: string;
   creado_en: string;
 }
 
 export type UsuarioPublico = Omit<Usuario, 'password_hash' | 'intentos_fallidos' | 'bloqueado_hasta'>;
+
+export interface NotificacionAdmin {
+  id: string;
+  grupo_id: string;
+  admin_id: string;
+  tipo: 'nuevo_integrante' | 'otro';
+  titulo: string;
+  mensaje: string;
+  nuevo_usuario_id?: string;
+  nuevo_usuario_nombre?: string;
+  nuevo_usuario_avatar?: string;
+  leido: boolean;
+  creado_en: string;
+}
 
 export type FaseDestello = 'subida' | 'adivinanza' | 'veredicto' | 'cerrado';
 

@@ -36,7 +36,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso exclusivo para Superadmin.' }, { status: 403 });
     }
 
-    const { nombre, emoji_or_logo, hora_limite, descripcion } = await req.json();
+    const {
+      nombre,
+      emoji_or_logo,
+      hora_limite,
+      descripcion,
+      admin_id,
+      admin_email,
+      admin_nombre,
+      codigo_familia,
+    } = await req.json();
+
     if (!nombre || nombre.trim().length === 0) {
       return NextResponse.json({ error: 'El nombre del grupo es obligatorio.' }, { status: 400 });
     }
@@ -46,6 +56,10 @@ export async function POST(req: NextRequest) {
       emoji_or_logo: emoji_or_logo || '✨',
       hora_limite: hora_limite || '22:00',
       descripcion,
+      admin_id,
+      admin_email,
+      admin_nombre,
+      codigo_familia,
     });
 
     return NextResponse.json({

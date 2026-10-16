@@ -27,6 +27,7 @@ import {
   JuegoProdePronostico,
   UbicacionPublicidad,
   Publicidad,
+  NotificacionAdmin,
 } from './types';
 import { hashPassword } from './auth';
 import { getFechaArgentina, getAyerFechaArgentina } from './date-utils';
@@ -127,6 +128,34 @@ export async function ensureInitialized() {
       dbUpsert('usuarios', existe);
     }
 
+    // Inicializar o asegurar código de familia en los grupos
+    const gruposExistentes = dbGetAll<Grupo>('grupos');
+    if (gruposExistentes.length === 0) {
+      const grupoDefecto: Grupo = {
+        id: 'grp-chiachio-001',
+        nombre: 'Familia Chiachio',
+        emoji_or_logo: '✨',
+        hora_limite: '22:00',
+        codigo_invitacion: 'CHIA-1938',
+        codigo_familia: 'CHIA-1938',
+        admin_id: 'usr-superadmin-001',
+        admin_email: 'martinchiacchio.seg@gmail.com',
+        admin_nombre: 'Martín Chiacchio',
+        descripcion: 'Espacio familiar oficial',
+        estado: 'activo',
+        activo: true,
+        creado_en: new Date().toISOString(),
+      };
+      dbUpsert('grupos', grupoDefecto);
+    } else {
+      for (const g of gruposExistentes) {
+        if (!g.codigo_familia) {
+          g.codigo_familia = g.codigo_invitacion || generarCodigoFamiliaUnico(g.nombre);
+          dbUpsert('grupos', g);
+        }
+      }
+    }
+
     dbInitialized = true;
   } catch (err) {
     console.error('Error inicializando base de datos:', err);
@@ -135,8 +164,35 @@ export async function ensureInitialized() {
 }
 
 // ==============================================================================
-// GESTIÓN DE GRUPOS (FAMILIAS / AMIGOS)
+// GESTIÓN DE GRUPOS Y CÓDIGOS DE FAMILIA
 // ==============================================================================
+
+export function generarCodigoFamiliaUnico(nombre: string): string {
+  const clean = nombre
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z]/g, '');
+  const prefix = clean.slice(0, 4).padEnd(4, 'X');
+  const num = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${num}`;
+}
+
+export async function buscarGrupoPorCodigo(codigo: string): Promise<Grupo | null> {
+  await ensureInitialized();
+  if (!codigo) return null;
+  const clean = codigo.toUpperCase().trim().replace(/\s+/g, '');
+  const grupos = dbGetAll<Grupo>('grupos');
+  return (
+    grupos.find(
+      (g) =>
+        g.activo &&
+        g.estado === 'activo' &&
+        ((g.codigo_familia && g.codigo_familia.toUpperCase().trim() === clean) ||
+          (g.codigo_invitacion && g.codigo_invitacion.toUpperCase().trim() === clean))
+    ) || null
+  );
+}
 
 export async function listarGrupos(): Promise<Grupo[]> {
   await ensureInitialized();
@@ -145,7 +201,7 @@ export async function listarGrupos(): Promise<Grupo[]> {
 
 export async function obtenerGrupoIdPorDefecto(): Promise<string> {
   const grupos = await listarGrupos();
-  return grupos[0]?.id || 'grp-default';
+  return grupos[0]?.id || 'grp-chiachio-001';
 }
 
 export async function buscarGrupoPorId(id: string): Promise<Grupo | null> {
@@ -158,15 +214,24 @@ export async function crearGrupo(data: {
   emoji_or_logo?: string;
   hora_limite?: string;
   descripcion?: string;
+  admin_id?: string;
+  admin_email?: string;
+  admin_nombre?: string;
+  codigo_familia?: string;
 }): Promise<Grupo> {
   await ensureInitialized();
+  const codigo = data.codigo_familia || generarCodigoFamiliaUnico(data.nombre);
   const nuevoGrupo: Grupo = {
     id: uuidv4(),
     nombre: data.nombre.trim(),
     emoji_or_logo: data.emoji_or_logo || '✨',
     hora_limite: data.hora_limite || '22:00',
     descripcion: data.descripcion?.trim(),
-    codigo_invitacion: 'DEST-' + randomBytes(3).toString('hex').toUpperCase(),
+    codigo_invitacion: codigo,
+    codigo_familia: codigo,
+    admin_id: data.admin_id,
+    admin_email: data.admin_email,
+    admin_nombre: data.admin_nombre,
     estado: 'activo',
     activo: true,
     creado_en: new Date().toISOString(),
@@ -211,6 +276,47 @@ export async function eliminarGrupo(id: string): Promise<boolean> {
 }
 
 // ==============================================================================
+// NOTIFICACIONES IN-APP PARA EL ADMINISTRADOR (CAMPANITA)
+// ==============================================================================
+
+export async function crearNotificacionAdmin(notif: Omit<NotificacionAdmin, 'id' | 'creado_en' | 'leido'>): Promise<NotificacionAdmin> {
+  await ensureInitialized();
+  const nueva: NotificacionAdmin = {
+    id: uuidv4(),
+    ...notif,
+    leido: false,
+    creado_en: new Date().toISOString(),
+  };
+  dbUpsert('notificacionesAdmin', nueva);
+  return nueva;
+}
+
+export async function listarNotificacionesAdmin(adminId?: string, grupoId?: string): Promise<NotificacionAdmin[]> {
+  await ensureInitialized();
+  const todas = dbGetAll<NotificacionAdmin>('notificacionesAdmin');
+  return todas
+    .filter((n) => (!adminId || n.admin_id === adminId) && (!grupoId || n.grupo_id === grupoId))
+    .sort((a, b) => new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime());
+}
+
+export async function contarNotificacionesNoLeidasAdmin(adminId?: string, grupoId?: string): Promise<number> {
+  await ensureInitialized();
+  const todas = await listarNotificacionesAdmin(adminId, grupoId);
+  return todas.filter((n) => !n.leido).length;
+}
+
+export async function marcarNotificacionesLeidas(adminId?: string, grupoId?: string): Promise<void> {
+  await ensureInitialized();
+  const todas = dbGetAll<NotificacionAdmin>('notificacionesAdmin');
+  for (const n of todas) {
+    if ((!adminId || n.admin_id === adminId) && (!grupoId || n.grupo_id === grupoId)) {
+      n.leido = true;
+      dbUpsert('notificacionesAdmin', n);
+    }
+  }
+}
+
+// ==============================================================================
 // GESTIÓN DE USUARIOS Y PERSONAS POR GRUPO
 // ==============================================================================
 
@@ -252,6 +358,109 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
 
   const encontrado = usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail);
   return encontrado || null;
+}
+
+export async function buscarUsuarioPorIdentificador(identificador: string): Promise<Usuario | null> {
+  await ensureInitialized();
+  if (!identificador) return null;
+  const clean = identificador.toLowerCase().trim();
+  const cleanDigits = identificador.replace(/\D/g, '');
+  const usuarios = dbGetAll<Usuario>('usuarios');
+
+  return (
+    usuarios.find((u) => {
+      if (u.email && u.email.toLowerCase().trim() === clean) return true;
+      if (cleanDigits.length >= 6) {
+        if (u.whatsapp && u.whatsapp.replace(/\D/g, '').endsWith(cleanDigits)) return true;
+        if (u.telefono && u.telefono.replace(/\D/g, '').endsWith(cleanDigits)) return true;
+      }
+      return false;
+    }) || null
+  );
+}
+
+export async function guardarCodigoRecuperacion(email: string, codigo: string): Promise<{ ok: boolean; nombre?: string }> {
+  await ensureInitialized();
+  const usuario = await buscarUsuarioPorEmail(email);
+  if (!usuario) return { ok: false };
+
+  usuario.codigo_recuperacion = codigo;
+  usuario.codigo_recuperacion_expira = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
+  dbUpsert('usuarios', usuario);
+  return { ok: true, nombre: usuario.nombre };
+}
+
+export async function validarYAplicarNuevaPassword(
+  email: string,
+  codigo: string,
+  nuevoHash: string
+): Promise<{ ok: boolean; error?: string }> {
+  await ensureInitialized();
+  const usuario = await buscarUsuarioPorEmail(email);
+  if (!usuario) {
+    return { ok: false, error: 'No se encontró ninguna cuenta asociada a este correo.' };
+  }
+
+  if (!usuario.codigo_recuperacion || usuario.codigo_recuperacion !== codigo) {
+    return { ok: false, error: 'El código de verificación ingresado es incorrecto.' };
+  }
+
+  if (usuario.codigo_recuperacion_expira && new Date(usuario.codigo_recuperacion_expira).getTime() < Date.now()) {
+    return { ok: false, error: 'El código de verificación ha expirado. Por favor solicitá uno nuevo.' };
+  }
+
+  usuario.password_hash = nuevoHash;
+  usuario.codigo_recuperacion = undefined;
+  usuario.codigo_recuperacion_expira = undefined;
+  usuario.debe_cambiar_password = false;
+  usuario.intentos_fallidos = 0;
+  usuario.bloqueado_hasta = null;
+  dbUpsert('usuarios', usuario);
+
+  return { ok: true };
+}
+
+export async function crearMiembroPorCodigoFamilia(data: {
+  grupoId: string;
+  nombre: string;
+  apodo?: string;
+  fechaNacimiento?: string;
+  whatsapp?: string;
+  email?: string;
+  fotoUrl?: string;
+  password?: string;
+}): Promise<Usuario> {
+  await ensureInitialized();
+
+  const finalEmail = data.email
+    ? data.email.toLowerCase().trim()
+    : `${(data.whatsapp || uuidv4()).replace(/\D/g, '') || uuidv4()}@familia.destellos`;
+
+  const passwordHash = data.password
+    ? await hashPassword(data.password)
+    : await hashPassword('Destellos@2026');
+
+  const nuevoUsuario: Usuario = {
+    id: uuidv4(),
+    email: finalEmail,
+    password_hash: passwordHash,
+    nombre: data.nombre.trim(),
+    apodo: data.apodo?.trim() || data.nombre.trim().split(' ')[0],
+    whatsapp: data.whatsapp?.trim(),
+    telefono: data.whatsapp?.trim(),
+    fecha_nacimiento: data.fechaNacimiento?.trim(),
+    avatar_url: data.fotoUrl?.trim() || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(data.nombre)}`,
+    rol: 'miembro',
+    grupo_id: data.grupoId,
+    debe_cambiar_password: false,
+    intentos_fallidos: 0,
+    activo: true,
+    racha: 0,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('usuarios', nuevoUsuario);
+  return nuevoUsuario;
 }
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {

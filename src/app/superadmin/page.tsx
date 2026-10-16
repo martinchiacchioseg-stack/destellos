@@ -46,6 +46,10 @@ export default function SuperadminPage() {
   const [emojiGrupo, setEmojiGrupo] = useState('✨');
   const [horaLimiteGrupo, setHoraLimiteGrupo] = useState('22:00');
   const [descGrupo, setDescGrupo] = useState('');
+  const [tipoAdminGrupo, setTipoAdminGrupo] = useState<'martin' | 'otro'>('martin');
+  const [otroAdminNombre, setOtroAdminNombre] = useState('');
+  const [otroAdminEmail, setOtroAdminEmail] = useState('');
+  const [codigoFamiliaSugerido, setCodigoFamiliaSugerido] = useState('');
 
   // Modales Persona
   const [mostrarModalPersona, setMostrarModalPersona] = useState(false);
@@ -240,15 +244,23 @@ export default function SuperadminPage() {
           emoji_or_logo: emojiGrupo,
           hora_limite: horaLimiteGrupo,
           descripcion: descGrupo,
+          admin_id: tipoAdminGrupo === 'martin' ? 'usr-superadmin-001' : undefined,
+          admin_nombre: tipoAdminGrupo === 'martin' ? 'Martín Chiacchio' : otroAdminNombre.trim(),
+          admin_email: tipoAdminGrupo === 'martin' ? 'martinchiacchio.seg@gmail.com' : otroAdminEmail.trim(),
+          codigo_familia: codigoFamiliaSugerido.trim() || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         setFeedback({ tipo: 'error', texto: data.error || 'Error al crear grupo.' });
       } else {
-        setFeedback({ tipo: 'ok', texto: 'Grupo creado con éxito.' });
+        const codigoGen = data.grupo?.codigo_familia || data.grupo?.codigo_invitacion;
+        setFeedback({ tipo: 'ok', texto: `¡Familia "${data.grupo?.nombre}" creada! Código para entregar: ${codigoGen}` });
         setNombreGrupo('');
         setDescGrupo('');
+        setCodigoFamiliaSugerido('');
+        setOtroAdminNombre('');
+        setOtroAdminEmail('');
         setMostrarModalGrupo(false);
         if (data.grupo?.id) {
           setGrupoSeleccionadoId(data.grupo.id);
@@ -504,13 +516,29 @@ export default function SuperadminPage() {
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-xl shrink-0">{g.emoji_or_logo || '✨'}</span>
-                          <div className="min-w-0">
+                          <div className="min-w-0 space-y-0.5">
                             <p className="text-xs font-black text-gray-900 dark:text-white truncate">
                               {g.nombre}
                             </p>
-                            <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-amber-500" />
-                              <span>Límite: {g.hora_limite || '22:00'} hs</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-[#FF7043] font-mono font-bold text-[10px] select-all">
+                                🔑 {g.codigo_familia || g.codigo_invitacion || 'CHIA-1938'}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const cod = g.codigo_familia || g.codigo_invitacion || '';
+                                  navigator.clipboard.writeText(cod);
+                                  setFeedback({ tipo: 'ok', texto: `¡Código ${cod} copiado para enviar por WhatsApp!` });
+                                }}
+                                className="p-1 rounded-md hover:bg-orange-200 text-[#FF7043] cursor-pointer"
+                                title="Copiar código de familia para WhatsApp"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400">
+                              Admin: <strong className="text-gray-600 dark:text-gray-300">{g.admin_nombre || 'Martín Chiacchio'}</strong>
                             </p>
                           </div>
                         </div>
@@ -781,16 +809,105 @@ export default function SuperadminPage() {
             <h3 className="text-base font-black text-gray-900 dark:text-white">Crear Nuevo Grupo</h3>
             <form onSubmit={handleCrearGrupo} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Nombre de la Familia o Grupo *
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="ej: Familia Pérez o Los Amigos del Fútbol"
+                  placeholder="ej: Chiachio o Los Pérez"
                   value={nombreGrupo}
-                  onChange={(e) => setNombreGrupo(e.target.value)}
+                  onChange={(e) => {
+                    setNombreGrupo(e.target.value);
+                    if (!codigoFamiliaSugerido) {
+                      const clean = e.target.value
+                        .toUpperCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^A-Z]/g, '')
+                        .slice(0, 4);
+                      if (clean) setCodigoFamiliaSugerido(`${clean}-${Math.floor(1000 + Math.random() * 9000)}`);
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
                 />
               </div>
+
+              {/* Selector de Administrador del Grupo */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Administrador del Grupo
+                </label>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs cursor-pointer bg-gray-50 dark:bg-[#25202D]">
+                    <input
+                      type="radio"
+                      name="tipoAdmin"
+                      checked={tipoAdminGrupo === 'martin'}
+                      onChange={() => setTipoAdminGrupo('martin')}
+                    />
+                    <span className="font-bold text-gray-800 dark:text-gray-200">
+                      Yo mismo (Martín Chiacchio — Superadmin)
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs cursor-pointer bg-gray-50 dark:bg-[#25202D]">
+                    <input
+                      type="radio"
+                      name="tipoAdmin"
+                      checked={tipoAdminGrupo === 'otro'}
+                      onChange={() => setTipoAdminGrupo('otro')}
+                    />
+                    <span className="font-bold text-gray-800 dark:text-gray-200">
+                      Nombrar a otro familiar como Admin
+                    </span>
+                  </label>
+                </div>
+
+                {tipoAdminGrupo === 'otro' && (
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 mb-0.5">Nombre del Admin</label>
+                      <input
+                        type="text"
+                        required={tipoAdminGrupo === 'otro'}
+                        placeholder="ej: Dolores Chiachio"
+                        value={otroAdminNombre}
+                        onChange={(e) => setOtroAdminNombre(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-[#1C1822] dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 mb-0.5">Email del Admin</label>
+                      <input
+                        type="email"
+                        required={tipoAdminGrupo === 'otro'}
+                        placeholder="dolores@email.com"
+                        value={otroAdminEmail}
+                        onChange={(e) => setOtroAdminEmail(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs bg-white dark:bg-[#1C1822] dark:text-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Código de Familia sugerido */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Código de Familia para entregar
+                </label>
+                <input
+                  type="text"
+                  placeholder="ej: CHIA-1938 (se genera automático)"
+                  value={codigoFamiliaSugerido}
+                  onChange={(e) => setCodigoFamiliaSugerido(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-mono font-bold tracking-wider text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20 uppercase"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Este código es el que compartirás por WhatsApp a los familiares para que ingresen.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Emoji / Ícono</label>

@@ -1,13 +1,36 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
 
 interface AnimatedLogoProps {
   variant?: 'full' | 'compact' | 'header';
   className?: string;
+  onRolfTripleClick?: () => void;
 }
 
-export default function AnimatedLogo({ variant = 'full', className = '' }: AnimatedLogoProps) {
+export default function AnimatedLogo({
+  variant = 'full',
+  className = '',
+  onRolfTripleClick,
+}: AnimatedLogoProps) {
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleRolfClick = () => {
+    clickCountRef.current += 1;
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+
+    if (clickCountRef.current >= 3) {
+      clickCountRef.current = 0;
+      onRolfTripleClick?.();
+    } else {
+      clickTimerRef.current = setTimeout(() => {
+        clickCountRef.current = 0;
+      }, 1800);
+    }
+  };
+
   if (variant === 'header') {
     return (
       <div className={`flex items-center gap-2 select-none ${className}`}>
@@ -19,7 +42,10 @@ export default function AnimatedLogo({ variant = 'full', className = '' }: Anima
             <span className="font-black text-base tracking-tight bg-gradient-to-r from-[#FF7043] to-[#F4511E] bg-clip-text text-transparent">
               Destellos
             </span>
-            <span className="text-[10px] font-semibold text-gray-400">
+            <span
+              onClick={handleRolfClick}
+              className="text-[10px] font-semibold text-gray-400 cursor-pointer select-none"
+            >
               by <strong className="text-gray-700 dark:text-gray-200">Rolφ</strong>
             </span>
           </div>
@@ -38,7 +64,13 @@ export default function AnimatedLogo({ variant = 'full', className = '' }: Anima
           <Sparkles className="w-3.5 h-3.5 fill-white" />
         </div>
         <span className="font-extrabold text-sm tracking-tight text-gray-900 dark:text-white">
-          Destellos <span className="text-[10px] font-normal text-gray-400">by Rolφ</span>
+          Destellos{' '}
+          <span
+            onClick={handleRolfClick}
+            className="text-[10px] font-normal text-gray-400 cursor-pointer"
+          >
+            by Rolφ
+          </span>
         </span>
       </div>
     );
@@ -65,8 +97,12 @@ export default function AnimatedLogo({ variant = 'full', className = '' }: Anima
         un clic familiar
       </p>
 
-      {/* Sello de Autor Oficial: by Rolφ */}
-      <div className="mt-2.5 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800/40 text-[11px] font-bold text-[#FF7043]">
+      {/* Sello de Autor Oficial: by Rolφ (Con acceso oculto al tocar 3 veces) */}
+      <div
+        onClick={handleRolfClick}
+        title="Rolφ"
+        className="mt-2.5 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800/40 text-[11px] font-bold text-[#FF7043] cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-950/70 transition-colors select-none active:scale-95"
+      >
         <span>by</span>
         <span className="font-black text-gray-800 dark:text-gray-100 tracking-wide">Rolφ</span>
       </div>

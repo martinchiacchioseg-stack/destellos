@@ -34,6 +34,7 @@ export const COLLECTIONS = [
   'triviaIntentos',
   'feedPosts',
   'reacciones',
+  'notificacionesAdmin',
   'ai_logs',
 ] as const;
 
