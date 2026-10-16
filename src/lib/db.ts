@@ -244,8 +244,8 @@ export async function ensureInitialized() {
     return;
   }
 
-  const superadminEmail = process.env.SUPERADMIN_EMAIL || 'martinchiaccio.seg@gmail.com';
-  const superadminPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234';
+  const superadminEmail = process.env.SUPERADMIN_EMAIL || 'martinchiacchio.seg@gmail.com';
+  const superadminPass = process.env.SUPERADMIN_INITIAL_PASSWORD || '000000';
 
   const defaultGroupId = DEFAULT_GRUPO_ID;
   const superadminId = 'usr-superadmin-001';
@@ -272,7 +272,7 @@ export async function ensureInitialized() {
       apodo: 'Martín',
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       rol: 'superadmin',
-      grupo_id: defaultGroupId,
+      grupo_id: null,
       debe_cambiar_password: false,
       intentos_fallidos: 0,
       activo: true,
@@ -539,7 +539,49 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
   await ensureInitialized();
   const cleanEmail = email.toLowerCase().trim();
   const usuarios = dbGetAll<Usuario>('usuarios');
-  return usuarios.find((x) => x.email.toLowerCase().trim() === cleanEmail) || null;
+
+  // Coincidencia exacta o alias de superadmin
+  const esSuperAdminEmail =
+    cleanEmail === 'martinchiacchio.seg@gmail.com' ||
+    cleanEmail === 'martinchiaccio.seg@gmail.com';
+
+  const encontrado = usuarios.find((x) => {
+    const uEmail = x.email.toLowerCase().trim();
+    if (uEmail === cleanEmail) return true;
+    if (esSuperAdminEmail && (uEmail === 'martinchiacchio.seg@gmail.com' || uEmail === 'martinchiaccio.seg@gmail.com')) {
+      return true;
+    }
+    return false;
+  });
+
+  if (encontrado) return encontrado;
+
+  // Si busca al superadmin y no estuviese en la base (arranque en frío en Vercel), crearlo de inmediato
+  if (esSuperAdminEmail) {
+    const hash = await hashPassword('000000');
+    const superadmin: Usuario = {
+      id: 'usr-superadmin-001',
+      email: 'martinchiacchio.seg@gmail.com',
+      password_hash: hash,
+      nombre: 'Martín Chiaccio',
+      apodo: 'Martín',
+      telefono: '+54 9 2241 52-7357',
+      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      rol: 'superadmin',
+      grupo_id: null,
+      debe_cambiar_password: false,
+      intentos_fallidos: 0,
+      bloqueado_hasta: null,
+      activo: true,
+      creado_en: new Date().toISOString(),
+    };
+    dbUpsert('usuarios', superadmin);
+    const store = getStore();
+    store.usuarios = dbGetAll<Usuario>('usuarios');
+    return superadmin;
+  }
+
+  return null;
 }
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
