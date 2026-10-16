@@ -42,9 +42,17 @@ export default function HomePage() {
   const [resultadoAdivina, setResultadoAdivina] = useState<any | null>(null);
   const [errorAdivina, setErrorAdivina] = useState<string | null>(null);
 
+  const getAuthHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('destellos_token') : null;
+    const h: Record<string, string> = {};
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
+
   const cargarDatos = async () => {
     try {
-      const meRes = await fetch('/api/auth/me');
+      const authH = getAuthHeaders();
+      const meRes = await fetch('/api/auth/me', { headers: authH });
       const meData = await meRes.json();
       if (!meData.authenticated) {
         router.push('/login');
@@ -53,8 +61,8 @@ export default function HomePage() {
       setUsuario(meData.usuario);
 
       const [hoyRes, feedRes] = await Promise.all([
-        fetch('/api/destellos/hoy'),
-        fetch('/api/feed'),
+        fetch('/api/destellos/hoy', { headers: authH }),
+        fetch('/api/feed', { headers: authH }),
       ]);
 
       if (hoyRes.ok) {

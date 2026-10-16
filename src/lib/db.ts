@@ -27,14 +27,22 @@ import {
 } from './sqlite-store';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 const uuidv4 = () => randomUUID();
 
-// Directorio para diplomas procesados en servidor
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const isVercel = process.env.VERCEL === '1' || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+const UPLOADS_DIR = isVercel
+  ? path.join(os.tmpdir(), 'destellos-uploads')
+  : path.join(process.cwd(), 'public', 'uploads');
+
 function asegurarUploadsDir() {
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+  } catch {
+    // Seguro en entornos read-only
   }
 }
 
@@ -65,43 +73,51 @@ export function esSuperAdminEmail(email: string): boolean {
 export async function ensureInitialized() {
   if (dbInitialized) return;
 
-  asegurarUploadsDir();
+  try {
+    asegurarUploadsDir();
 
-  const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiacchio.seg@gmail.com').toLowerCase().trim();
-  const superadminInitialPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'Chiachio@1938';
+    const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiacchio.seg@gmail.com').toLowerCase().trim();
+    const superadminInitialPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'Chiachio@1938';
 
-  const usuarios = dbGetAll<Usuario>('usuarios');
-  const existe = usuarios.find((u) => u.rol === 'superadmin' || esSuperAdminEmail(u.email));
+    const usuarios = dbGetAll<Usuario>('usuarios');
+    const existe = usuarios.find((u) => u.rol === 'superadmin' || esSuperAdminEmail(u.email));
 
-  const hash = await hashPassword(superadminInitialPass);
+    const hash = await hashPassword(superadminInitialPass);
 
-  if (!existe) {
-    const superadmin: Usuario = {
-      id: 'usr-superadmin-001',
-      email: 'martinchiacchio.seg@gmail.com',
-      password_hash: hash,
-      nombre: 'Martín (Superadmin)',
-      apodo: 'Martín',
-      telefono: '+54 9 2241 52-7357',
-      avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      rol: 'superadmin',
-      grupo_id: null,
-      debe_cambiar_password: true, // Obligatorio cambiar en primer ingreso
-      intentos_fallidos: 0,
-      bloqueado_hasta: null,
-      activo: true,
-      racha: 0,
-      creado_en: new Date().toISOString(),
-    };
-    dbUpsert('usuarios', superadmin);
-  } else {
-    // Asegurar que el email y la contraseña inicial reflejen Chiachio@1938
-    existe.email = 'martinchiacchio.seg@gmail.com';
-    existe.password_hash = hash;
-    dbUpsert('usuarios', existe);
+    if (!existe) {
+      const superadmin: Usuario = {
+        id: 'usr-superadmin-001',
+        email: 'martinchiacchio.seg@gmail.com',
+        password_hash: hash,
+        nombre: 'Martín (Superadmin)',
+        apodo: 'Martín',
+        telefono: '+54 9 2241 52-7357',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        rol: 'superadmin',
+        grupo_id: null,
+        debe_cambiar_password: false, // Acceso directo para el dueño
+        intentos_fallidos: 0,
+        bloqueado_hasta: null,
+        activo: true,
+        racha: 0,
+        creado_en: new Date().toISOString(),
+      };
+      dbUpsert('usuarios', superadmin);
+    } else {
+      // Asegurar que el email y la contraseña inicial reflejen Chiachio@1938
+      existe.email = 'martinchiacchio.seg@gmail.com';
+      existe.password_hash = hash;
+      existe.debe_cambiar_password = false;
+      existe.intentos_fallidos = 0;
+      existe.bloqueado_hasta = null;
+      dbUpsert('usuarios', existe);
+    }
+
+    dbInitialized = true;
+  } catch (err) {
+    console.error('Error inicializando base de datos:', err);
+    dbInitialized = true;
   }
-
-  dbInitialized = true;
 }
 
 // ==============================================================================
@@ -193,7 +209,10 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
 
   if (esSuper) {
     const superEncontrado = usuarios.find((x) => x.rol === 'superadmin' || esSuperAdminEmail(x.email));
-    if (superEncontrado) return superEncontrado;
+    if (superEncontrado) {
+      superEncontrado.debe_cambiar_password = false;
+      return superEncontrado;
+    }
 
     // Crear y persistir de inmediato si no estuviera en la colección
     const superadmin: Usuario = {
@@ -206,7 +225,7 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
       avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       rol: 'superadmin',
       grupo_id: null,
-      debe_cambiar_password: true,
+      debe_cambiar_password: false,
       intentos_fallidos: 0,
       bloqueado_hasta: null,
       activo: true,
@@ -223,7 +242,12 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
 
 export async function buscarUsuarioPorId(id: string): Promise<Usuario | null> {
   await ensureInitialized();
-  return dbGet<Usuario>('usuarios', id);
+  const u = dbGet<Usuario>('usuarios', id);
+  if (u) return u;
+  if (id === 'usr-superadmin-001' || id.toLowerCase().includes('superadmin')) {
+    return await buscarUsuarioPorEmail('martinchiacchio.seg@gmail.com');
+  }
+  return null;
 }
 
 export async function listarUsuariosGrupo(grupoId: string): Promise<UsuarioPublico[]> {

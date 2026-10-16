@@ -1,8 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { randomUUID } from 'crypto';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const isVercel = process.env.VERCEL === '1' || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+const UPLOADS_DIR = isVercel
+  ? path.join(os.tmpdir(), 'destellos-uploads')
+  : path.join(process.cwd(), 'public', 'uploads');
 
 export function asegurarDirectorioUploads() {
   try {
@@ -10,7 +14,7 @@ export function asegurarDirectorioUploads() {
       fs.mkdirSync(UPLOADS_DIR, { recursive: true });
     }
   } catch (err) {
-    console.error('Error asegurando directorio uploads:', err);
+    // Silencioso en entornos read-only
   }
 }
 

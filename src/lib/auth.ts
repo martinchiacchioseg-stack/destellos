@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { SesionUsuario } from './types';
 
 const JWT_SECRET_STRING = process.env.JWT_SECRET || 'destellos-super-secret-jwt-key-2026-un-clic-familiar';
@@ -129,12 +129,23 @@ export async function verifySessionToken(token: string): Promise<SesionUsuario |
 }
 
 /**
- * Obtiene la sesión actual desde las cookies de la petición
+ * Obtiene la sesión actual desde las cookies o desde el header Authorization
  */
 export async function getCurrentSession(): Promise<SesionUsuario | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
+    let token = cookieStore.get(COOKIE_NAME)?.value;
+
+    if (!token) {
+      try {
+        const headerStore = await headers();
+        const auth = headerStore.get('authorization');
+        if (auth && auth.startsWith('Bearer ')) {
+          token = auth.slice(7).trim();
+        }
+      } catch {}
+    }
+
     if (!token) return null;
     return await verifySessionToken(token);
   } catch {
@@ -146,20 +157,24 @@ export async function getCurrentSession(): Promise<SesionUsuario | null> {
  * Guarda el token de sesión en las cookies seguras httpOnly
  */
 export async function setSessionCookie(token: string) {
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60, // 7 días
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: false, // Universal para HTTP, HTTPS, localhost y webviews
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7 días
+    });
+  } catch {}
 }
 
 /**
  * Elimina la cookie de sesión (Logout)
  */
 export async function clearSessionCookie() {
-  const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(COOKIE_NAME);
+  } catch {}
 }

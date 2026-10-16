@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const LOCAL_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const TMP_UPLOADS_DIR = path.join(os.tmpdir(), 'destellos-uploads');
 
 const MIME_MAP: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -25,7 +27,11 @@ export async function GET(
 
     // Sanitizar nombre de archivo para evitar Directory Traversal
     const safeFilename = path.basename(filename);
-    const filePath = path.join(UPLOADS_DIR, safeFilename);
+    let filePath = path.join(LOCAL_UPLOADS_DIR, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(TMP_UPLOADS_DIR, safeFilename);
+    }
 
     if (!fs.existsSync(filePath)) {
       return new NextResponse('Archivo no encontrado', { status: 404 });

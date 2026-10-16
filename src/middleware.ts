@@ -23,8 +23,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Verificar cookie de sesión
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  // Verificar cookie de sesión o header Authorization
+  let token = req.cookies.get(COOKIE_NAME)?.value;
+  if (!token) {
+    const auth = req.headers.get('authorization');
+    if (auth && auth.startsWith('Bearer ')) {
+      token = auth.slice(7).trim();
+    }
+  }
 
   if (!token) {
     // Si no está autenticado y es una ruta de API

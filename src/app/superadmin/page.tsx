@@ -57,9 +57,17 @@ export default function SuperadminPage() {
 
   const [feedback, setFeedback] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
+  const getAuthHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('destellos_token') : null;
+    const h: Record<string, string> = {};
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
+
   const cargarDatos = async () => {
     try {
-      const meRes = await fetch('/api/auth/me');
+      const authH = getAuthHeaders();
+      const meRes = await fetch('/api/auth/me', { headers: authH });
       const meData = await meRes.json();
       if (!meData.authenticated || meData.usuario.rol !== 'superadmin') {
         router.push('/');
@@ -68,8 +76,8 @@ export default function SuperadminPage() {
       setUsuario(meData.usuario);
 
       const [metRes, grupRes] = await Promise.all([
-        fetch('/api/superadmin/metricas'),
-        fetch('/api/superadmin/grupos'),
+        fetch('/api/superadmin/metricas', { headers: authH }),
+        fetch('/api/superadmin/grupos', { headers: authH }),
       ]);
 
       if (metRes.ok) setMetricas(await metRes.json());

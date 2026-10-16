@@ -6,12 +6,19 @@ import { procesarYSanitizarImagen } from '@/lib/image-processor';
 import { moderarContenido } from '@/lib/gemini';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const isVercel = process.env.VERCEL === '1' || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+const UPLOADS_DIR = isVercel
+  ? path.join(os.tmpdir(), 'destellos-uploads')
+  : path.join(process.cwd(), 'public', 'uploads');
+
 function asegurarUploadsDir() {
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  }
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+  } catch {}
 }
 
 export async function POST(req: NextRequest) {

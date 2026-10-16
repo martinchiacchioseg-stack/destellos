@@ -34,6 +34,13 @@ export default function LoginPage() {
         return;
       }
 
+      if (data.token) {
+        try {
+          localStorage.setItem('destellos_token', data.token);
+          document.cookie = `destellos_session=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+        } catch {}
+      }
+
       window.location.href = data.redirectUrl || '/superadmin';
     } catch {
       setError('Error de conexión con el servidor. Reintentá en unos segundos.');
@@ -77,6 +84,13 @@ export default function LoginPage() {
         setError(data.error || 'Credenciales inválidas.');
         setCargando(false);
         return;
+      }
+
+      if (data.token) {
+        try {
+          localStorage.setItem('destellos_token', data.token);
+          document.cookie = `destellos_session=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+        } catch {}
       }
 
       if (data.redirectUrl) {

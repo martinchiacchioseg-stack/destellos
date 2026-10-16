@@ -3,23 +3,37 @@ import { getCurrentSession } from '@/lib/auth';
 import { buscarGrupoPorId, buscarUsuarioPorId } from '@/lib/db';
 
 export async function GET() {
-  const session = await getCurrentSession();
-  if (!session) {
+  try {
+    const session = await getCurrentSession();
+    if (!session) {
+      return NextResponse.json({ authenticated: false, usuario: null }, { status: 401 });
+    }
+
+    let usuarioDb = null;
+    try {
+      usuarioDb = await buscarUsuarioPorId(session.id);
+    } catch {}
+
+    const actualGrupoId = usuarioDb?.grupo_id || session.grupo_id;
+    let grupo = null;
+    if (actualGrupoId) {
+      try {
+        grupo = await buscarGrupoPorId(actualGrupoId);
+      } catch {}
+    }
+
+    return NextResponse.json({
+      authenticated: true,
+      usuario: {
+        ...session,
+        grupo_id: actualGrupoId,
+        debe_cambiar_password: usuarioDb ? usuarioDb.debe_cambiar_password : false,
+        grupo_nombre: grupo?.nombre || null,
+        grupo_codigo: grupo?.codigo_invitacion || null,
+      },
+    });
+  } catch (err) {
+    console.error('Error en /api/auth/me:', err);
     return NextResponse.json({ authenticated: false, usuario: null }, { status: 401 });
   }
-
-  const usuarioDb = await buscarUsuarioPorId(session.id);
-  const actualGrupoId = usuarioDb?.grupo_id || session.grupo_id;
-  const grupo = actualGrupoId ? await buscarGrupoPorId(actualGrupoId) : null;
-
-  return NextResponse.json({
-    authenticated: true,
-    usuario: {
-      ...session,
-      grupo_id: actualGrupoId,
-      debe_cambiar_password: usuarioDb ? usuarioDb.debe_cambiar_password : session.debe_cambiar_password,
-      grupo_nombre: grupo?.nombre || null,
-      grupo_codigo: grupo?.codigo_invitacion || null,
-    },
-  });
 }

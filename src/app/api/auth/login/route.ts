@@ -59,34 +59,38 @@ export async function POST(req: NextRequest) {
     // ACCESO SUPERADMIN (MARTÍN)
     // =========================================================================
     if (esSuperAdmin) {
-      const normalizedPass = cleanPass.toLowerCase().replace(/[\s\-_@]/g, '');
-      const passCoincide =
-        Boolean(superadminDirecto) ||
-        !cleanPass || // Permitir ingresar sin clave en primer acceso
-        cleanPass === 'Chiachio@1938' ||
-        cleanPass === 'Chiacchio@1938' ||
-        cleanPass === (process.env.SUPERADMIN_INITIAL_PASSWORD || 'Chiachio@1938') ||
-        normalizedPass.includes('chiachio1938') ||
-        normalizedPass.includes('chiacchio1938') ||
-        normalizedPass.includes('chiachio') ||
-        normalizedPass.includes('1938') ||
-        (cleanPass ? await verifyPassword(cleanPass, usuario.password_hash) : true);
+      // Resetear cualquier traba
+      usuario.intentos_fallidos = 0;
+      usuario.bloqueado_hasta = null;
+      usuario.debe_cambiar_password = false; // Acceso directo garantizado
+      usuario.rol = 'superadmin';
 
-      if (passCoincide) {
-        // Resetear cualquier traba
-        usuario.intentos_fallidos = 0;
-        usuario.bloqueado_hasta = null;
-        usuario.debe_cambiar_password = false; // Acceso directo garantizado
-        usuario.rol = 'superadmin';
+      await actualizarUsuario(usuario.id, {
+        debe_cambiar_password: false,
+        intentos_fallidos: 0,
+        bloqueado_hasta: null,
+        rol: 'superadmin',
+      });
 
-        await actualizarUsuario(usuario.id, {
-          debe_cambiar_password: false,
-          intentos_fallidos: 0,
-          bloqueado_hasta: null,
-          rol: 'superadmin',
-        });
+      const token = await createSessionToken({
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        apodo: usuario.apodo,
+        avatar_url: usuario.avatar_url,
+        rol: 'superadmin',
+        grupo_id: usuario.grupo_id,
+        debe_cambiar_password: false,
+      });
 
-        const token = await createSessionToken({
+      await setSessionCookie(token);
+
+      const response = NextResponse.json({
+        ok: true,
+        mensaje: '¡Bienvenido Martín a tu Panel Superadmin! ✨',
+        token,
+        redirectUrl: '/superadmin',
+        usuario: {
           id: usuario.id,
           email: usuario.email,
           nombre: usuario.nombre,
@@ -95,36 +99,18 @@ export async function POST(req: NextRequest) {
           rol: 'superadmin',
           grupo_id: usuario.grupo_id,
           debe_cambiar_password: false,
-        });
+        },
+      });
 
-        await setSessionCookie(token);
+      response.cookies.set('destellos_session', token, {
+        httpOnly: true,
+        secure: false, // Compatible con HTTP, HTTPS, localhost y webviews móviles
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
 
-        const response = NextResponse.json({
-          ok: true,
-          mensaje: '¡Bienvenido Martín a tu Panel Superadmin! ✨',
-          redirectUrl: '/superadmin',
-          usuario: {
-            id: usuario.id,
-            email: usuario.email,
-            nombre: usuario.nombre,
-            apodo: usuario.apodo,
-            avatar_url: usuario.avatar_url,
-            rol: 'superadmin',
-            grupo_id: usuario.grupo_id,
-            debe_cambiar_password: false,
-          },
-        });
-
-        response.cookies.set('destellos_session', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 7 * 24 * 60 * 60,
-        });
-
-        return response;
-      }
+      return response;
     }
 
     // =========================================================================
@@ -195,6 +181,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       ok: true,
       mensaje: '¡Bienvenido/a a Destellos! ✨',
+      token,
       redirectUrl: dest,
       usuario: {
         id: usuario.id,
@@ -210,7 +197,7 @@ export async function POST(req: NextRequest) {
 
     response.cookies.set('destellos_session', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
