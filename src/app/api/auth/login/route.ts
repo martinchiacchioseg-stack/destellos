@@ -133,6 +133,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verificar vigencia de la licencia del grupo familiar
+    if (usuario.grupo_id) {
+      const { dbGet } = await import('@/lib/sqlite-store');
+      const g = dbGet<any>('grupos', usuario.grupo_id);
+      if (g) {
+        if (g.licencia_activa === false || !g.activo) {
+          return NextResponse.json(
+            { error: `La licencia de la familia "${g.nombre}" se encuentra temporalmente suspendida. Comunicate con el administrador.` },
+            { status: 403 }
+          );
+        }
+        if (g.fecha_vencimiento) {
+          const hoy = new Date().toISOString().split('T')[0];
+          if (g.fecha_vencimiento < hoy) {
+            return NextResponse.json(
+              { error: `La licencia de la familia "${g.nombre}" venció el ${g.fecha_vencimiento}. Comunicate con el administrador para renovarla.` },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
     if (usuario.bloqueado_hasta) {
       const bloqueoHasta = new Date(usuario.bloqueado_hasta).getTime();
       const ahora = Date.now();

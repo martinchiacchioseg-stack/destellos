@@ -25,13 +25,25 @@ import {
   Pencil,
   X,
   ExternalLink,
+  Wrench,
+  FileText,
+  Download,
+  Calendar,
 } from 'lucide-react';
-import { SesionUsuario, Grupo, UsuarioPublico, Publicidad, UbicacionPublicidad } from '@/lib/types';
+import {
+  SesionUsuario,
+  Grupo,
+  UsuarioPublico,
+  Publicidad,
+  UbicacionPublicidad,
+  InformeDiagnostico,
+} from '@/lib/types';
 import AnimatedLogo from '@/components/AnimatedLogo';
+import { jsPDF } from 'jspdf';
 
 export default function SuperadminPage() {
   const router = useRouter();
-  const [tabActivo, setTabActivo] = useState<'grupos' | 'publicidad'>('grupos');
+  const [tabActivo, setTabActivo] = useState<'grupos' | 'licencias' | 'diagnostico' | 'publicidad'>('grupos');
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null);
   const [metricas, setMetricas] = useState<any>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -39,6 +51,10 @@ export default function SuperadminPage() {
   const [usuariosGrupo, setUsuariosGrupo] = useState<UsuarioPublico[]>([]);
   const [publicidades, setPublicidades] = useState<Publicidad[]>([]);
   const [cargando, setCargando] = useState(true);
+
+  // Estados de Diagnóstico y Mantenimiento
+  const [ejecutandoDiagnostico, setEjecutandoDiagnostico] = useState(false);
+  const [informeDiagnostico, setInformeDiagnostico] = useState<InformeDiagnostico | null>(null);
 
   // Modales Grupo
   const [mostrarModalGrupo, setMostrarModalGrupo] = useState(false);
@@ -301,6 +317,172 @@ export default function SuperadminPage() {
     }
   };
 
+  // Gestión de Licencias Familiares
+  const handleRenovarLicencia = async (g: Grupo, diasSuma: number) => {
+    try {
+      const hoy = new Date();
+      const baseFecha = g.fecha_vencimiento && new Date(g.fecha_vencimiento) > hoy
+        ? new Date(g.fecha_vencimiento)
+        : hoy;
+      baseFecha.setDate(baseFecha.getDate() + diasSuma);
+      const nuevaFecha = baseFecha.toISOString().split('T')[0];
+
+      const res = await fetch('/api/superadmin/grupos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: g.id,
+          fecha_vencimiento: nuevaFecha,
+          licencia_activa: true,
+        }),
+      });
+
+      if (res.ok) {
+        setFeedback({ tipo: 'ok', texto: `Licencia de "${g.nombre}" renovada hasta el ${nuevaFecha}.` });
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al renovar licencia.' });
+    }
+  };
+
+  const handleToggleLicencia = async (g: Grupo) => {
+    try {
+      const nuevoEstado = !g.licencia_activa;
+      const res = await fetch('/api/superadmin/grupos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: g.id,
+          licencia_activa: nuevoEstado,
+        }),
+      });
+      if (res.ok) {
+        setFeedback({
+          tipo: 'ok',
+          texto: `Licencia de "${g.nombre}" ${nuevoEstado ? 'reactivada' : 'suspendida'}.`,
+        });
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al modificar licencia.' });
+    }
+  };
+
+  // Mantenimiento y Diagnóstico Automatizado
+  const handleEjecutarDiagnostico = async () => {
+    setEjecutandoDiagnostico(true);
+    setFeedback(null);
+    try {
+      const res = await fetch('/api/superadmin/diagnostico', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error || 'Fallo al ejecutar diagnóstico.' });
+      } else {
+        setInformeDiagnostico(data.informe);
+        setFeedback({ tipo: 'ok', texto: '¡Diagnóstico y auto-reparaciones completados con éxito!' });
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al conectar con el motor de diagnóstico.' });
+    } finally {
+      setEjecutandoDiagnostico(false);
+    }
+  };
+
+  const handleDescargarDiagnosticoPDF = (informe: InformeDiagnostico) => {
+    const doc = new jsPDF();
+
+    // Banner de Encabezado
+    doc.setFillColor(255, 112, 67); // #FF7043
+    doc.rect(0, 0, 210, 26, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DESTELLOS - INFORME OFICIAL DE MANTENIMIENTO Y DIAGNÓSTICO', 14, 12);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Fecha: ${new Date(informe.fecha).toLocaleString('es-AR')} | Plataforma: ${informe.version_app} by Rolφ`, 14, 20);
+
+    // Resumen Ejecutivo
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumen Ejecutivo del Sistema', 14, 34);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const resumenLines = doc.splitTextToSize(informe.resumen_ejecutivo, 182);
+    doc.text(resumenLines, 14, 40);
+
+    // Resumen métricas
+    const boxY = 40 + resumenLines.length * 4.5 + 4;
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(14, boxY, 182, 14, 2, 2, 'F');
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(50, 50, 50);
+    doc.text(
+      `Módulos: ${informe.total_modulos}   |   OK: ${informe.modulos_ok}   |   Reparados: ${informe.modulos_reparados}   |   Advertencias: ${informe.modulos_advertencia}   |   Errores: ${informe.modulos_error}`,
+      20,
+      boxY + 9
+    );
+
+    // Detalle por módulo
+    let y = boxY + 22;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 30, 30);
+    doc.text('Detalle por Flujo y Módulo Verificado', 14, y);
+    y += 7;
+
+    informe.items.forEach((item, index) => {
+      if (y > 265) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFontSize(9.5);
+      doc.setFont('helvetica', 'bold');
+      if (item.estado === 'ok') doc.setTextColor(16, 185, 129);
+      else if (item.estado === 'reparado') doc.setTextColor(37, 99, 235);
+      else if (item.estado === 'advertencia') doc.setTextColor(217, 119, 6);
+      else doc.setTextColor(220, 38, 38);
+
+      doc.text(`[${item.estado.toUpperCase()}] ${index + 1}. ${item.nombre}`, 14, y);
+      y += 4.5;
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const desc = doc.splitTextToSize(item.descripcion, 180);
+      doc.text(desc, 18, y);
+      y += desc.length * 4;
+
+      if (item.autoReparado && item.accionReparada) {
+        doc.setTextColor(30, 64, 175);
+        doc.setFont('helvetica', 'italic');
+        const rep = doc.splitTextToSize(`Auto-reparación ejecutada: ${item.accionReparada}`, 180);
+        doc.text(rep, 18, y);
+        y += rep.length * 4;
+      }
+
+      if (item.detalles) {
+        doc.setTextColor(110, 110, 110);
+        doc.setFont('helvetica', 'normal');
+        const det = doc.splitTextToSize(`Detalles técnicos: ${item.detalles}`, 180);
+        doc.text(det, 18, y);
+        y += det.length * 4;
+      }
+
+      y += 3;
+    });
+
+    doc.save(`Diagnostico_Destellos_${informe.fecha.split('T')[0]}.pdf`);
+  };
+
   const handleCrearPersona = async (e: React.FormEvent) => {
     e.preventDefault();
     setFeedback(null);
@@ -450,28 +632,50 @@ export default function SuperadminPage() {
         </div>
 
         {/* Pestañas de Gestión */}
-        <div className="flex border-b border-gray-200 dark:border-gray-800 gap-2">
+        <div className="flex border-b border-gray-200 dark:border-gray-800 gap-1.5 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setTabActivo('grupos')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer shrink-0 ${
               tabActivo === 'grupos'
                 ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
                 : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Grupos y Familias ({grupos.length})</span>
+            <span>Familias ({grupos.length})</span>
+          </button>
+          <button
+            onClick={() => setTabActivo('licencias')}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer shrink-0 ${
+              tabActivo === 'licencias'
+                ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
+                : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Licencias Familiares</span>
+          </button>
+          <button
+            onClick={() => setTabActivo('diagnostico')}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer shrink-0 ${
+              tabActivo === 'diagnostico'
+                ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
+                : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Wrench className="w-4 h-4" />
+            <span>Diagnóstico & Mantenimiento</span>
           </button>
           <button
             onClick={() => setTabActivo('publicidad')}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer shrink-0 ${
               tabActivo === 'publicidad'
                 ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
                 : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
             <Tag className="w-4 h-4" />
-            <span>Publicidades y Patrocinadores ({publicidades.length})</span>
+            <span>Publicidad ({publicidades.length})</span>
           </button>
         </div>
 
@@ -645,6 +849,243 @@ export default function SuperadminPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* =========================================================================
+            PESTAÑA LICENCIAS FAMILIARES (Vencimientos, Renovación y Suspensión)
+           ========================================================================= */}
+        {tabActivo === 'licencias' && (
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-[#FF7043]" />
+                  Gestión de Licencias Familiares
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Control de vigencia, vencimientos y bloqueos de acceso por familia
+                </p>
+              </div>
+            </div>
+
+            {/* Listado de Grupos y sus Licencias */}
+            <div className="space-y-3">
+              {grupos.map((g) => {
+                const hoy = new Date().toISOString().split('T')[0];
+                const estaVencida = Boolean(g.fecha_vencimiento && g.fecha_vencimiento < hoy);
+                const diasRestantes = g.fecha_vencimiento
+                  ? Math.ceil((new Date(g.fecha_vencimiento).getTime() - Date.now()) / (1000 * 3600 * 24))
+                  : null;
+                const porVencer = diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 7;
+                const estaSuspendida = g.licencia_activa === false;
+
+                return (
+                  <div
+                    key={g.id}
+                    className="p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#25202D] flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-lg">{g.emoji_or_logo || '✨'}</span>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white">{g.nombre}</h3>
+                        {estaSuspendida ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                            Suspendida
+                          </span>
+                        ) : estaVencida ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                            Vencida ({g.fecha_vencimiento})
+                          </span>
+                        ) : porVencer ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                            Vence en {diasRestantes} días ({g.fecha_vencimiento})
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                            Activa hasta {g.fecha_vencimiento || 'Sin límite'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Admin: <strong className="text-gray-700 dark:text-gray-300">{g.admin_nombre || 'Martín Chiacchio'}</strong> ({g.admin_email || 'martinchiacchio.seg@gmail.com'}) · Código: <span className="font-mono font-bold text-[#FF7043]">{g.codigo_familia || 'CHIA-1938'}</span>
+                      </p>
+                    </div>
+
+                    {/* Acciones de Renovación y Suspensión */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => handleRenovarLicencia(g, 30)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#FF7043] text-gray-700 dark:text-gray-200 text-xs font-bold cursor-pointer transition shadow-2xs"
+                      >
+                        +30 días
+                      </button>
+                      <button
+                        onClick={() => handleRenovarLicencia(g, 90)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#FF7043] text-gray-700 dark:text-gray-200 text-xs font-bold cursor-pointer transition shadow-2xs"
+                      >
+                        +90 días
+                      </button>
+                      <button
+                        onClick={() => handleRenovarLicencia(g, 365)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-[#FF7043] text-gray-700 dark:text-gray-200 text-xs font-bold cursor-pointer transition shadow-2xs"
+                      >
+                        +1 año
+                      </button>
+                      <button
+                        onClick={() => handleToggleLicencia(g)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                          estaSuspendida
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900'
+                        }`}
+                      >
+                        {estaSuspendida ? 'Reactivar' : 'Suspender'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            PESTAÑA DIAGNÓSTICO Y MANTENIMIENTO (12 Flujos, Auto-reparación y PDF)
+           ========================================================================= */}
+        {tabActivo === 'diagnostico' && (
+          <div className="space-y-4">
+            {/* Tarjeta de Control del Diagnóstico */}
+            <div className="bg-gradient-to-br from-indigo-700 via-purple-700 to-violet-800 p-5 rounded-3xl text-white shadow-lg space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner">
+                  🛠️
+                </div>
+                <div>
+                  <h2 className="text-base font-black">Centro de Diagnóstico y Mantenimiento</h2>
+                  <p className="text-xs text-purple-100">
+                    Inspección integral de los 12 módulos del sistema con auto-reparación y reporte en PDF
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap pt-1">
+                <button
+                  onClick={handleEjecutarDiagnostico}
+                  disabled={ejecutandoDiagnostico}
+                  className="px-4 py-2.5 rounded-2xl bg-white text-purple-900 font-extrabold text-xs shadow-md hover:bg-purple-50 active:scale-95 transition cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Wrench className={`w-4 h-4 ${ejecutandoDiagnostico ? 'animate-spin' : ''}`} />
+                  <span>{ejecutandoDiagnostico ? 'Ejecutando Pruebas y Auto-reparación...' : 'Ejecutar Diagnóstico y Mantenimiento'}</span>
+                </button>
+
+                {informeDiagnostico && (
+                  <button
+                    onClick={() => handleDescargarDiagnosticoPDF(informeDiagnostico)}
+                    className="px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-md active:scale-95 transition cursor-pointer flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Descargar Informe PDF</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Resultado del Informe */}
+            {informeDiagnostico && (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                {/* Métricas del Diagnóstico */}
+                <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                    <div>
+                      <h3 className="text-sm font-black text-gray-900 dark:text-white">
+                        Resultado de la Verificación
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {new Date(informeDiagnostico.fecha).toLocaleString('es-AR')} · {informeDiagnostico.version_app}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDescargarDiagnosticoPDF(informeDiagnostico)}
+                      className="text-xs text-[#FF7043] font-bold underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>PDF</span>
+                    </button>
+                  </div>
+
+                  {/* Resumen Ejecutivo */}
+                  <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/40 text-xs font-semibold text-purple-900 dark:text-purple-200">
+                    💡 {informeDiagnostico.resumen_ejecutivo}
+                  </div>
+
+                  {/* Indicadores numéricos */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-center">
+                      <p className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400">Correctos</p>
+                      <p className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{informeDiagnostico.modulos_ok}</p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-center">
+                      <p className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400">Auto-Reparados</p>
+                      <p className="text-xl font-black text-blue-700 dark:text-blue-300 mt-0.5">{informeDiagnostico.modulos_reparados}</p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-center">
+                      <p className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400">Advertencias</p>
+                      <p className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5">{informeDiagnostico.modulos_advertencia}</p>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-center">
+                      <p className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400">Errores</p>
+                      <p className="text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5">{informeDiagnostico.modulos_error}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista de Módulos Verificados */}
+                <div className="space-y-2.5">
+                  {informeDiagnostico.items.map((item, idx) => {
+                    const badgeStyles: Record<string, string> = {
+                      ok: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+                      reparado: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300',
+                      advertencia: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+                      error: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300',
+                    };
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-2xl bg-white dark:bg-[#1C1822] border border-gray-200 dark:border-gray-800 shadow-2xs space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-gray-400">#{idx + 1}</span>
+                            <h4 className="text-xs font-black text-gray-900 dark:text-white">{item.nombre}</h4>
+                          </div>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${badgeStyles[item.estado] || ''}`}>
+                            {item.estado}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {item.descripcion}
+                        </p>
+
+                        {item.autoReparado && item.accionReparada && (
+                          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 text-[11px] text-blue-900 dark:text-blue-200 font-medium">
+                            🔧 <strong>Auto-reparación:</strong> {item.accionReparada}
+                          </div>
+                        )}
+
+                        {item.detalles && (
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                            Detalles: {item.detalles}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Gestión de Publicidades y Patrocinadores */}

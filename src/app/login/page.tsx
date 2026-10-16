@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
+  Volume2,
 } from 'lucide-react';
 import AnimatedLogo from '@/components/AnimatedLogo';
 
@@ -59,9 +60,26 @@ export default function LoginPage() {
 
   // Modal Acceso Oculto Superadmin (3 clics en Rolφ)
   const [mostrarModalSuperadmin, setMostrarModalSuperadmin] = useState(false);
+  const [emailSuperadmin, setEmailSuperadmin] = useState('martinchiaccio.seg@gmail.com');
   const [claveSuperadmin, setClaveSuperadmin] = useState('');
   const [cargandoSuperadmin, setCargandoSuperadmin] = useState(false);
   const [errorSuperadmin, setErrorSuperadmin] = useState<string | null>(null);
+
+  // Reproducción de voz de Arlequín
+  const hablarArlequin = (texto: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(texto);
+      u.lang = 'es-AR';
+      u.rate = 1.05;
+      u.pitch = 1.1;
+      const voices = window.speechSynthesis.getVoices();
+      const es = voices.find((v) => v.lang.includes('es-AR') || v.lang.includes('es-ES') || v.lang.startsWith('es'));
+      if (es) u.voice = es;
+      window.speechSynthesis.speak(u);
+    } catch {}
+  };
 
   // Modal Recuperar Contraseña
   const [mostrarModalRecuperar, setMostrarModalRecuperar] = useState(false);
@@ -82,6 +100,8 @@ export default function LoginPage() {
 
     setError(null);
     setVerificandoCodigo(true);
+    hablarArlequin('Dame un segundo, estoy confirmando tu código...');
+
     try {
       const res = await fetch('/api/auth/validar-codigo-familia', {
         method: 'POST',
@@ -92,9 +112,11 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Código no válido.');
         setGrupoValidado(null);
+        hablarArlequin('Mmm, no encontré esa familia con este código. Por favor revisalo.');
       } else {
         setGrupoValidado(data.grupo);
         setError(null);
+        hablarArlequin(`¡Listo, bienvenido a la familia ${data.grupo.nombre}!`);
       }
     } catch {
       setError('Error al conectar con el servidor. Revisá tu conexión.');
@@ -228,7 +250,10 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/superadmin-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: claveSuperadmin.trim() }),
+        body: JSON.stringify({
+          email: emailSuperadmin.trim(),
+          password: claveSuperadmin.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -418,8 +443,8 @@ export default function LoginPage() {
             ) : (
               /* Paso 2: Mensaje de Bienvenida + Formulario de Datos del Integrante */
               <form onSubmit={handleRegistrarNuevoMiembro} className="space-y-3.5">
-                {/* Banner de Bienvenida Cálido */}
-                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-orange-950/40 dark:to-amber-950/20 border border-orange-200/80 dark:border-orange-900/50 text-center space-y-1">
+                {/* Banner de Bienvenida Cálido con Arlequín */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-orange-950/40 dark:to-amber-950/20 border border-orange-200/80 dark:border-orange-900/50 text-center space-y-2">
                   <span className="text-2xl">{grupoValidado.emoji_or_logo || '✨'}</span>
                   <h3 className="text-sm font-black text-gray-900 dark:text-white">
                     ¡Bienvenido a la familia {grupoValidado.nombre}!
@@ -427,10 +452,27 @@ export default function LoginPage() {
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
                     Completá tus datos para sumarte al espacio familiar.
                   </p>
+
+                  {/* Burbuja de Arlequín con voz */}
+                  <div className="flex items-center justify-center gap-2 p-2 bg-white/80 dark:bg-[#1E1A24]/80 rounded-xl border border-orange-200/60 dark:border-orange-900/40 shadow-xs">
+                    <span className="text-base select-none">🎭</span>
+                    <p className="text-[11px] font-semibold text-orange-900 dark:text-orange-200 italic">
+                      "¡Listo, bienvenido a la familia {grupoValidado.nombre}!"
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => hablarArlequin(`¡Listo, bienvenido a la familia ${grupoValidado.nombre}!`)}
+                      title="Escuchar saludo de Arlequín"
+                      className="p-1 rounded-full bg-orange-100 hover:bg-orange-200 dark:bg-orange-900/50 dark:hover:bg-orange-900 text-[#FF7043] transition cursor-pointer"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setGrupoValidado(null)}
-                    className="text-[10px] text-[#FF7043] underline font-bold mt-1"
+                    className="text-[10px] text-[#FF7043] underline font-bold"
                   >
                     Cambiar código
                   </button>
@@ -724,6 +766,20 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleAccesoSuperadmin} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="martinchiaccio.seg@gmail.com"
+                  value={emailSuperadmin}
+                  onChange={(e) => setEmailSuperadmin(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#25202D] border border-gray-200 dark:border-gray-700 text-xs dark:text-white focus:ring-2 focus:ring-[#FF7043]"
+                />
+              </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
                   Clave de Acceso

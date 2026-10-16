@@ -34,6 +34,8 @@ export default function HomePage() {
   // Estado del día
   const [estadoDia, setEstadoDia] = useState<any>(null);
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+  const [bannerArlequin, setBannerArlequin] = useState<string | null>(null);
+  const [apurandoId, setApurandoId] = useState<string | null>(null);
 
   // Estados de subida y modales
   const [modalUploadAbierto, setModalUploadAbierto] = useState(false);
@@ -60,9 +62,10 @@ export default function HomePage() {
       }
       setUsuario(meData.usuario);
 
-      const [hoyRes, feedRes] = await Promise.all([
+      const [hoyRes, feedRes, banRes] = await Promise.all([
         fetch('/api/destellos/hoy', { headers: authH }),
         fetch('/api/feed', { headers: authH }),
+        fetch('/api/arlequin/banner', { headers: authH }).catch(() => null),
       ]);
 
       if (hoyRes.ok) {
@@ -74,10 +77,42 @@ export default function HomePage() {
         const dataFeed = await feedRes.json();
         setFeedPosts(dataFeed.feed || []);
       }
+
+      if (banRes && banRes.ok) {
+        const dataBan = await banRes.json();
+        setBannerArlequin(dataBan.banner || null);
+      }
     } catch (err) {
       console.error('Error cargando hoy:', err);
     } finally {
       setCargando(false);
+    }
+  };
+
+  const handleApurarWhatsApp = async (faltante: any) => {
+    setApurandoId(faltante.id);
+    try {
+      const res = await fetch('/api/arlequin/recordatorio-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuarioFaltanteId: faltante.id,
+          nombreFaltante: faltante.apodo || faltante.nombre,
+          telefono: faltante.whatsapp || faltante.telefono,
+        }),
+      });
+      const data = await res.json();
+      if (data.whatsappUrl) {
+        window.open(data.whatsappUrl, '_blank');
+      } else {
+        const msg = encodeURIComponent(`¡Che, ${faltante.apodo || faltante.nombre}! 🎭 Te habla Arlequín. ¡Falta tu destello de hoy en la familia! 📸⏰`);
+        window.open(`https://wa.me/?text=${msg}`, '_blank');
+      }
+    } catch {
+      const msg = encodeURIComponent(`¡Che, ${faltante.apodo || faltante.nombre}! 🎭 Te habla Arlequín. ¡Falta tu destello de hoy en la familia! 📸⏰`);
+      window.open(`https://wa.me/?text=${msg}`, '_blank');
+    } finally {
+      setApurandoId(null);
     }
   };
 
@@ -213,6 +248,24 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Banner Diario de Arlequín */}
+        {bannerArlequin && (
+          <div className="bg-gradient-to-r from-orange-50 via-amber-50 to-orange-100/60 dark:from-orange-950/30 dark:via-amber-950/20 dark:to-orange-900/20 p-4 rounded-3xl border border-orange-200/80 dark:border-orange-900/50 shadow-xs flex items-start gap-3 animate-in fade-in">
+            <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+              🎭
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-[#FF7043]">Mensaje de Arlequín</span>
+                <span className="text-[10px] text-gray-400">Hoy</span>
+              </div>
+              <p className="text-xs text-gray-800 dark:text-gray-200 mt-1 font-medium leading-relaxed">
+                {bannerArlequin}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ------------------------------------------------------------------- */}
         {/* FASE 1: SUBIDA DE DESTELLOS */}
         {/* ------------------------------------------------------------------- */}
@@ -254,18 +307,30 @@ export default function HomePage() {
 
               {/* Miembros que faltan */}
               {faltan.length > 0 && (
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mb-1.5">
-                    ⏳ Esperando su momento:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                      ⏳ Esperando su momento:
+                    </p>
+                    <span className="text-[10px] text-gray-400 italic">Recordatorios por WhatsApp</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {faltan.map((f: any) => (
-                      <span
+                      <div
                         key={f.id}
-                        className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-xs font-bold border border-amber-200 dark:border-amber-800 shadow-xs"
                       >
-                        {f.apodo || f.nombre}
-                      </span>
+                        <span>{f.apodo || f.nombre}</span>
+                        <button
+                          onClick={() => handleApurarWhatsApp(f)}
+                          disabled={apurandoId === f.id}
+                          className="px-2 py-0.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold flex items-center gap-0.5 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                          title="Enviar recordatorio gracioso con Arlequín por WhatsApp"
+                        >
+                          <span>💬</span>
+                          <span>{apurandoId === f.id ? '...' : 'Apurar'}</span>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

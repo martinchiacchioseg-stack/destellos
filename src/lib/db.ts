@@ -218,6 +218,8 @@ export async function crearGrupo(data: {
   admin_email?: string;
   admin_nombre?: string;
   codigo_familia?: string;
+  fecha_vencimiento?: string;
+  licencia_activa?: boolean;
 }): Promise<Grupo> {
   await ensureInitialized();
   const codigo = data.codigo_familia || generarCodigoFamiliaUnico(data.nombre);
@@ -232,6 +234,10 @@ export async function crearGrupo(data: {
     admin_id: data.admin_id,
     admin_email: data.admin_email,
     admin_nombre: data.admin_nombre,
+    fecha_vencimiento:
+      data.fecha_vencimiento ||
+      new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    licencia_activa: data.licencia_activa !== undefined ? Boolean(data.licencia_activa) : true,
     estado: 'activo',
     activo: true,
     creado_en: new Date().toISOString(),

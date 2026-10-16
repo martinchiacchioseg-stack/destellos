@@ -39,39 +39,39 @@ const OPCIONES_DIFICULTAD: Array<{
 }> = [
   {
     id: 'facil',
-    nombre: 'Fácil',
+    nombre: 'Fácil 🎭',
     tiempo: 15,
     opciones: 3,
-    puntosAcierto: 10,
+    puntosAcierto: 1,
     puntosPenalizacion: 0,
     descripcion: 'Cultura general, cine popular, música y curiosidades accesibles.',
-    badge: '+10 pts · Sin penalización',
+    badge: '+1 pt · Sin penalización',
     gradiente: 'from-emerald-500/10 via-teal-500/10 to-green-500/10',
     borde: 'border-emerald-300 dark:border-emerald-800',
     textoColor: 'text-emerald-600 dark:text-emerald-400',
   },
   {
     id: 'medio',
-    nombre: 'Medio',
+    nombre: 'Medio 💡',
     tiempo: 20,
     opciones: 4,
-    puntosAcierto: 25,
-    puntosPenalizacion: -5,
+    puntosAcierto: 3,
+    puntosPenalizacion: 0,
     descripcion: 'Ingenio, historia, deportes o ciencia cotidiana para pensar un poco.',
-    badge: '+25 pts · -5 pts por error',
+    badge: '+3 pts · Desafío equilibrado',
     gradiente: 'from-amber-500/10 via-orange-500/10 to-yellow-500/10',
     borde: 'border-amber-300 dark:border-amber-800',
     textoColor: 'text-amber-600 dark:text-amber-400',
   },
   {
     id: 'dificil',
-    nombre: 'Difícil 🔥',
+    nombre: 'Experto 🔥',
     tiempo: 25,
     opciones: 4,
-    puntosAcierto: 50,
-    puntosPenalizacion: -15,
-    descripcion: 'Datos específicos, trampas de lógica y erudición para expertos.',
-    badge: '+50 pts · -15 pts por error',
+    puntosAcierto: 5,
+    puntosPenalizacion: 0,
+    descripcion: 'Datos insólitos, récords mundiales y preguntas desafiantes para sabiondos.',
+    badge: '+5 pts · Máximo premio',
     gradiente: 'from-rose-500/10 via-red-500/10 to-purple-500/10',
     borde: 'border-rose-300 dark:border-rose-800',
     textoColor: 'text-rose-600 dark:text-rose-400',
@@ -509,21 +509,21 @@ export default function TriviaDiaria({
   // ---------------------------------------------------------------------------
   return (
     <div className="space-y-4">
-      {/* Banner Principal */}
+      {/* Banner Principal con Arlequín como Anfitrión */}
       <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 p-5 rounded-3xl text-white shadow-lg space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
-            <Brain className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner select-none">
+            🎭
           </div>
           <div>
-            <h3 className="text-base font-black text-white">Trivia Diaria Familiar 🧠</h3>
+            <h3 className="text-base font-black text-white">Trivia de Arlequín ✨</h3>
             <p className="text-xs text-purple-100 font-medium">
-              1 intento por día · Elegí el nivel que te animes a jugar
+              Tu anfitrión te desafía · Elegí la dificultad y sumá puntos
             </p>
           </div>
         </div>
         <p className="text-[11.5px] text-white/90 leading-relaxed pt-1">
-          A mayor dificultad, más tiempo y mayor puntuación para el Ranking del grupo, ¡pero ojo con la penalización!
+          ¡A mayor nivel, mayor es el premio para el ranking familiar! Elegí con sabiduría y Arlequín evaluará tu respuesta.
         </p>
       </div>
 

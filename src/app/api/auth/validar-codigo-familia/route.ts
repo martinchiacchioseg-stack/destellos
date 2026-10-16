@@ -32,6 +32,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validación estricta de Licencia Familiar
+    if (grupo.licencia_activa === false || !grupo.activo) {
+      return NextResponse.json(
+        {
+          error: `La licencia de la familia "${grupo.nombre}" se encuentra temporalmente suspendida. Comunicate con el administrador para reactivar el acceso.`,
+        },
+        { status: 403 }
+      );
+    }
+
+    if (grupo.fecha_vencimiento) {
+      const hoy = new Date().toISOString().split('T')[0];
+      if (grupo.fecha_vencimiento < hoy) {
+        return NextResponse.json(
+          {
+            error: `La licencia de la familia "${grupo.nombre}" venció el ${grupo.fecha_vencimiento}. Comunicate con el administrador para renovarla y seguir compartiendo destellos.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       mensaje: `¡Bienvenido a la familia ${grupo.nombre}!`,

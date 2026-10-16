@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sparkles, Shield, Bell } from 'lucide-react';
 import { SesionUsuario } from '@/lib/types';
 import AnimatedLogo from '@/components/AnimatedLogo';
+import ArlequinChatModal from '@/components/ArlequinChatModal';
 
 interface HeaderProps {
   usuario?: (SesionUsuario & { grupo_nombre?: string | null }) | null;
@@ -14,6 +15,7 @@ interface HeaderProps {
 export default function Header({ usuario, puntosTotales = 0 }: HeaderProps) {
   const router = useRouter();
   const [noLeidas, setNoLeidas] = useState(0);
+  const [chatArlequinAbierto, setChatArlequinAbierto] = useState(false);
 
   useEffect(() => {
     if (usuario?.rol === 'admin' || usuario?.rol === 'superadmin') {
@@ -31,6 +33,16 @@ export default function Header({ usuario, puntosTotales = 0 }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Acceso directo a Arlequín */}
+        <button
+          onClick={() => setChatArlequinAbierto(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-orange-500/10 to-amber-500/10 hover:from-orange-500/20 hover:to-amber-500/20 border border-orange-200 dark:border-orange-800/60 rounded-full text-[#FF7043] dark:text-orange-300 text-xs font-black shadow-xs transition cursor-pointer"
+          title="Charlar con Arlequín"
+        >
+          <span className="text-sm select-none">🎭</span>
+          <span className="hidden sm:inline">Arlequín</span>
+        </button>
+
         {/* Puntos acumulados */}
         <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-full text-amber-700 dark:text-amber-300 text-xs font-bold shadow-sm">
           <Sparkles className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
@@ -78,6 +90,12 @@ export default function Header({ usuario, puntosTotales = 0 }: HeaderProps) {
           )}
         </button>
       </div>
+
+      <ArlequinChatModal
+        abierto={chatArlequinAbierto}
+        onCerrar={() => setChatArlequinAbierto(false)}
+        usuarioNombre={usuario?.nombre || usuario?.apodo || 'amigo'}
+      />
     </header>
   );
 }

@@ -18,12 +18,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { password } = await req.json();
+    const { email, password } = await req.json();
     if (!password || typeof password !== 'string') {
       return NextResponse.json({ error: 'Ingresá la clave de acceso.' }, { status: 400 });
     }
 
-    const superadmin = await buscarUsuarioPorEmail('martinchiacchio.seg@gmail.com');
+    // Si se envía email, validar que corresponda al dueño
+    if (email && typeof email === 'string') {
+      const emailNorm = email.toLowerCase().trim();
+      const esAdminValido =
+        emailNorm === 'martinchiacchio.seg@gmail.com' ||
+        emailNorm === 'martinchiaccio.seg@gmail.com' ||
+        emailNorm.includes('martinchiac');
+
+      if (!esAdminValido) {
+        return NextResponse.json({ error: 'Credenciales de acceso no válidas.' }, { status: 401 });
+      }
+    }
+
+    const superadmin =
+      (await buscarUsuarioPorEmail('martinchiacchio.seg@gmail.com')) ||
+      (await buscarUsuarioPorEmail('martinchiaccio.seg@gmail.com'));
+
     if (!superadmin) {
       return NextResponse.json({ error: 'Error del sistema de autenticación.' }, { status: 500 });
     }

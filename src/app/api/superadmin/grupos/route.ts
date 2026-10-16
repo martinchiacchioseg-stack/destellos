@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
       admin_email,
       admin_nombre,
       codigo_familia,
+      fecha_vencimiento,
+      licencia_activa,
     } = await req.json();
 
     if (!nombre || nombre.trim().length === 0) {
@@ -60,6 +62,10 @@ export async function POST(req: NextRequest) {
       admin_email,
       admin_nombre,
       codigo_familia,
+      fecha_vencimiento:
+        fecha_vencimiento ||
+        new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      licencia_activa: licencia_activa !== undefined ? Boolean(licencia_activa) : true,
     });
 
     return NextResponse.json({
@@ -79,7 +85,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso exclusivo para Superadmin.' }, { status: 403 });
     }
 
-    const { id, nombre, emoji_or_logo, hora_limite, estado, descripcion } = await req.json();
+    const {
+      id,
+      nombre,
+      emoji_or_logo,
+      hora_limite,
+      estado,
+      descripcion,
+      fecha_vencimiento,
+      licencia_activa,
+    } = await req.json();
+
     if (!id) {
       return NextResponse.json({ error: 'ID de grupo requerido.' }, { status: 400 });
     }
@@ -90,6 +106,8 @@ export async function PUT(req: NextRequest) {
       ...(hora_limite !== undefined ? { hora_limite } : {}),
       ...(estado !== undefined ? { estado, activo: estado === 'activo' } : {}),
       ...(descripcion !== undefined ? { descripcion: descripcion.trim() } : {}),
+      ...(fecha_vencimiento !== undefined ? { fecha_vencimiento } : {}),
+      ...(licencia_activa !== undefined ? { licencia_activa: Boolean(licencia_activa) } : {}),
     });
 
     if (!actualizado) {

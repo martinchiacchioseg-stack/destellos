@@ -15,8 +15,43 @@ export interface Grupo {
   descripcion?: string;
   estado: EstadoGrupo;
   activo: boolean;
+  fecha_vencimiento?: string; // YYYY-MM-DD
+  licencia_activa?: boolean;
   creado_en: string;
   actualizado_en?: string;
+}
+
+export interface MensajeChatArlequin {
+  id: string;
+  remitente: 'usuario' | 'arlequin';
+  texto: string;
+  timestamp: string;
+}
+
+export type EstadoModuloDiagnostico = 'ok' | 'advertencia' | 'error' | 'reparado';
+
+export interface ItemDiagnosticoModulo {
+  modulo: string;
+  nombre: string;
+  estado: EstadoModuloDiagnostico;
+  descripcion: string;
+  detalles?: string;
+  autoReparado?: boolean;
+  accionReparada?: string;
+  recomendacion?: string;
+}
+
+export interface InformeDiagnostico {
+  id: string;
+  fecha: string;
+  version_app: string;
+  total_modulos: number;
+  modulos_ok: number;
+  modulos_advertencia: number;
+  modulos_error: number;
+  modulos_reparados: number;
+  items: ItemDiagnosticoModulo[];
+  resumen_ejecutivo: string;
 }
 
 export interface Usuario {

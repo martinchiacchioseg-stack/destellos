@@ -403,3 +403,229 @@ Respondé ÚNICAMENTE un JSON:
   }
 }
 
+// ==============================================================================
+// ASISTENTE ARLEQUÍN (Personalidad interna: Rolφ, cara pública: Arlequín)
+// ==============================================================================
+
+export async function obtenerMensajeBannerArlequin(
+  grupoNombre: string,
+  totalMiembros: number = 0,
+  subieron: number = 0,
+  horaLimite: string = '22:00'
+): Promise<string> {
+  const faltanSubir = Math.max(0, totalMiembros - subieron);
+  const fallbacks = [
+    `¡Buenas y santas, familia ${grupoNombre}! 🎭 Arlequín en la casa: hoy la foto del día promete chispas antes de las ${horaLimite} hs. ¿Ya subieron la suya?`,
+    `¡Atención ${grupoNombre}! 🎭 Arlequín reportándose. Quedan ${faltanSubir} de ${totalMiembros} por subir su destello antes de las ${horaLimite} hs. ¡No se duerman en los laureles!`,
+    `🎭 Arlequín dice: La vida es un destello... ¡y hoy sumamos puntos en el ranking familiar! Cierre a las ${horaLimite} hs.`,
+  ];
+  const fallback = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+
+  if (!ai) return fallback;
+
+  try {
+    const prompt = `
+Sos "Arlequín", el asistente lúdico, pícaro, cariñoso y divertido de la app "Destellos" (tu esencia secreta es Rolφ, pero en pantalla siempre te llamás Arlequín).
+Familia actual: "${grupoNombre}".
+Faltan subir fotos: ${faltanSubir} de ${totalMiembros} integrantes.
+Hora límite del día: ${horaLimite} hs.
+Generá un mensaje brevísimo (máx 2 oraciones) para el banner principal del día:
+- Debe tener chispa, humor rioplatense simpático y motivar a subir la foto diaria.
+- Firmá siempre con emoji 🎭 o como Arlequín.
+- Respondé SOLO el texto del mensaje, sin comillas ni intros.
+`;
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { temperature: 0.8 },
+    });
+    return res.text?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function charlarConArlequin(
+  usuarioNombreOrParams:
+    | string
+    | {
+        mensajeUsuario: string;
+        usuarioNombre: string;
+        grupoNombre?: string;
+        historial?: Array<{ remitente: 'usuario' | 'arlequin'; texto: string }>;
+      },
+  grupoNombreArg?: string,
+  mensajeUsuarioArg?: string,
+  historialArg?: Array<{ remitente: 'usuario' | 'arlequin'; texto: string }>
+): Promise<string> {
+  let usuarioNombre = 'amigo';
+  let grupoNombre = 'tu familia';
+  let mensajeUsuario = '';
+  let historial: Array<{ remitente: 'usuario' | 'arlequin'; texto: string }> = [];
+
+  if (typeof usuarioNombreOrParams === 'object') {
+    usuarioNombre = usuarioNombreOrParams.usuarioNombre || 'amigo';
+    grupoNombre = usuarioNombreOrParams.grupoNombre || 'tu familia';
+    mensajeUsuario = usuarioNombreOrParams.mensajeUsuario || '';
+    historial = usuarioNombreOrParams.historial || [];
+  } else {
+    usuarioNombre = usuarioNombreOrParams || 'amigo';
+    grupoNombre = grupoNombreArg || 'tu familia';
+    mensajeUsuario = mensajeUsuarioArg || '';
+    historial = historialArg || [];
+  }
+
+  if (!ai) {
+    return `¡Hola ${usuarioNombre}! 🎭 Soy Arlequín. Por acá estoy listo para ayudarte con las fotos diarias, los juegos (la Ruleta Picante, el Prode o la Foto del Pasado) y la tabla de posiciones. ¿Qué duda tenés?`;
+  }
+
+  try {
+    const systemPrompt = `
+Sos "Arlequín", el simpático y carismático anfitrión de "Destellos — un clic familiar by Rolφ".
+Tu personalidad interna está inspirada en "Rolφ" (el querido padre del creador Martín Chiacchio), pero de cara a los usuarios SIEMPRE te presentás y te hacés llamar "Arlequín".
+Hablás en español rioplatense (argentino), con mucho humor, calidez familiar, picardía sana y entusiasmo.
+Usuario con el que hablás: "${usuarioNombre}".
+Familia / Grupo: "${grupoNombre}".
+
+Tus conocimientos sobre la app:
+1. Subida de fotos: cada integrante sube 1 foto al día antes de la hora límite (ej: 22:00 hs).
+2. Revelación: a la hora límite (o cuando todos suben), se desbloquean las fotos y se adivina quién sacó cada una.
+3. Foto del día: un jurado de IA (Gemini genérico) elige la foto más original o emotiva y le entrega un diploma de honor.
+4. Mini-juegos:
+   - Trivia de Arlequín: podés elegir Fácil (+1 pt), Medio (+3 pts) o Experto (+5 pts).
+   - Ruleta Rusa Picante: preguntas picantes con cámara y bala giratoria.
+   - Prode del Fútbol Argentino: pronósticos de la fecha.
+   - Foto del Pasado: adivinar el año exacto de una foto retro.
+   - Voto Cruzado: elegir tu foto favorita entre los familiares.
+5. Rankings y puntos: cada acierto y foto ganadora suma puntos para la copa familiar.
+
+Mantené respuestas breves (1 a 3 párrafos cortos), amenas y con emojis simpáticos 🎭✨📸.
+`;
+
+    const historialTexto = historial
+      .slice(-6)
+      .map((h) => `${h.remitente === 'usuario' ? usuarioNombre : 'Arlequín'}: ${h.texto}`)
+      .join('\n');
+
+    const promptCompleto = `${systemPrompt}\n\nHistorial reciente:\n${historialTexto}\n\n${usuarioNombre}: ${mensajeUsuario}\nArlequín:`;
+
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: promptCompleto,
+      config: { temperature: 0.7 },
+    });
+
+    return res.text?.trim() || `¡De una, ${usuarioNombre}! 🎭 Arlequín al rescate. Si tenés dudas sobre los puntos o los juegos familiares, decime y lo resolvemos en un toque.`;
+  } catch (err) {
+    console.warn('[Gemini] Error en chat con Arlequín:', err);
+    return `¡Epa, ${usuarioNombre}! 🎭 Tuve un pequeño tropiezo con los malabares, pero sigo acá. Preguntame de vuelta sobre las reglas, los juegos o las fotos familiares.`;
+  }
+}
+
+export async function generarTriviaArlequin(dificultad: 'facil' | 'medio' | 'experto'): Promise<{
+  pregunta: string;
+  opciones: string[];
+  respuestaCorrecta: number;
+  explicacion: string;
+  puntos: number;
+  comentarioArlequin: string;
+}> {
+  const puntosPorDificultad = { facil: 1, medio: 3, experto: 5 };
+  const puntos = puntosPorDificultad[dificultad] || 1;
+
+  if (!ai) {
+    return {
+      pregunta: '¿Cuál es el río más ancho del mundo que baña las costas argentinas?',
+      opciones: ['Río de la Plata', 'Río Paraná', 'Río Amazonas', 'Río Uruguay'],
+      respuestaCorrecta: 0,
+      explicacion: 'El Río de la Plata es considerado el más ancho del mundo, con hasta 220 km en su desembocadura.',
+      puntos,
+      comentarioArlequin: '🎭 ¡Preguntita clásica para calentar los motores familiares!',
+    };
+  }
+
+  try {
+    const prompt = `
+Sos Arlequín, anfitrión de la Trivia en "Destellos".
+Generá una pregunta de trivia de cultura general, curiosidades argentinas o mundiales para el nivel: "${dificultad}".
+- Nivel fácil: cultura popular, geografía o comida típica (+1 pt).
+- Nivel medio: historia, cine, música o ciencia interesante (+3 pts).
+- Nivel experto: datos insólitos, récords mundiales o preguntas desafiantes (+5 pts).
+
+Devolvé ÚNICAMENTE un JSON:
+{
+  "pregunta": "texto de la pregunta",
+  "opciones": ["Opción A", "Opción B", "Opción C", "Opción D"],
+  "respuestaCorrecta": 0,
+  "explicacion": "Explicación breve y divertida del dato",
+  "comentarioArlequin": "Un comentario gracioso o motivador de Arlequín presentando la pregunta"
+}
+`;
+
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json', temperature: 0.8 },
+    });
+
+    const parsed = JSON.parse(res.text?.trim() || '{}');
+    if (parsed.pregunta && Array.isArray(parsed.opciones) && parsed.opciones.length === 4) {
+      return {
+        pregunta: parsed.pregunta,
+        opciones: parsed.opciones,
+        respuestaCorrecta: Number(parsed.respuestaCorrecta) || 0,
+        explicacion: parsed.explicacion || '',
+        puntos,
+        comentarioArlequin: parsed.comentarioArlequin || '🎭 ¡A ver quién se anima a responder!',
+      };
+    }
+  } catch (err) {
+    console.warn('[Gemini] Error en Trivia Arlequín:', err);
+  }
+
+  return {
+    pregunta: '¿Qué animal autóctono aparece en el billete argentino de 1000 pesos de la serie animales?',
+    opciones: ['El Hornero', 'El Yaguareté', 'La Ballena Franca', 'El Guanaco'],
+    respuestaCorrecta: 0,
+    explicacion: 'El hornero, ave nacional de Argentina, ilustra el billete de $1000.',
+    puntos,
+    comentarioArlequin: '🎭 ¡Arlequín te desafía con un clásico de la billetera!',
+  };
+}
+
+export async function generarRecordatorioHumorWhatsApp(
+  nombreFaltante: string,
+  horaLimite: string,
+  grupoNombre: string
+): Promise<string> {
+  const fallbacks = [
+    `¡Che, ${nombreFaltante}! 🎭 Te habla Arlequín de Destellos. Toda la familia ${grupoNombre} ya tiene el mate listo y falta tu foto. ¡Tenés hasta las ${horaLimite} hs o te declaramos culpable del misterio! 📸⏰`,
+    `¡Atención ${nombreFaltante}! 🚨 Alerta de Arlequín: el reloj no para y en ${grupoNombre} nos estamos quedando sin destellos tuyos. ¡Subí tu foto antes de las ${horaLimite} hs que hoy se define el ranking! ✨`,
+    `¡Hola ${nombreFaltante}! 🎭 Arlequín te susurra al oído: falta nada para las ${horaLimite} hs. Meté foto en Destellos que la familia te está esperando. ¡Un clic y listo! 📸🙌`,
+  ];
+  const fallback = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+
+  if (!ai) return fallback;
+
+  try {
+    const prompt = `
+Sos Arlequín, el asistente divertido de "Destellos".
+Generá un mensaje corto de WhatsApp para apurar con mucho humor y cariño argentino a "${nombreFaltante}" de la familia "${grupoNombre}", que todavía no subió su foto del día.
+Hora límite del grupo: ${horaLimite} hs.
+- Debe ser simpático, sin ser pesado.
+- Firmá como Arlequín 🎭.
+- Máximo 3 oraciones cortas.
+- Devolvé SOLO el texto para copiar en WhatsApp.
+`;
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { temperature: 0.8 },
+    });
+    return res.text?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+
