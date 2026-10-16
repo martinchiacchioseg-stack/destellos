@@ -13,6 +13,20 @@ import {
   TriviaIntento,
   FaseDestello,
   PUNTOS_CONFIG,
+  RetoDiario,
+  JuegoAdivinaIntento,
+  JuegoVotoCruzado,
+  JuegoFotoPasado,
+  JuegoFotoPasadoAdivinanza,
+  NivelRuleta,
+  JuegoRuletaRusa,
+  JuegoRuletaPregunta,
+  ResultadoPronostico,
+  JuegoProdeFecha,
+  JuegoProdePartido,
+  JuegoProdePronostico,
+  UbicacionPublicidad,
+  Publicidad,
 } from './types';
 import { hashPassword } from './auth';
 import { getFechaArgentina, getAyerFechaArgentina } from './date-utils';
@@ -1029,4 +1043,589 @@ export async function obtenerMetricasSuperadmin() {
     destellosHoy,
     totalDestellos: destellos.length,
   };
+}
+
+// ==============================================================================
+// GESTIÓN DE PUBLICIDADES (SUPERADMIN)
+// ==============================================================================
+
+export async function listarPublicidades(): Promise<Publicidad[]> {
+  await ensureInitialized();
+  return dbGetAll<Publicidad>('publicidades');
+}
+
+export async function guardarPublicidad(data: Omit<Publicidad, 'id' | 'creado_en'> & { id?: string }): Promise<Publicidad> {
+  await ensureInitialized();
+  const pub: Publicidad = {
+    id: data.id || uuidv4(),
+    titulo: data.titulo.trim(),
+    texto: data.texto.trim(),
+    imagen_url: data.imagen_url?.trim(),
+    link_url: data.link_url?.trim(),
+    ubicacion: data.ubicacion,
+    activa: data.activa ?? true,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('publicidades', pub);
+  return pub;
+}
+
+export async function eliminarPublicidad(id: string): Promise<boolean> {
+  await ensureInitialized();
+  return dbDelete('publicidades', id);
+}
+
+export async function obtenerPublicidadPorUbicacion(ubicacion: UbicacionPublicidad): Promise<Publicidad | null> {
+  await ensureInitialized();
+  const todas = dbGetAll<Publicidad>('publicidades');
+  const candidatas = todas.filter((p) => p.activa && p.ubicacion === ubicacion);
+  if (candidatas.length === 0) return null;
+  return candidatas[Math.floor(Math.random() * candidatas.length)];
+}
+
+// ==============================================================================
+// RETOS DIARIOS
+// ==============================================================================
+
+export async function obtenerRetoDelDia(fecha: string, grupoId?: string): Promise<RetoDiario | null> {
+  await ensureInitialized();
+  const retos = dbGetAll<RetoDiario>('retos');
+  return retos.find((r) => r.fecha === fecha && (!r.grupo_id || r.grupo_id === grupoId)) || null;
+}
+
+export async function guardarRetoDelDia(reto: Omit<RetoDiario, 'id' | 'creado_en'>): Promise<RetoDiario> {
+  await ensureInitialized();
+  const nuevo: RetoDiario = {
+    id: uuidv4(),
+    ...reto,
+    creado_en: new Date().toISOString(),
+  };
+  dbUpsert('retos', nuevo);
+  return nuevo;
+}
+
+// ==============================================================================
+// VOTO CRUZADO Y DESTELLOS DEL DÍA
+// ==============================================================================
+
+export async function listarDestellosDia(grupoId: string, fecha: string): Promise<Destello[]> {
+  await ensureInitialized();
+  const destellos = dbGetAll<Destello>('destellos');
+  return destellos.filter((d) => d.grupo_id === grupoId && d.fecha === fecha && d.moderado);
+}
+
+export async function registrarVotoCruzado(
+  grupoId: string,
+  fecha: string,
+  votanteId: string,
+  destelloId: string
+): Promise<{ ok: boolean; mensaje?: string; destello?: Destello }> {
+  await ensureInitialized();
+  const votos = dbGetAll<JuegoVotoCruzado>('votosCruzados');
+  const yaVoto = votos.find((v) => v.grupo_id === grupoId && v.fecha === fecha && v.votante_id === votanteId);
+
+  if (yaVoto) {
+    yaVoto.destello_id = destelloId;
+    dbUpsert('votosCruzados', yaVoto);
+  } else {
+    const nuevoVoto: JuegoVotoCruzado = {
+      id: uuidv4(),
+      grupo_id: grupoId,
+      fecha,
+      votante_id: votanteId,
+      destello_id: destelloId,
+      creado_en: new Date().toISOString(),
+    };
+    dbUpsert('votosCruzados', nuevoVoto);
+  }
+
+  // Actualizar votos acumulados del destello
+  const destello = dbGet<Destello>('destellos', destelloId);
+  if (destello) {
+    destello.votos_comunidad = (destello.votos_comunidad || 0) + 1;
+    dbUpsert('destellos', destello);
+  }
+
+  return { ok: true, mensaje: '¡Voto registrado con éxito!', destello: destello || undefined };
+}
+
+export async function obtenerVotoUsuarioHoy(grupoId: string, fecha: string, votanteId: string): Promise<string | null> {
+  await ensureInitialized();
+  const votos = dbGetAll<JuegoVotoCruzado>('votosCruzados');
+  const v = votos.find((x) => x.grupo_id === grupoId && x.fecha === fecha && x.votante_id === votanteId);
+  return v?.destello_id || null;
+}
+
+// ==============================================================================
+// MINI-JUEGO: FOTO DEL PASADO
+// ==============================================================================
+
+export async function obtenerFotoPasadoSemanal(grupoId: string, semana: string) {
+  await ensureInitialized();
+  const fotos = dbGetAll<JuegoFotoPasado>('fotosPasado');
+  const foto = fotos.find((f) => f.grupo_id === grupoId && f.semana === semana && !f.cerrada);
+  if (!foto) return null;
+
+  const usuario = await buscarUsuarioPorId(foto.usuario_id);
+  const adivinanzas = dbGetAll<JuegoFotoPasadoAdivinanza>('fotosPasadoAdivinanzas')
+    .filter((a) => a.foto_pasado_id === foto.id);
+
+  return {
+    ...foto,
+    autor_nombre: usuario?.nombre || 'Alguien del grupo',
+    autor_apodo: usuario?.apodo,
+    usuario: usuario ? { id: usuario.id, nombre: usuario.nombre, apodo: usuario.apodo, avatar_url: usuario.avatar_url, rol: usuario.rol, activo: usuario.activo, racha: usuario.racha, creado_en: usuario.creado_en } : undefined,
+    adivinanzas_count: adivinanzas.length,
+  };
+}
+
+export async function subirFotoPasado(data: {
+  grupoId?: string;
+  grupo_id?: string;
+  semana: string;
+  usuarioId?: string;
+  usuario_id?: string;
+  mediaUrl?: string;
+  media_url?: string;
+  anioReal?: number;
+  anio_real?: number;
+  lugarReal?: string;
+  lugar_real?: string;
+  pista?: string;
+}): Promise<JuegoFotoPasado> {
+  await ensureInitialized();
+  const grupo_id = data.grupo_id || data.grupoId || '';
+  const usuario_id = data.usuario_id || data.usuarioId || '';
+  const media_url = data.media_url || data.mediaUrl || '';
+  const anio_real = data.anio_real ?? data.anioReal ?? 2000;
+  const lugar_real = (data.lugar_real || data.lugarReal || '').trim();
+
+  const foto: JuegoFotoPasado = {
+    id: uuidv4(),
+    grupo_id,
+    semana: data.semana,
+    usuario_id,
+    media_url,
+    anio_real,
+    lugar_real,
+    pista: data.pista?.trim(),
+    cerrada: false,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('fotosPasado', foto);
+  return foto;
+}
+
+export async function registrarAdivinanzaFotoPasado(
+  fotoPasadoId: string,
+  usuarioId: string,
+  anioAdivinado: number,
+  lugarAdivinado?: string
+): Promise<JuegoFotoPasadoAdivinanza & { diferencia: number; anioReal: number }> {
+  await ensureInitialized();
+  const foto = dbGet<JuegoFotoPasado>('fotosPasado', fotoPasadoId);
+  const dif = foto ? Math.abs(foto.anio_real - anioAdivinado) : 99;
+
+  let puntos = 0;
+  if (dif === 0) puntos = 3; // Exacto
+  else if (dif <= 2) puntos = 1; // Cercano
+
+  const adiv: JuegoFotoPasadoAdivinanza = {
+    id: uuidv4(),
+    foto_pasado_id: fotoPasadoId,
+    usuario_id: usuarioId,
+    anio_adivinado: anioAdivinado,
+    lugar_adivinado: lugarAdivinado?.trim(),
+    puntos_obtenidos: puntos,
+    puntos_ganados: puntos,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('fotosPasadoAdivinanzas', adiv);
+
+  if (puntos > 0 && foto) {
+    await otorgarPuntos(
+      foto.grupo_id,
+      usuarioId,
+      getFechaArgentina(),
+      'adivina_quien',
+      puntos,
+      `🕰️ Foto del pasado: año ${anioAdivinado} (${dif === 0 ? '¡Exacto!' : 'Muy cerca'})`
+    );
+  }
+
+  return {
+    ...adiv,
+    diferencia: dif,
+    anioReal: foto?.anio_real || 0,
+  };
+}
+
+export async function haAdivinadoFotoPasado(fotoPasadoId: string, usuarioId: string) {
+  await ensureInitialized();
+  const adivinanzas = dbGetAll<JuegoFotoPasadoAdivinanza>('fotosPasadoAdivinanzas');
+  return adivinanzas.find((a) => a.foto_pasado_id === fotoPasadoId && a.usuario_id === usuarioId) || null;
+}
+
+// ==============================================================================
+// MINI-JUEGO: RULETA RUSA PICANTE
+// ==============================================================================
+
+export async function obtenerRondaRuletaActiva(grupoId: string) {
+  await ensureInitialized();
+  const rondas = dbGetAll<JuegoRuletaRusa>('ruletaRondas');
+  const ronda = rondas.find((r) => r.grupo_id === grupoId && !r.cerrada);
+  if (!ronda) return null;
+
+  const todasPreguntas = dbGetAll<JuegoRuletaPregunta>('ruletaPreguntas');
+  const preguntas = todasPreguntas.filter((p) => p.ronda_id === ronda.id && p.aprobada_ia);
+
+  const usuarios = dbGetAll<Usuario>('usuarios');
+  const preguntasConDetalles = preguntas.map((p) => {
+    const autor = usuarios.find((u) => u.id === p.autor_usuario_id);
+    const asignado = p.asignada_a_usuario_id ? usuarios.find((u) => u.id === p.asignada_a_usuario_id) : undefined;
+    return {
+      ...p,
+      autor_nombre: autor?.apodo || autor?.nombre || 'Alguien',
+      destinatario_nombre: asignado?.apodo || asignado?.nombre || 'Nadie aún',
+    };
+  });
+
+  return { ronda, preguntas: preguntasConDetalles };
+}
+
+export async function abrirRondaRuleta(grupoId: string, nivelMaximo: NivelRuleta = 'picante'): Promise<JuegoRuletaRusa> {
+  await ensureInitialized();
+  const nueva: JuegoRuletaRusa = {
+    id: uuidv4(),
+    grupo_id: grupoId,
+    nivel_maximo: nivelMaximo,
+    estado: 'preguntas',
+    cerrada: false,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('ruletaRondas', nueva);
+  return nueva;
+}
+
+export async function enviarPreguntaRuleta(
+  rondaId: string,
+  autorId: string,
+  texto: string,
+  nivel: NivelRuleta
+): Promise<JuegoRuletaPregunta> {
+  await ensureInitialized();
+  const p: JuegoRuletaPregunta = {
+    id: uuidv4(),
+    ronda_id: rondaId,
+    autor_usuario_id: autorId,
+    texto_pregunta: texto.trim(),
+    texto: texto.trim(),
+    nivel,
+    aprobada_ia: true,
+    es_bala: Math.random() < 0.35,
+    respondida: false,
+    paso_utilizado: false,
+    reacciones_risa: 0,
+    reacciones_fuego: 0,
+    reacciones_amor: 0,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('ruletaPreguntas', p);
+  return p;
+}
+
+export async function girarRuleta(rondaId: string): Promise<boolean> {
+  await ensureInitialized();
+  const ronda = dbGet<JuegoRuletaRusa>('ruletaRondas', rondaId);
+  if (!ronda) return false;
+
+  const miembros = (await listarUsuariosGrupo(ronda.grupo_id)).filter((m) => m.activo);
+  if (miembros.length === 0) return false;
+
+  const preguntas = dbGetAll<JuegoRuletaPregunta>('ruletaPreguntas').filter((p) => p.ronda_id === rondaId);
+  let idx = 0;
+  for (const preg of preguntas) {
+    const destino = miembros[idx % miembros.length];
+    preg.asignada_a_usuario_id = destino.id;
+    preg.destinatario_id = destino.id;
+    dbUpsert('ruletaPreguntas', preg);
+    idx++;
+  }
+
+  ronda.estado = 'girada';
+  dbUpsert('ruletaRondas', ronda);
+  return true;
+}
+
+export async function responderPreguntaRuleta(
+  preguntaId: string,
+  usuarioId: string,
+  respuestaTexto?: string,
+  respuestaMediaUrl?: string
+) {
+  await ensureInitialized();
+  const p = dbGet<JuegoRuletaPregunta>('ruletaPreguntas', preguntaId);
+  if (!p) return { ok: false, error: 'Pregunta no encontrada' };
+
+  p.respuesta_texto = respuestaTexto?.trim();
+  p.respuesta_media_url = respuestaMediaUrl?.trim();
+  p.respondida = true;
+  dbUpsert('ruletaPreguntas', p);
+
+  const ronda = dbGet<JuegoRuletaRusa>('ruletaRondas', p.ronda_id);
+  const grupoId = ronda?.grupo_id || (await obtenerGrupoIdPorDefecto());
+
+  await otorgarPuntos(
+    grupoId,
+    usuarioId,
+    getFechaArgentina(),
+    'adivina_quien',
+    2,
+    '🎲 Respuesta a la Ruleta Rusa'
+  );
+
+  return { ok: true, puntosSumados: 2 };
+}
+
+export async function pasarPreguntaRuleta(preguntaId: string, usuarioId: string): Promise<JuegoRuletaPregunta | null> {
+  await ensureInitialized();
+  const p = dbGet<JuegoRuletaPregunta>('ruletaPreguntas', preguntaId);
+  if (!p || p.paso_utilizado) return null;
+
+  p.paso_utilizado = true;
+  dbUpsert('ruletaPreguntas', p);
+
+  const todas = dbGetAll<JuegoRuletaPregunta>('ruletaPreguntas');
+  const otra = todas.find(
+    (x) => x.ronda_id === p.ronda_id && x.id !== p.id && x.autor_usuario_id !== usuarioId && !x.respondida
+  );
+
+  if (otra) {
+    otra.asignada_a_usuario_id = usuarioId;
+    otra.destinatario_id = usuarioId;
+    dbUpsert('ruletaPreguntas', otra);
+    return otra;
+  }
+  return p;
+}
+
+export async function reaccionarPreguntaRuleta(preguntaId: string, tipo: 'risa' | 'fuego' | 'amor') {
+  await ensureInitialized();
+  const p = dbGet<JuegoRuletaPregunta>('ruletaPreguntas', preguntaId);
+  if (!p) return null;
+
+  if (tipo === 'risa') p.reacciones_risa = (p.reacciones_risa || 0) + 1;
+  if (tipo === 'fuego') p.reacciones_fuego = (p.reacciones_fuego || 0) + 1;
+  if (tipo === 'amor') p.reacciones_amor = (p.reacciones_amor || 0) + 1;
+
+  dbUpsert('ruletaPreguntas', p);
+  return { risa: p.reacciones_risa, fuego: p.reacciones_fuego, amor: p.reacciones_amor };
+}
+
+// ==============================================================================
+// MINI-JUEGO: PRODE DEL FÚTBOL
+// ==============================================================================
+
+export async function obtenerFechaProdeActiva(grupoId: string) {
+  await ensureInitialized();
+  const fechas = dbGetAll<JuegoProdeFecha>('prodeFechas');
+  let fecha = fechas.find((f) => f.grupo_id === grupoId && !f.cerrada);
+
+  if (!fecha) {
+    fecha = {
+      id: uuidv4(),
+      grupo_id: grupoId,
+      torneo_nombre: 'Liga Profesional Argentina',
+      numero_fecha: 14,
+      nombre: 'Fecha 14 - Liga Profesional',
+      fecha_inicio: new Date().toISOString(),
+      fecha_fin: new Date(Date.now() + 4 * 86400000).toISOString(),
+      cerrada: false,
+      creado_en: new Date().toISOString(),
+    };
+    dbUpsert('prodeFechas', fecha);
+
+    // Inicializar con partidos argentinos
+    await sincronizarPartidosProde(grupoId);
+  }
+
+  const partidos = dbGetAll<JuegoProdePartido>('prodePartidos').filter((p) => p.fecha_prode_id === fecha?.id);
+  const pronosticos = dbGetAll<JuegoProdePronostico>('prodePronosticos').filter((pr) =>
+    partidos.some((p) => p.id === pr.partido_id)
+  );
+
+  return { fecha, partidos, pronosticos };
+}
+
+export async function guardarPronosticoProde(
+  partidoId: string,
+  usuarioId: string,
+  pronostico: ResultadoPronostico | 'local' | 'empate' | 'visitante',
+  golesLocal?: number,
+  golesVisitante?: number
+): Promise<JuegoProdePronostico> {
+  await ensureInitialized();
+  const pronosticos = dbGetAll<JuegoProdePronostico>('prodePronosticos');
+  const normalizado: ResultadoPronostico =
+    pronostico === 'local' ? 'L' : pronostico === 'empate' ? 'E' : pronostico === 'visitante' ? 'V' : pronostico;
+
+  const existente = pronosticos.find((p) => p.partido_id === partidoId && p.usuario_id === usuarioId);
+  if (existente) {
+    existente.pronostico = normalizado;
+    existente.goles_local_pronostico = golesLocal;
+    existente.goles_visitante_pronostico = golesVisitante;
+    dbUpsert('prodePronosticos', existente);
+    return existente;
+  }
+
+  const nuevo: JuegoProdePronostico = {
+    id: uuidv4(),
+    partido_id: partidoId,
+    usuario_id: usuarioId,
+    pronostico: normalizado,
+    goles_local_pronostico: golesLocal,
+    goles_visitante_pronostico: golesVisitante,
+    corregido: false,
+    acerto: false,
+    puntos_sumados: 0,
+    creado_en: new Date().toISOString(),
+  };
+
+  dbUpsert('prodePronosticos', nuevo);
+  return nuevo;
+}
+
+export async function corregirPartidosProde(
+  fechaProdeId: string,
+  resultadosManuales?: Array<{ partidoId: string; golesLocal: number; golesVisitante: number }>
+) {
+  await ensureInitialized();
+  const fecha = dbGet<JuegoProdeFecha>('prodeFechas', fechaProdeId);
+  if (!fecha) return null;
+
+  const partidos = dbGetAll<JuegoProdePartido>('prodePartidos').filter((p) => p.fecha_prode_id === fechaProdeId);
+  const pronosticos = dbGetAll<JuegoProdePronostico>('prodePronosticos');
+
+  for (const part of partidos) {
+    if (resultadosManuales) {
+      const manual = resultadosManuales.find((m) => m.partidoId === part.id);
+      if (manual) {
+        part.goles_local = manual.golesLocal;
+        part.goles_visitante = manual.golesVisitante;
+        part.estado_partido = 'finalizado';
+        part.resultado_final =
+          manual.golesLocal > manual.golesVisitante ? 'L' : manual.golesLocal === manual.golesVisitante ? 'E' : 'V';
+      }
+    } else if (part.goles_local === undefined || part.goles_local === null) {
+      part.goles_local = Math.floor(Math.random() * 3);
+      part.goles_visitante = Math.floor(Math.random() * 3);
+      part.estado_partido = 'finalizado';
+      part.resultado_final =
+        part.goles_local > part.goles_visitante ? 'L' : part.goles_local === part.goles_visitante ? 'E' : 'V';
+    }
+    dbUpsert('prodePartidos', part);
+
+    const pronosPartido = pronosticos.filter((pr) => pr.partido_id === part.id && !pr.corregido);
+    for (const pr of pronosPartido) {
+      pr.corregido = true;
+      const acertoResultado = pr.pronostico === part.resultado_final;
+      const acertoMarcador =
+        pr.goles_local_pronostico === part.goles_local &&
+        pr.goles_visitante_pronostico === part.goles_visitante;
+
+      let pts = 0;
+      if (acertoResultado) pts += 3;
+      if (acertoMarcador) pts += 1;
+
+      pr.acerto = acertoResultado;
+      pr.acertado = acertoResultado;
+      pr.puntos_sumados = pts;
+      pr.puntos_ganados = pts;
+      dbUpsert('prodePronosticos', pr);
+
+      if (pts > 0) {
+        await otorgarPuntos(
+          fecha.grupo_id,
+          pr.usuario_id,
+          getFechaArgentina(),
+          'trivia_acierto',
+          pts,
+          `⚽ Prode: ${part.equipo_local} vs ${part.equipo_visitante} (+${pts} pts)`
+        );
+      }
+    }
+  }
+
+  fecha.cerrada = true;
+  dbUpsert('prodeFechas', fecha);
+  return { ok: true, fecha };
+}
+
+export async function sincronizarPartidosProde(grupoId: string) {
+  await ensureInitialized();
+  const fechas = dbGetAll<JuegoProdeFecha>('prodeFechas');
+  let fecha = fechas.find((f) => f.grupo_id === grupoId && !f.cerrada);
+
+  if (!fecha) {
+    fecha = {
+      id: uuidv4(),
+      grupo_id: grupoId,
+      torneo_nombre: 'Liga Profesional Argentina',
+      numero_fecha: 14,
+      nombre: 'Fecha 14 - Liga Profesional',
+      fecha_inicio: new Date().toISOString(),
+      fecha_fin: new Date(Date.now() + 4 * 86400000).toISOString(),
+      cerrada: false,
+      creado_en: new Date().toISOString(),
+    };
+    dbUpsert('prodeFechas', fecha);
+  }
+
+  const equiposArg = [
+    { nombre: 'Boca Juniors', escudo: 'https://upload.wikimedia.org/wikipedia/commons/4/41/CABJ-Sitio-Oficial.png' },
+    { nombre: 'River Plate', escudo: 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Escudo_del_C_A_River_Plate.svg' },
+    { nombre: 'Racing Club', escudo: 'https://upload.wikimedia.org/wikipedia/commons/5/56/Escudo_de_Racing_Club_%282014%29.svg' },
+    { nombre: 'Independiente', escudo: 'https://upload.wikimedia.org/wikipedia/commons/d/db/Escudo_del_Club_Atl%C3%A9tico_Independiente.svg' },
+    { nombre: 'San Lorenzo', escudo: 'https://upload.wikimedia.org/wikipedia/commons/7/77/Escudo_del_Club_Atl%C3%A9tico_San_Lorenzo_de_Almagro.svg' },
+    { nombre: 'Huracán', escudo: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Escudo_del_Club_Atl%C3%A9tico_Hurac%C3%A1n.png' },
+    { nombre: 'Rosario Central', escudo: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Escudo_del_Club_Atl%C3%A9tico_Rosario_Central.svg' },
+    { nombre: "Newell's Old Boys", escudo: 'https://upload.wikimedia.org/wikipedia/commons/8/87/Escudo_de_Newell%27s_Old_Boys.svg' },
+  ];
+
+  const existentes = dbGetAll<JuegoProdePartido>('prodePartidos').filter((p) => p.fecha_prode_id === fecha?.id);
+  if (existentes.length === 0) {
+    const p1: JuegoProdePartido = {
+      id: uuidv4(),
+      fecha_prode_id: fecha.id,
+      equipo_local: equiposArg[0].nombre,
+      escudo_local: equiposArg[0].escudo,
+      equipo_visitante: equiposArg[1].nombre,
+      escudo_visitante: equiposArg[1].escudo,
+      fecha_hora_partido: new Date(Date.now() + 2 * 86400000).toISOString(),
+      fecha_hora_texto: 'Domingo 17:00 hs',
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    };
+    const p2: JuegoProdePartido = {
+      id: uuidv4(),
+      fecha_prode_id: fecha.id,
+      equipo_local: equiposArg[2].nombre,
+      escudo_local: equiposArg[2].escudo,
+      equipo_visitante: equiposArg[3].nombre,
+      escudo_visitante: equiposArg[3].escudo,
+      fecha_hora_partido: new Date(Date.now() + 2 * 86400000).toISOString(),
+      fecha_hora_texto: 'Sábado 19:30 hs',
+      estado_partido: 'programado',
+      creado_en: new Date().toISOString(),
+    };
+    dbUpsert('prodePartidos', p1);
+    dbUpsert('prodePartidos', p2);
+  }
+
+  return { ok: true, fecha };
 }

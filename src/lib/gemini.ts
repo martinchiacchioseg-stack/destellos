@@ -245,3 +245,102 @@ ESTRUCTURA JSON REQUERIDA (devolver ÚNICAMENTE JSON):
     points_penalty: puntosPenalty,
   };
 }
+
+const RETOS_BACKUP = [
+  { tema: '☕ Desayuno o mate criollo', descripcion: 'Mostrá tu taza favorita, el mate o las tostadas que te acompañan hoy.' },
+  { tema: '👟 Calzado listo para arrancar', descripcion: 'Una foto de tus zapatillas o pantuflas del día.' },
+  { tema: '🌿 Rincón verde del hogar', descripcion: 'Una plantita, una flor o ese lugarcito con luz natural de tu casa.' },
+  { tema: '🐾 Mascota o recuerdo familiar', descripcion: 'La mirada de tu compañero de 4 patas o un recuerdo con historia.' },
+  { tema: '📚 Objeto con historia', descripcion: 'Algo que tengas hace años y guardes con mucho afecto.' },
+];
+
+export async function generarRetoDelDia(fecha: string): Promise<{ tema: string; descripcion: string }> {
+  if (!ai) {
+    const index = Math.abs(fecha.split('-').reduce((acc, curr) => acc + parseInt(curr, 10), 0)) % RETOS_BACKUP.length;
+    return RETOS_BACKUP[index];
+  }
+
+  try {
+    const prompt = `
+Sos el asistente amigable de "Destellos", una app familiar en Argentina.
+Hoy es ${fecha}.
+Generá un RETO FOTOGRÁFICO DEL DÍA:
+- Debe ser positivo, simple, accesible para cualquier persona de la familia.
+- No requiere salir de casa ni equipos especiales.
+- Debe tener chispa, humor o calidez familiar en español rioplatense.
+
+Devolvé ÚNICAMENTE un objeto JSON válido con este formato:
+{
+  "tema": "Título corto y simpático con un emoji (máx 5 palabras)",
+  "descripcion": "Instrucción cálida y motivadora en 1 o 2 oraciones breves."
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json', temperature: 0.8 },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    if (parsed.tema && parsed.descripcion) {
+      return { tema: parsed.tema, descripcion: parsed.descripcion };
+    }
+  } catch (err) {
+    console.warn('[Gemini] Error generando reto:', err);
+  }
+
+  const index = Math.abs(fecha.split('-').reduce((acc, curr) => acc + parseInt(curr, 10), 0)) % RETOS_BACKUP.length;
+  return RETOS_BACKUP[index];
+}
+
+export async function moderarPreguntaRuleta(
+  textoPregunta: string,
+  nivel: 'suave' | 'picante' | 'extra_picante'
+): Promise<{ aprobada: boolean; motivoRechazo?: string }> {
+  if (!textoPregunta || textoPregunta.trim().length < 5) {
+    return { aprobada: false, motivoRechazo: 'La pregunta es demasiado corta.' };
+  }
+
+  if (!ai) {
+    const palabrasProhibidas = ['estúpido', 'idiota', 'odio', 'hdp'];
+    const esOfensiva = palabrasProhibidas.some((p) => textoPregunta.toLowerCase().includes(p));
+    return {
+      aprobada: !esOfensiva,
+      motivoRechazo: esOfensiva ? 'Contiene términos no apropiados para el grupo familiar.' : undefined,
+    };
+  }
+
+  try {
+    const prompt = `
+Sos el moderador de "Ruleta Rusa", un juego para familias y amigos en la app "Destellos".
+El nivel seleccionado es: "${nivel}".
+La pregunta enviada es: "${textoPregunta}".
+
+Reglas estrictas de moderación:
+- Se permite el humor, el doble sentido pícaro y la curiosidad divertida (especialmente en niveles picante y extra picante).
+- PROHIBIDO: odio, racismo, discriminación, violencia, ataques personales crueles o lenguaje explícito denigrante.
+
+Devolvé ÚNICAMENTE un JSON:
+{
+  "aprobada": true o false,
+  "motivoRechazo": "Motivo breve si fue rechazada o vacío si fue aprobada"
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json', temperature: 0.1 },
+    });
+
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    return {
+      aprobada: Boolean(parsed.aprobada),
+      motivoRechazo: parsed.motivoRechazo || undefined,
+    };
+  } catch {
+    return { aprobada: true };
+  }
+}
+

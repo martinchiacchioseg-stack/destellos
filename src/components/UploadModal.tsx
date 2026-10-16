@@ -5,12 +5,14 @@ import { X, Camera, Sparkles, Check, AlertCircle, RefreshCw, Upload } from 'luci
 import { dispararConfeti } from '@/components/ConfettiCelebration';
 
 interface UploadModalProps {
+  isOpen?: boolean;
   onClose: () => void;
-  onUploadSuccess: () => void;
+  onUploadSuccess: () => void | Promise<void>;
   destelloExistente?: boolean;
 }
 
 export default function UploadModal({
+  isOpen,
   onClose,
   onUploadSuccess,
   destelloExistente = false,
@@ -21,6 +23,8 @@ export default function UploadModal({
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (isOpen !== undefined && !isOpen) return null;
 
   const handleSeleccionarArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];

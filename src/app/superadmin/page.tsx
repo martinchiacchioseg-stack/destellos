@@ -21,31 +21,48 @@ import {
   ShieldAlert,
   ChevronRight,
   LogOut,
+  Tag,
+  Pencil,
+  X,
+  ExternalLink,
 } from 'lucide-react';
-import { SesionUsuario, Grupo, UsuarioPublico } from '@/lib/types';
+import { SesionUsuario, Grupo, UsuarioPublico, Publicidad, UbicacionPublicidad } from '@/lib/types';
 import AnimatedLogo from '@/components/AnimatedLogo';
 
 export default function SuperadminPage() {
   const router = useRouter();
+  const [tabActivo, setTabActivo] = useState<'grupos' | 'publicidad'>('grupos');
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null);
   const [metricas, setMetricas] = useState<any>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [grupoSeleccionadoId, setGrupoSeleccionadoId] = useState<string>('');
   const [usuariosGrupo, setUsuariosGrupo] = useState<UsuarioPublico[]>([]);
+  const [publicidades, setPublicidades] = useState<Publicidad[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // Modales
+  // Modales Grupo
   const [mostrarModalGrupo, setMostrarModalGrupo] = useState(false);
   const [nombreGrupo, setNombreGrupo] = useState('');
   const [emojiGrupo, setEmojiGrupo] = useState('✨');
   const [horaLimiteGrupo, setHoraLimiteGrupo] = useState('22:00');
   const [descGrupo, setDescGrupo] = useState('');
 
+  // Modales Persona
   const [mostrarModalPersona, setMostrarModalPersona] = useState(false);
   const [personaNombre, setPersonaNombre] = useState('');
   const [personaEmail, setPersonaEmail] = useState('');
   const [personaRol, setPersonaRol] = useState<'admin' | 'miembro'>('miembro');
   const [personaApodo, setPersonaApodo] = useState('');
+
+  // Modales Publicidad
+  const [mostrarModalAd, setMostrarModalAd] = useState(false);
+  const [adEditandoId, setAdEditandoId] = useState<string | null>(null);
+  const [adTitulo, setAdTitulo] = useState('');
+  const [adTexto, setAdTexto] = useState('');
+  const [adImagenUrl, setAdImagenUrl] = useState('');
+  const [adLinkUrl, setAdLinkUrl] = useState('');
+  const [adUbicacion, setAdUbicacion] = useState<UbicacionPublicidad>('post_subida');
+  const [subiendoImagenAd, setSubiendoImagenAd] = useState(false);
 
   // Password temporal generada para mostrar una sola vez
   const [passwordGeneradaInfo, setPasswordGeneradaInfo] = useState<{
@@ -75,9 +92,10 @@ export default function SuperadminPage() {
       }
       setUsuario(meData.usuario);
 
-      const [metRes, grupRes] = await Promise.all([
+      const [metRes, grupRes, pubRes] = await Promise.all([
         fetch('/api/superadmin/metricas', { headers: authH }),
         fetch('/api/superadmin/grupos', { headers: authH }),
+        fetch('/api/superadmin/publicidades', { headers: authH }),
       ]);
 
       if (metRes.ok) setMetricas(await metRes.json());
@@ -89,10 +107,108 @@ export default function SuperadminPage() {
           setGrupoSeleccionadoId(lista[0].id);
         }
       }
+      if (pubRes.ok) {
+        const pData = await pubRes.json();
+        setPublicidades(pData.publicidades || []);
+      }
     } catch {
       setFeedback({ tipo: 'error', texto: 'Error al cargar datos del panel.' });
     } finally {
       setCargando(false);
+    }
+  };
+
+  const handleAbrirNuevaPublicidad = () => {
+    setAdEditandoId(null);
+    setAdTitulo('');
+    setAdTexto('');
+    setAdImagenUrl('');
+    setAdLinkUrl('');
+    setAdUbicacion('post_subida');
+    setMostrarModalAd(true);
+  };
+
+  const handleAbrirEditarPublicidad = (ad: Publicidad) => {
+    setAdEditandoId(ad.id);
+    setAdTitulo(ad.titulo);
+    setAdTexto(ad.texto);
+    setAdImagenUrl(ad.imagen_url || '');
+    setAdLinkUrl(ad.link_url || '');
+    setAdUbicacion(ad.ubicacion);
+    setMostrarModalAd(true);
+  };
+
+  const handleGuardarPublicidad = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    try {
+      const authH = getAuthHeaders();
+      const res = await fetch('/api/superadmin/publicidades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify({
+          id: adEditandoId || undefined,
+          titulo: adTitulo,
+          texto: adTexto,
+          imagen_url: adImagenUrl,
+          link_url: adLinkUrl,
+          ubicacion: adUbicacion,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error || 'Error al guardar publicidad.' });
+      } else {
+        setFeedback({ tipo: 'ok', texto: 'Publicidad guardada con éxito.' });
+        setMostrarModalAd(false);
+        setAdEditandoId(null);
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al guardar publicidad.' });
+    }
+  };
+
+  const handleEliminarPublicidad = async (id: string) => {
+    if (!confirm('¿Deseás eliminar esta publicidad permanentemente?')) return;
+    try {
+      const authH = getAuthHeaders();
+      const res = await fetch(`/api/superadmin/publicidades?id=${id}`, {
+        method: 'DELETE',
+        headers: authH,
+      });
+      if (res.ok) {
+        setPublicidades((prev) => prev.filter((p) => p.id !== id));
+        setFeedback({ tipo: 'ok', texto: 'Publicidad eliminada.' });
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al eliminar publicidad.' });
+    }
+  };
+
+  const handleToggleEstadoPublicidad = async (ad: Publicidad) => {
+    try {
+      const authH = getAuthHeaders();
+      const res = await fetch('/api/superadmin/publicidades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify({
+          ...ad,
+          activa: !ad.activa,
+        }),
+      });
+      if (res.ok) {
+        setPublicidades((prev) =>
+          prev.map((p) => (p.id === ad.id ? { ...p, activa: !p.activa } : p))
+        );
+        setFeedback({
+          tipo: 'ok',
+          texto: `Publicidad ${!ad.activa ? 'activada' : 'pausada'}.`,
+        });
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al cambiar estado de la publicidad.' });
     }
   };
 
@@ -321,153 +437,337 @@ export default function SuperadminPage() {
           </div>
         </div>
 
-        {/* Gestión de Grupos */}
-        <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
-                <Layers className="w-5 h-5 text-[#FF7043]" />
-                Grupos y Familias ({grupos.length})
-              </h2>
-              <p className="text-xs text-gray-500">Espacios cerrados e independientes</p>
-            </div>
-            <button
-              onClick={() => setMostrarModalGrupo(true)}
-              className="py-2 px-3.5 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-[#FF7043]/20 cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Nuevo Grupo</span>
-            </button>
-          </div>
-
-          {grupos.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-6">
-              No hay grupos creados todavía. ¡Creá el primero arriba!
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {grupos.map((g) => {
-                const esSeleccionado = g.id === grupoSeleccionadoId;
-                return (
-                  <div
-                    key={g.id}
-                    onClick={() => setGrupoSeleccionadoId(g.id)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
-                      esSeleccionado
-                        ? 'bg-orange-50/70 dark:bg-orange-950/30 border-[#FF7043] ring-2 ring-[#FF7043]/20'
-                        : 'bg-gray-50 dark:bg-[#25202D] border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-xl shrink-0">{g.emoji_or_logo || '✨'}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-gray-900 dark:text-white truncate">
-                          {g.nombre}
-                        </p>
-                        <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-amber-500" />
-                          <span>Límite: {g.hora_limite || '22:00'} hs</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleEstadoGrupo(g);
-                        }}
-                        title={g.estado === 'activo' ? 'Pausar grupo' : 'Activar grupo'}
-                        className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
-                      >
-                        {g.estado === 'activo' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-500" />}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEliminarGrupo(g);
-                        }}
-                        title="Eliminar grupo"
-                        className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        {/* Pestañas de Gestión */}
+        <div className="flex border-b border-gray-200 dark:border-gray-800 gap-2">
+          <button
+            onClick={() => setTabActivo('grupos')}
+            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer ${
+              tabActivo === 'grupos'
+                ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
+                : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Grupos y Familias ({grupos.length})</span>
+          </button>
+          <button
+            onClick={() => setTabActivo('publicidad')}
+            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer ${
+              tabActivo === 'publicidad'
+                ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
+                : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            <span>Publicidades y Patrocinadores ({publicidades.length})</span>
+          </button>
         </div>
 
-        {/* Personas dentro del Grupo Seleccionado */}
-        {grupoActual && (
+        {tabActivo === 'grupos' && (
+          <>
+            {/* Gestión de Grupos */}
+            <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-[#FF7043]" />
+                    Grupos y Familias ({grupos.length})
+                  </h2>
+                  <p className="text-xs text-gray-500">Espacios cerrados e independientes</p>
+                </div>
+                <button
+                  onClick={() => setMostrarModalGrupo(true)}
+                  className="py-2 px-3.5 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-[#FF7043]/20 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Nuevo Grupo</span>
+                </button>
+              </div>
+
+              {grupos.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-6">
+                  No hay grupos creados todavía. ¡Creá el primero arriba!
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {grupos.map((g) => {
+                    const esSeleccionado = g.id === grupoSeleccionadoId;
+                    return (
+                      <div
+                        key={g.id}
+                        onClick={() => setGrupoSeleccionadoId(g.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                          esSeleccionado
+                            ? 'bg-orange-50/70 dark:bg-orange-950/30 border-[#FF7043] ring-2 ring-[#FF7043]/20'
+                            : 'bg-gray-50 dark:bg-[#25202D] border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-xl shrink-0">{g.emoji_or_logo || '✨'}</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-gray-900 dark:text-white truncate">
+                              {g.nombre}
+                            </p>
+                            <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-amber-500" />
+                              <span>Límite: {g.hora_limite || '22:00'} hs</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleEstadoGrupo(g);
+                            }}
+                            title={g.estado === 'activo' ? 'Pausar grupo' : 'Activar grupo'}
+                            className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+                          >
+                            {g.estado === 'activo' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-500" />}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEliminarGrupo(g);
+                            }}
+                            title="Eliminar grupo"
+                            className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Personas dentro del Grupo Seleccionado */}
+            {grupoActual && (
+              <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                      <Users className="w-5 h-5 text-indigo-500" />
+                      Personas en &quot;{grupoActual.nombre}&quot; ({usuariosGrupo.length})
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Cada miembro accede de manera aislada únicamente a este grupo
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setMostrarModalPersona(true)}
+                    className="py-2 px-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/20 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Agregar Persona</span>
+                  </button>
+                </div>
+
+                {usuariosGrupo.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6">
+                    Este grupo aún no tiene personas asignadas. ¡Agregá una arriba!
+                  </p>
+                ) : (
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {usuariosGrupo.map((u) => (
+                      <div key={u.id} className="py-2.5 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full overflow-hidden bg-orange-100 ring-1 ring-[#FF7043]/20 flex items-center justify-center font-bold text-xs text-[#FF7043] shrink-0">
+                            {u.avatar_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={u.avatar_url} alt={u.nombre} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{u.nombre.charAt(0)}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
+                                {u.nombre}
+                              </span>
+                              {u.rol === 'admin' && (
+                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                  Admin
+                                </span>
+                              )}
+                              {u.debe_cambiar_password && (
+                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                  Clave pendiente
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-gray-400 truncate">{u.email}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleEliminarPersona(u)}
+                          className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500"
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Gestión de Publicidades y Patrocinadores */}
+        {tabActivo === 'publicidad' && (
           <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-500" />
-                  Personas en &quot;{grupoActual.nombre}&quot; ({usuariosGrupo.length})
-                </h3>
+                <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-[#FF7043]" />
+                  Publicidades y Patrocinadores ({publicidades.length})
+                </h2>
                 <p className="text-xs text-gray-500">
-                  Cada miembro accede de manera aislada únicamente a este grupo
+                  Control de anuncios, sponsors y banners en feed, subidas y juegos
                 </p>
               </div>
               <button
-                onClick={() => setMostrarModalPersona(true)}
-                className="py-2 px-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/20 cursor-pointer"
+                onClick={handleAbrirNuevaPublicidad}
+                className="py-2 px-3.5 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-[#FF7043]/20 cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span>Agregar Persona</span>
+                <span>Nueva Publicidad</span>
               </button>
             </div>
 
-            {usuariosGrupo.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-6">
-                Este grupo aún no tiene personas asignadas. ¡Agregá una arriba!
-              </p>
+            {publicidades.length === 0 ? (
+              <div className="text-center py-10 space-y-2">
+                <Tag className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto" />
+                <p className="text-xs text-gray-400">
+                  No hay publicidades ni sponsors configurados todavía.
+                </p>
+                <button
+                  onClick={handleAbrirNuevaPublicidad}
+                  className="px-3 py-1.5 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-[#FF7043] font-bold text-xs cursor-pointer hover:bg-orange-200 transition"
+                >
+                  Crear el primer anuncio
+                </button>
+              </div>
             ) : (
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {usuariosGrupo.map((u) => (
-                  <div key={u.id} className="py-2.5 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-orange-100 ring-1 ring-[#FF7043]/20 flex items-center justify-center font-bold text-xs text-[#FF7043] shrink-0">
-                        {u.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={u.avatar_url} alt={u.nombre} className="w-full h-full object-cover" />
-                        ) : (
-                          <span>{u.nombre.charAt(0)}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {publicidades.map((ad) => {
+                  const ubicacionLabel: Record<string, string> = {
+                    post_subida: '📸 Post Subida',
+                    feed_entre_destellos: '📱 Feed Entre Fotos',
+                    juegos_banner: '🎮 Banner Juegos',
+                    pantalla_bloqueo: '🔒 Pantalla Bloqueo',
+                    foto_ganadora: '🏆 Foto Ganadora',
+                    prode: '⚽ Prode',
+                    interstitial_juegos: '🎮 Interstitial Juegos',
+                    interstitial_ranking: '🏅 Interstitial Ranking',
+                  };
+
+                  return (
+                    <div
+                      key={ad.id}
+                      className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 ${
+                        ad.activa
+                          ? 'bg-white dark:bg-[#25202D] border-gray-200 dark:border-gray-700'
+                          : 'bg-gray-100 dark:bg-[#1A1620] border-gray-200 dark:border-gray-800 opacity-60'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-orange-100 text-[#FF7043] dark:bg-orange-950/60">
+                            {ubicacionLabel[ad.ubicacion] || ad.ubicacion}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${
+                              ad.activa
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                            }`}
+                          >
+                            {ad.activa ? 'Activa' : 'Pausada'}
+                          </span>
+                        </div>
+
+                        {ad.imagen_url && (
+                          <div className="w-full h-28 rounded-xl overflow-hidden bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-gray-800">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={ad.imagen_url}
+                              alt={ad.titulo}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <h4 className="text-sm font-black text-gray-900 dark:text-white">
+                            {ad.titulo}
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mt-0.5">
+                            {ad.texto}
+                          </p>
+                        </div>
+
+                        {ad.link_url && (
+                          <a
+                            href={ad.link_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-[#FF7043] hover:underline flex items-center gap-1 font-semibold truncate"
+                          >
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{ad.link_url}</span>
+                          </a>
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
-                            {u.nombre}
-                          </span>
-                          {u.rol === 'admin' && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                              Admin
-                            </span>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <button
+                          onClick={() => handleToggleEstadoPublicidad(ad)}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition ${
+                            ad.activa
+                              ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                              : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          }`}
+                        >
+                          {ad.activa ? (
+                            <>
+                              <Pause className="w-3 h-3" />
+                              <span>Pausar</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-3 h-3" />
+                              <span>Activar</span>
+                            </>
                           )}
-                          {u.debe_cambiar_password && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                              Clave pendiente
-                            </span>
-                          )}
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleAbrirEditarPublicidad(ad)}
+                            className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 cursor-pointer"
+                            title="Editar anuncio"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleEliminarPublicidad(ad.id)}
+                            className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500 cursor-pointer"
+                            title="Eliminar anuncio"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <p className="text-[10px] text-gray-400 truncate">{u.email}</p>
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => handleEliminarPersona(u)}
-                      className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500"
-                      title="Eliminar usuario"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -655,6 +955,118 @@ export default function SuperadminPage() {
             >
               Cerrar y continuar
             </button>
+          </div>
+        </div>
+      )}
+      {/* Modal Crear / Editar Publicidad */}
+      {mostrarModalAd && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-gray-900 dark:text-white">
+                {adEditandoId ? 'Editar Publicidad / Sponsor' : 'Nueva Publicidad / Sponsor'}
+              </h3>
+              <button
+                onClick={() => setMostrarModalAd(false)}
+                className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarPublicidad} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Título o Marca
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="ej: Tienda Café Martínez o Vuelos low-cost"
+                  value={adTitulo}
+                  onChange={(e) => setAdTitulo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Texto promocional / Bajada
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="ej: ¡20% de descuento para toda la familia con el código DESTELLOS!"
+                  value={adTexto}
+                  onChange={(e) => setAdTexto(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Ubicación en la App
+                </label>
+                <select
+                  value={adUbicacion}
+                  onChange={(e) => setAdUbicacion(e.target.value as UbicacionPublicidad)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white font-medium"
+                >
+                  <option value="post_subida">📸 Al subir el Destello (Agradecimiento)</option>
+                  <option value="feed_entre_destellos">📱 En el Feed Familiar (Entre fotos)</option>
+                  <option value="juegos_banner">🎮 Banner en Juegos y Desafíos</option>
+                  <option value="pantalla_bloqueo">🔒 Pantalla previa a Revelación</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  URL de Imagen (Opcional)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://ejemplo.com/banner.jpg"
+                  value={adImagenUrl}
+                  onChange={(e) => setAdImagenUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+                {adImagenUrl && (
+                  <div className="mt-2 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 max-h-32 bg-gray-100 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={adImagenUrl} alt="Vista previa" className="max-h-32 object-contain" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Enlace de destino (Link URL)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://misitio.com/promocion"
+                  value={adLinkUrl}
+                  onChange={(e) => setAdLinkUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalAd(false)}
+                  className="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-[#FF7043] text-white text-xs font-bold cursor-pointer hover:bg-[#F4511E] transition"
+                >
+                  {adEditandoId ? 'Guardar Cambios' : 'Crear Publicidad'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

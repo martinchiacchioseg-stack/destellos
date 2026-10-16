@@ -210,3 +210,214 @@ export interface SesionUsuario {
   grupo_id?: string | null;
   debe_cambiar_password: boolean;
 }
+
+// ==============================================================================
+// RETO DIARIO (Gemini)
+// ==============================================================================
+export interface RetoDiario {
+  id: string;
+  grupo_id?: string | null;
+  fecha: string;
+  titulo?: string;
+  tema?: string;
+  descripcion: string;
+  puntos_bonus?: number;
+  generado_por_ia?: boolean;
+  creado_en?: string;
+}
+
+// ==============================================================================
+// JUEGOS Y VOTACIÓN CRUZADA
+// ==============================================================================
+export interface JuegoAdivinaIntento {
+  id: string;
+  grupo_id: string;
+  fecha: string;
+  usuario_id: string;
+  destello_id: string;
+  autor_adivinado_id: string;
+  es_correcto: boolean;
+  creado_en: string;
+}
+
+export interface JuegoVotoCruzado {
+  id: string;
+  grupo_id: string;
+  fecha: string;
+  votante_id: string;
+  destello_id: string;
+  creado_en: string;
+}
+
+export interface JuegoFotoPasado {
+  id: string;
+  grupo_id: string;
+  semana: string; // Ej: 2026-W42
+  usuario_id: string;
+  media_url: string;
+  anio_real: number;
+  lugar_real: string;
+  pista?: string;
+  esPropia?: boolean;
+  cerrada: boolean;
+  creado_en: string;
+  usuario?: UsuarioPublico;
+  adivinanzas_count?: number;
+}
+
+export interface JuegoFotoPasadoAdivinanza {
+  id: string;
+  foto_pasado_id: string;
+  usuario_id: string;
+  anio_adivinado: number;
+  lugar_adivinado?: string;
+  puntos_obtenidos: number;
+  puntos_ganados?: number;
+  creado_en: string;
+}
+
+// ==============================================================================
+// RULETA RUSA PICANTE
+// ==============================================================================
+export type NivelRuleta = 'suave' | 'picante' | 'extra_picante';
+export type EstadoRuleta = 'preguntas' | 'ruleta' | 'respuestas' | 'finalizada' | 'girada';
+
+export interface JuegoRuletaRusa {
+  id: string;
+  grupo_id: string;
+  nivel_maximo: NivelRuleta;
+  estado: EstadoRuleta;
+  cerrada: boolean;
+  creado_en: string;
+}
+
+export interface JuegoRuletaPregunta {
+  id: string;
+  ronda_id: string;
+  autor_usuario_id: string;
+  texto_pregunta: string;
+  texto?: string;
+  nivel: NivelRuleta;
+  aprobada_ia: boolean;
+  asignada_a_usuario_id?: string | null;
+  destinatario_id?: string | null;
+  es_bala: boolean;
+  respuesta_texto?: string;
+  respuesta_media_url?: string;
+  respondida: boolean;
+  paso_utilizado: boolean;
+  pasada?: boolean;
+  reacciones_risa: number;
+  reacciones_fuego: number;
+  reacciones_amor: number;
+  creado_en: string;
+  autor?: UsuarioPublico;
+  asignado?: UsuarioPublico;
+  autor_nombre?: string;
+  destinatario_nombre?: string;
+}
+
+export type JuegoRuletaRonda = JuegoRuletaRusa;
+
+// ==============================================================================
+// PRODE DEL FÚTBOL
+// ==============================================================================
+export type EstadoPartido = 'programado' | 'en_vivo' | 'finalizado' | 'suspendido';
+export type ResultadoPronostico = 'L' | 'E' | 'V';
+
+export interface JuegoProdeFecha {
+  id: string;
+  grupo_id: string;
+  torneo_nombre: string;
+  numero_fecha: number;
+  nombre?: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  cerrada: boolean;
+  creado_en: string;
+}
+
+export interface JuegoProdePartido {
+  id: string;
+  fecha_prode_id: string;
+  equipo_local: string;
+  escudo_local?: string;
+  equipo_visitante: string;
+  escudo_visitante?: string;
+  fecha_hora_partido: string;
+  fecha_hora_texto?: string;
+  estado?: string;
+  goles_local?: number | null;
+  goles_visitante?: number | null;
+  estado_partido: EstadoPartido;
+  resultado_final?: ResultadoPronostico | null;
+  creado_en: string;
+}
+
+export interface JuegoProdePronostico {
+  id: string;
+  partido_id: string;
+  usuario_id: string;
+  pronostico: ResultadoPronostico | 'local' | 'empate' | 'visitante';
+  goles_local_pronostico?: number | null;
+  goles_visitante_pronostico?: number | null;
+  goles_local?: number | null;
+  goles_visitante?: number | null;
+  corregido: boolean;
+  acerto: boolean;
+  acertado?: boolean;
+  puntos_sumados: number;
+  puntos_ganados?: number;
+  creado_en: string;
+}
+
+export type ProdeFecha = JuegoProdeFecha;
+export type ProdePartido = JuegoProdePartido;
+export type ProdePronostico = JuegoProdePronostico;
+
+// ==============================================================================
+// PUBLICIDADES Y MONETIZACIÓN (Superadmin)
+// ==============================================================================
+export type UbicacionPublicidad =
+  | 'post_subida'
+  | 'feed_entre_destellos'
+  | 'juegos_banner'
+  | 'pantalla_bloqueo'
+  | 'foto_ganadora'
+  | 'prode'
+  | 'interstitial_juegos'
+  | 'interstitial_ranking'
+  | 'fin_desafio_ruleta'
+  | 'fin_desafio_prode'
+  | 'fin_desafio_reto_diario'
+  | 'fin_desafio_voto_cruzado'
+  | 'fin_desafio_adivina'
+  | 'fin_desafio_foto_pasado'
+  | 'fin_desafio_trivia';
+
+export interface Publicidad {
+  id: string;
+  titulo: string;
+  texto: string;
+  imagen_url?: string;
+  link_url?: string;
+  ubicacion: UbicacionPublicidad;
+  activa: boolean;
+  creado_en: string;
+}
+
+export interface ReglasConfig {
+  id: string;
+  grupo_id?: string | null;
+  solo_mostrar_si_todos_subieron: boolean;
+  racha_activa: boolean;
+  apurar_whatsapp_activo: boolean;
+  nivel_ruleta_maximo: NivelRuleta;
+  puntos_destello_ganador: number;
+  puntos_participacion: number;
+}
+
+export type ReglasGrupo = ReglasConfig & {
+  fotos_borrosas_hasta_subir?: boolean;
+  prode_marcador_exacto_bonus?: boolean;
+};
