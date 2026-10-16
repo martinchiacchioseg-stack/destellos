@@ -20,15 +20,17 @@ export default function CambiarPasswordPage() {
   // Verificar estado de sesión al cargar
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
       .then((data) => {
-        if (!data.authenticated) {
-          window.location.href = '/login';
-        } else if (!data.usuario.debe_cambiar_password) {
+        if (!data || !data.authenticated) return;
+        if (!data.usuario?.debe_cambiar_password) {
           // Ya completó el cambio: redirigir de inmediato a su panel
-          const dest = data.usuario.rol === 'superadmin' ? '/superadmin' : '/';
+          const dest = data.usuario?.rol === 'superadmin' ? '/superadmin' : '/';
           window.location.href = dest;
-        } else if (data.usuario.rol === 'superadmin') {
+        } else if (data.usuario?.rol === 'superadmin') {
           setRedirectUrl('/superadmin');
         }
       })

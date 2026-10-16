@@ -47,6 +47,7 @@ export async function middleware(req: NextRequest) {
       debeCambiarPass &&
       pathname !== '/cambiar-password' &&
       pathname !== '/api/auth/cambiar-password' &&
+      pathname !== '/api/auth/me' &&
       pathname !== '/api/auth/logout'
     ) {
       if (pathname.startsWith('/api/')) {
