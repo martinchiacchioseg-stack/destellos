@@ -68,14 +68,14 @@ export default function SuperadminPage() {
   const [adminNombre, setAdminNombre] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminGrupoId, setAdminGrupoId] = useState('');
-  const [adminPassTemp, setAdminPassTemp] = useState('admin2026');
+  const [adminPassTemp, setAdminPassTemp] = useState('000000');
 
   // Modal nuevo usuario por familia
   const [mostrarModalUsuario, setMostrarModalUsuario] = useState(false);
   const [nuevoUsuarioNombre, setNuevoUsuarioNombre] = useState('');
   const [nuevoUsuarioApodo, setNuevoUsuarioApodo] = useState('');
   const [nuevoUsuarioEmail, setNuevoUsuarioEmail] = useState('');
-  const [nuevoUsuarioPassTemp, setNuevoUsuarioPassTemp] = useState('familia2026');
+  const [nuevoUsuarioPassTemp, setNuevoUsuarioPassTemp] = useState('000000');
   const [nuevoUsuarioRol, setNuevoUsuarioRol] = useState<'miembro' | 'admin'>('miembro');
   const [nuevoUsuarioTelefono, setNuevoUsuarioTelefono] = useState('');
 
@@ -435,7 +435,7 @@ export default function SuperadminPage() {
   // Enviar invitación por WhatsApp
   const handleEnviarWhatsApp = (u: any) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://destellos.ar';
-    const claveDefecto = u.rol === 'admin' ? 'admin2026' : 'familia2026';
+    const claveDefecto = '000000';
     const texto = `¡Hola ${u.nombre}! 👋\nYa tenés tu usuario listo en Destellos ("un clic familiar"):\n\n🔗 Ingreso directo: ${origin}/login\n📧 Tu usuario: ${u.email}\n🔑 Contraseña inicial: ${claveDefecto}\n\n¡Sumate a compartir el destello del día y jugar en familia! ✨`;
 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {

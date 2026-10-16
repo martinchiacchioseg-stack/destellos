@@ -170,6 +170,21 @@ export default function PolaroidCard({
             <span>Reto cumplido (+2 pts)</span>
           </div>
         )}
+
+        {/* Diploma de Honor Diario */}
+        {destello.titulo_diploma && (
+          <div className="mt-2.5 p-2 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 rounded-xl border border-amber-300 dark:border-amber-800/60 text-center shadow-xs">
+            <div className="text-[10px] font-black tracking-wide uppercase text-amber-800 dark:text-amber-300 flex items-center justify-center gap-1">
+              <Crown className="w-3 h-3 fill-amber-500 text-amber-600" />
+              <span>{destello.titulo_diploma}</span>
+            </div>
+            {destello.motivo_jurado && (
+              <p className="text-[10px] text-amber-900/80 dark:text-amber-200/80 italic mt-0.5 leading-tight">
+                &ldquo;{destello.motivo_jurado}&rdquo;
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

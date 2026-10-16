@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
-import { Shield, UserPlus, KeyRound, Check, AlertCircle, Sparkles, UserCheck, UserX } from 'lucide-react';
+import { Shield, UserPlus, KeyRound, Check, AlertCircle, Sparkles, UserCheck, UserX, MessageCircle } from 'lucide-react';
 import { SesionUsuario, UsuarioPublico } from '@/lib/types';
 
 export default function AdminPage() {
@@ -19,13 +19,13 @@ export default function AdminPage() {
   const [nuevoApodo, setNuevoApodo] = useState('');
   const [nuevoEmail, setNuevoEmail] = useState('');
   const [nuevoTelefono, setNuevoTelefono] = useState('');
-  const [nuevaPassTemporal, setNuevaPassTemporal] = useState('familia2026');
+  const [nuevaPassTemporal, setNuevaPassTemporal] = useState('000000');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
   // Reset password
   const [modalResetId, setModalResetId] = useState<string | null>(null);
-  const [resetPassTemp, setResetPassTemp] = useState('temporal123');
+  const [resetPassTemp, setResetPassTemp] = useState('000000');
 
   const cargarDatos = async () => {
     try {
@@ -138,6 +138,22 @@ export default function AdminPage() {
     } catch {
       alert('Error de conexión.');
     }
+  };
+
+  const handleEnviarWhatsApp = (m: UsuarioPublico) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://destellos.ar';
+    const claveDefecto = '000000';
+    const texto = `¡Hola ${m.nombre}! 👋\nYa tenés tu usuario listo en Destellos ("un clic familiar"):\n\n🔗 Ingreso directo: ${origin}/login\n📧 Tu usuario: ${m.email}\n🔑 Contraseña inicial: ${claveDefecto}\n\n¡Sumate a compartir el destello del día y jugar en familia! ✨`;
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(texto).catch(() => {});
+    }
+
+    const cleanTel = (m.telefono || '').replace(/\D/g, '');
+    const waUrl = cleanTel
+      ? `https://wa.me/${cleanTel}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(waUrl, '_blank');
   };
 
   if (cargando) {
@@ -356,6 +372,15 @@ export default function AdminPage() {
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {/* Botón WhatsApp */}
+                  <button
+                    onClick={() => handleEnviarWhatsApp(m)}
+                    title="Enviar datos de acceso por WhatsApp"
+                    className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                  </button>
+
                   {/* Botón Reset Password */}
                   <button
                     onClick={() => {

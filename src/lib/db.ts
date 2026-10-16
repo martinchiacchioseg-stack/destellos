@@ -35,6 +35,7 @@ import path from 'path';
 import { getPuntosPorEvento, DESCRIPCIONES_PUNTOS } from './puntos';
 import { supabaseAdmin, isSupabaseConfigured } from './supabase';
 import { elegirDestelloDelDia } from './gemini';
+import { evaluarDestello } from './arbitro';
 import { procesarYGuardarMedia } from './storage';
 import {
   COLLECTIONS,
@@ -1376,7 +1377,7 @@ export async function cerrarDiaGrupo(grupoId: string, fecha: string) {
     };
   }
 
-  // 1. Elegir Destello del Día con Gemini (o fallback inteligente)
+  // 1. Elegir Destello del Día con el Árbitro Oficial Cómico (Gemini)
   const candidatos = destellos.map((d) => {
     const autor = store.usuarios.find((u) => u.id === d.usuario_id);
     return {
@@ -1389,23 +1390,27 @@ export async function cerrarDiaGrupo(grupoId: string, fecha: string) {
     };
   });
 
-  const { ganadorDestelloId, ganadorUsuarioId } = await elegirDestelloDelDia(candidatos);
+  const resultadoArbitro = await evaluarDestello(candidatos);
+  let ganadorDestelloId: string | null = null;
+  const ganadorUsuarioId = resultadoArbitro.ganador_usuario_id;
 
-  if (ganadorDestelloId && ganadorUsuarioId) {
-    const destelloGanador = store.destellos.find((d) => d.id === ganadorDestelloId);
-    if (destelloGanador) {
-      destelloGanador.es_destello_del_dia = true;
-    }
+  const destelloGanador = destellos.find((d) => d.usuario_id === ganadorUsuarioId) || destellos[0];
+  if (destelloGanador) {
+    ganadorDestelloId = destelloGanador.id;
+    destelloGanador.es_destello_del_dia = true;
+    destelloGanador.titulo_diploma = resultadoArbitro.titulo_diploma;
+    destelloGanador.motivo_jurado = resultadoArbitro.motivo_jurado;
+    dbUpsert('destellos', destelloGanador);
 
-    // Otorgar +10 puntos al ganador
+    // Otorgar +50 puntos al ganador con el título del diploma
     await otorgarPuntos(
       grupoId,
-      ganadorUsuarioId,
+      destelloGanador.usuario_id,
       fecha,
       'destello_del_dia',
-      getPuntosPorEvento('destello_del_dia'),
-      DESCRIPCIONES_PUNTOS.destello_del_dia,
-      ganadorDestelloId
+      resultadoArbitro.puntos_otorgados || 50,
+      `🌟 ${resultadoArbitro.titulo_diploma}: ${resultadoArbitro.motivo_jurado}`,
+      destelloGanador.id
     );
   }
 
@@ -1422,6 +1427,7 @@ export async function cerrarDiaGrupo(grupoId: string, fecha: string) {
 
   if (destelloFavoritoComunidad) {
     destelloFavoritoComunidad.es_favorito_comunidad = true;
+    dbUpsert('destellos', destelloFavoritoComunidad);
     // Otorgar +5 puntos al favorito del grupo
     await otorgarPuntos(
       grupoId,
@@ -1434,7 +1440,7 @@ export async function cerrarDiaGrupo(grupoId: string, fecha: string) {
     );
   }
 
-  // Registrar evaluación del día
+  // Registrar evaluación del día con el diploma y resumen
   const evalIdx = store.evaluaciones.findIndex((e) => e.grupo_id === grupoId && e.fecha === fecha);
   const nuevaEval: EvaluacionDiaria = {
     id: uuidv4(),
@@ -1442,11 +1448,15 @@ export async function cerrarDiaGrupo(grupoId: string, fecha: string) {
     fecha,
     destello_ganador_id: ganadorDestelloId,
     destello_favorito_id: destelloFavoritoComunidad?.id || null,
+    titulo_diploma: resultadoArbitro.titulo_diploma,
+    motivo_jurado: resultadoArbitro.motivo_jurado,
+    resumen_dia: resultadoArbitro.resumen_dia,
     total_participantes: destellos.length,
     cerrado: true,
     cerrado_en: new Date().toISOString(),
   };
 
+  dbUpsert('evaluaciones', nuevaEval);
   if (evalIdx !== -1) {
     store.evaluaciones[evalIdx] = nuevaEval;
   } else {

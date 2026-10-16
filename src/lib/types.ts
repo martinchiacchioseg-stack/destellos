@@ -52,6 +52,8 @@ export interface Destello {
   cumple_reto?: boolean;
   reto_verificacion_detalle?: string;
   es_destello_del_dia: boolean;
+  titulo_diploma?: string | null;
+  motivo_jurado?: string | null;
   votos_comunidad: number;
   es_favorito_comunidad: boolean;
   moderado: boolean;
@@ -67,6 +69,9 @@ export interface EvaluacionDiaria {
   fecha: string;
   destello_ganador_id?: string | null;
   destello_favorito_id?: string | null;
+  titulo_diploma?: string | null;
+  motivo_jurado?: string | null;
+  resumen_dia?: string | null;
   total_participantes: number;
   cerrado: boolean;
   cerrado_en?: string;

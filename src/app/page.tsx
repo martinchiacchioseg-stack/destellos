@@ -233,7 +233,7 @@ export default function HomePage() {
                   <h3 className="text-sm font-black text-amber-950 dark:text-amber-100">
                     Destello de Ayer 🏆
                   </h3>
-                  <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-medium">Elegido por Gemini (+10 pts)</p>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-medium">Elegido por el Árbitro IA (+50 pts)</p>
                 </div>
               </div>
               <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-100 shadow-xs">

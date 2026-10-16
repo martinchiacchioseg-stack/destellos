@@ -118,6 +118,21 @@ export default function LightboxModal({ destello, onClose }: LightboxModalProps)
             <span>{destello.reto_verificacion_detalle || 'Reto del día cumplido (+2 puntos)'}</span>
           </div>
         )}
+
+        {/* Diploma de Honor Diario */}
+        {destello.titulo_diploma && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-amber-950/80 to-yellow-950/80 border border-amber-500/50 rounded-xl text-center">
+            <div className="text-xs font-black tracking-wider uppercase text-amber-300 flex items-center justify-center gap-1.5">
+              <Crown className="w-4 h-4 fill-amber-400 text-amber-300" />
+              <span>{destello.titulo_diploma}</span>
+            </div>
+            {destello.motivo_jurado && (
+              <p className="text-xs text-amber-200/90 italic mt-1 leading-relaxed">
+                &ldquo;{destello.motivo_jurado}&rdquo;
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
