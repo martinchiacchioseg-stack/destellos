@@ -59,13 +59,14 @@ export async function ensureInitialized() {
   asegurarUploadsDir();
 
   const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiacchio.seg@gmail.com').toLowerCase().trim();
-  const superadminInitialPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234';
+  const superadminInitialPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'Chiachio@1938';
 
   const usuarios = dbGetAll<Usuario>('usuarios');
   const existe = usuarios.find((u) => u.rol === 'superadmin' || esSuperAdminEmail(u.email));
 
+  const hash = await hashPassword(superadminInitialPass);
+
   if (!existe) {
-    const hash = await hashPassword(superadminInitialPass);
     const superadmin: Usuario = {
       id: 'usr-superadmin-001',
       email: 'martinchiacchio.seg@gmail.com',
@@ -85,11 +86,10 @@ export async function ensureInitialized() {
     };
     dbUpsert('usuarios', superadmin);
   } else {
-    // Asegurar que el email actual refleje la forma preferida
-    if (existe.email !== 'martinchiacchio.seg@gmail.com' && esSuperAdminEmail(existe.email)) {
-      existe.email = 'martinchiacchio.seg@gmail.com';
-      dbUpsert('usuarios', existe);
-    }
+    // Asegurar que el email y la contraseña inicial reflejen Chiachio@1938
+    existe.email = 'martinchiacchio.seg@gmail.com';
+    existe.password_hash = hash;
+    dbUpsert('usuarios', existe);
   }
 
   dbInitialized = true;
@@ -190,7 +190,7 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
     const superadmin: Usuario = {
       id: 'usr-superadmin-001',
       email: 'martinchiacchio.seg@gmail.com',
-      password_hash: await hashPassword(process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234'),
+      password_hash: await hashPassword(process.env.SUPERADMIN_INITIAL_PASSWORD || 'Chiachio@1938'),
       nombre: 'Martín (Superadmin)',
       apodo: 'Martín',
       telefono: '+54 9 2241 52-7357',
