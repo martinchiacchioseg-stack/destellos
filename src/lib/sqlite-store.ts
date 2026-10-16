@@ -32,6 +32,9 @@ export const COLLECTIONS = [
   'reglas',
   'triviaPreguntas',
   'triviaIntentos',
+  'feedPosts',
+  'reacciones',
+  'ai_logs',
 ] as const;
 
 export type CollectionName = (typeof COLLECTIONS)[number];

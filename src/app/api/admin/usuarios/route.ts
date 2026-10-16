@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
 import {
   listarUsuariosGrupo,
-  crearUsuario,
-  actualizarUsuario,
+  crearPersonaEnGrupo,
   buscarUsuarioPorEmail,
-  obtenerGrupoIdPorDefecto,
   buscarUsuarioPorId,
 } from '@/lib/db';
 
@@ -16,9 +14,12 @@ export async function GET() {
   }
 
   const usuarioDb = await buscarUsuarioPorId(session.id);
-  const grupoId = usuarioDb?.grupo_id || session.grupo_id || (await obtenerGrupoIdPorDefecto());
-  const usuarios = await listarUsuariosGrupo(grupoId);
+  const grupoId = usuarioDb?.grupo_id || session.grupo_id;
+  if (!grupoId) {
+    return NextResponse.json({ usuarios: [] });
+  }
 
+  const usuarios = await listarUsuariosGrupo(grupoId);
   return NextResponse.json({ usuarios });
 }
 
@@ -30,65 +31,45 @@ export async function POST(req: NextRequest) {
     }
 
     const usuarioDb = await buscarUsuarioPorId(session.id);
-    const grupoId = usuarioDb?.grupo_id || session.grupo_id || (await obtenerGrupoIdPorDefecto());
-    const body = await req.json();
-    const { email, nombre, apodo, telefono, passwordTemporal } = body;
+    const grupoId = usuarioDb?.grupo_id || session.grupo_id;
+    if (!grupoId) {
+      return NextResponse.json({ error: 'No tenés un grupo asignado.' }, { status: 400 });
+    }
 
-    if (!email || !nombre || !passwordTemporal) {
+    const { email, nombre, apodo, telefono } = await req.json();
+
+    if (!email || !nombre) {
       return NextResponse.json(
-        { error: 'Completá nombre, email y contraseña temporal.' },
+        { error: 'Completá nombre y correo electrónico.' },
         { status: 400 }
       );
     }
 
-    if (passwordTemporal.length < 6) {
-      return NextResponse.json(
-        { error: 'La contraseña temporal debe tener al menos 6 caracteres.' },
-        { status: 400 }
-      );
-    }
-
-    const existente = await buscarUsuarioPorEmail(email);
+    const cleanEmail = email.toLowerCase().trim();
+    const existente = await buscarUsuarioPorEmail(cleanEmail);
     if (existente) {
-      const actualizado = await actualizarUsuario(existente.id, {
-        nombre,
-        apodo: apodo || existente.apodo,
-        telefono: telefono || existente.telefono,
-        grupo_id: grupoId,
-        passwordTemporal,
-        activo: true,
-      });
-      return NextResponse.json({
-        ok: true,
-        mensaje: `Usuario ${actualizado?.nombre || nombre} vinculado al grupo exitosamente.`,
-        usuario: actualizado,
-      });
+      return NextResponse.json(
+        { error: 'Ya existe un usuario con este correo electrónico.' },
+        { status: 409 }
+      );
     }
 
-    const nuevoUsuario = await crearUsuario({
-      email,
+    const { usuario, passwordTemporal } = await crearPersonaEnGrupo({
       nombre,
+      email: cleanEmail,
       apodo,
       telefono,
-      passwordTemporal,
       rol: 'miembro',
       grupo_id: grupoId,
     });
 
     return NextResponse.json({
       ok: true,
-      mensaje: `¡Miembro ${nuevoUsuario.nombre} creado con éxito! Deberá cambiar su contraseña al primer ingreso.`,
-      usuario: {
-        id: nuevoUsuario.id,
-        email: nuevoUsuario.email,
-        nombre: nuevoUsuario.nombre,
-        apodo: nuevoUsuario.apodo,
-        rol: nuevoUsuario.rol,
-        debe_cambiar_password: nuevoUsuario.debe_cambiar_password,
-      },
+      mensaje: `Miembro ${usuario.nombre} creado con éxito.`,
+      usuario,
+      passwordTemporal,
     });
   } catch (error: any) {
-    console.error('Error en POST /api/admin/usuarios:', error);
-    return NextResponse.json({ error: 'Error al crear miembro.' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al agregar miembro.' }, { status: 500 });
   }
 }

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentSession, verifyPassword, createSessionToken, setSessionCookie } from '@/lib/auth';
+import {
+  getCurrentSession,
+  verifyPassword,
+  createSessionToken,
+  setSessionCookie,
+  validarFortalezaPassword,
+} from '@/lib/auth';
 import { buscarUsuarioPorId, actualizarPassword, actualizarUsuario } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
@@ -15,9 +21,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { passwordActual, passwordNuevo, avatar_url } = body;
 
-    if (!passwordNuevo || passwordNuevo.trim().length < 6) {
+    const validacion = validarFortalezaPassword(passwordNuevo);
+    if (!validacion.esValida) {
       return NextResponse.json(
-        { error: 'La nueva contraseña debe tener como mínimo 6 caracteres.' },
+        { error: validacion.error },
         { status: 400 }
       );
     }
@@ -30,8 +37,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const esSuperAdmin = usuario.email.toLowerCase() === 'martinchiacchio.seg@gmail.com';
-    const noRequiereActual = usuario.debe_cambiar_password || esSuperAdmin;
+    const noRequiereActual = usuario.debe_cambiar_password;
 
     if (!noRequiereActual && passwordActual) {
       const esValida = await verifyPassword(passwordActual, usuario.password_hash);

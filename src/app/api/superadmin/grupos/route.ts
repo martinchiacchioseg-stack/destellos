@@ -4,8 +4,8 @@ import {
   listarGrupos,
   crearGrupo,
   actualizarGrupo,
-  eliminarGrupoPermanente,
-  listarTodosLosUsuarios,
+  eliminarGrupo,
+  listarUsuariosGrupo,
 } from '@/lib/db';
 
 export async function GET() {
@@ -15,17 +15,16 @@ export async function GET() {
   }
 
   const grupos = await listarGrupos();
-  const todosLosUsuarios = await listarTodosLosUsuarios();
-
-  const gruposConStats = grupos.map((g) => {
-    const miembros = todosLosUsuarios.filter((u) => u.grupo_id === g.id && u.activo);
-    const admins = miembros.filter((u) => u.rol === 'admin');
-    return {
-      ...g,
-      total_miembros: miembros.length,
-      total_admins: admins.length,
-    };
-  });
+  const gruposConStats = await Promise.all(
+    grupos.map(async (g) => {
+      const miembros = await listarUsuariosGrupo(g.id);
+      return {
+        ...g,
+        total_miembros: miembros.length,
+        total_admins: miembros.filter((m) => m.rol === 'admin').length,
+      };
+    })
+  );
 
   return NextResponse.json({ grupos: gruposConStats });
 }
@@ -37,13 +36,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso exclusivo para Superadmin.' }, { status: 403 });
     }
 
-    const { nombre, descripcion } = await req.json();
+    const { nombre, emoji_or_logo, hora_limite, descripcion } = await req.json();
     if (!nombre || nombre.trim().length === 0) {
       return NextResponse.json({ error: 'El nombre del grupo es obligatorio.' }, { status: 400 });
     }
 
-    const nuevo = await crearGrupo(nombre, descripcion);
-    return NextResponse.json({ ok: true, grupo: nuevo, mensaje: `Grupo "${nuevo.nombre}" creado exitosamente.` });
+    const nuevo = await crearGrupo({
+      nombre,
+      emoji_or_logo: emoji_or_logo || '✨',
+      hora_limite: hora_limite || '22:00',
+      descripcion,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      grupo: nuevo,
+      mensaje: `Grupo "${nuevo.nombre}" creado exitosamente.`,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: 'Error al crear grupo.' }, { status: 500 });
   }
@@ -56,17 +65,24 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso exclusivo para Superadmin.' }, { status: 403 });
     }
 
-    const { id, nombre, descripcion } = await req.json();
-    if (!id || !nombre) {
-      return NextResponse.json({ error: 'ID y nombre son obligatorios.' }, { status: 400 });
+    const { id, nombre, emoji_or_logo, hora_limite, estado, descripcion } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: 'ID de grupo requerido.' }, { status: 400 });
     }
 
-    const modificado = await actualizarGrupo(id, { nombre, descripcion });
-    if (!modificado) {
-      return NextResponse.json({ error: 'No se encontró el grupo.' }, { status: 404 });
+    const actualizado = await actualizarGrupo(id, {
+      ...(nombre ? { nombre: nombre.trim() } : {}),
+      ...(emoji_or_logo !== undefined ? { emoji_or_logo } : {}),
+      ...(hora_limite !== undefined ? { hora_limite } : {}),
+      ...(estado !== undefined ? { estado, activo: estado === 'activo' } : {}),
+      ...(descripcion !== undefined ? { descripcion: descripcion.trim() } : {}),
+    });
+
+    if (!actualizado) {
+      return NextResponse.json({ error: 'Grupo no encontrado.' }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, grupo: modificado, mensaje: 'Familia actualizada correctamente.' });
+    return NextResponse.json({ ok: true, grupo: actualizado, mensaje: 'Grupo actualizado con éxito.' });
   } catch (error: any) {
     return NextResponse.json({ error: 'Error al actualizar grupo.' }, { status: 500 });
   }
@@ -81,10 +97,16 @@ export async function DELETE(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'ID de grupo requerido.' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: 'ID de grupo requerido.' }, { status: 400 });
+    }
 
-    const ok = await eliminarGrupoPermanente(id);
-    return NextResponse.json({ ok, mensaje: 'Familia eliminada correctamente.' });
+    const ok = await eliminarGrupo(id);
+    if (!ok) {
+      return NextResponse.json({ error: 'No se pudo eliminar el grupo.' }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, mensaje: 'Grupo eliminado correctamente.' });
   } catch (error: any) {
     return NextResponse.json({ error: 'Error al eliminar grupo.' }, { status: 500 });
   }

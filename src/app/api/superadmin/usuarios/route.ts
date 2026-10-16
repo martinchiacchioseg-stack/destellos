@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
 import {
   listarUsuariosGrupo,
-  crearUsuario,
+  crearPersonaEnGrupo,
   actualizarUsuario,
-  eliminarUsuarioPermanente,
   buscarUsuarioPorEmail,
+  buscarUsuarioPorId,
 } from '@/lib/db';
+import { dbDelete } from '@/lib/sqlite-store';
 
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session || session.rol !== 'superadmin') {
-    return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
+    return NextResponse.json({ error: 'Acceso exclusivo para Superadmin.' }, { status: 403 });
   }
 
   const { searchParams } = new URL(req.url);
@@ -31,48 +32,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
     }
 
-    const { grupoId, email, nombre, apodo, telefono, passwordTemporal, rol } = await req.json();
+    const { grupoId, email, nombre, apodo, telefono, rol } = await req.json();
 
-    if (!grupoId || !email || !nombre || !passwordTemporal) {
+    if (!grupoId || !email || !nombre) {
       return NextResponse.json(
-        { error: 'Completá todos los campos requeridos.' },
+        { error: 'Completá los campos obligatorios (nombre, email y grupo).' },
         { status: 400 }
       );
     }
 
-    const existe = await buscarUsuarioPorEmail(email);
+    const cleanEmail = email.toLowerCase().trim();
+    const existe = await buscarUsuarioPorEmail(cleanEmail);
     if (existe) {
-      const actualizado = await actualizarUsuario(existe.id, {
-        nombre,
-        apodo: apodo || existe.apodo,
-        telefono: telefono || existe.telefono,
-        rol: existe.rol === 'superadmin' ? 'superadmin' : (rol || 'miembro'),
-        grupo_id: grupoId,
-        passwordTemporal: passwordTemporal && passwordTemporal !== '000000' ? passwordTemporal : undefined,
-        activo: true,
-      });
-
-      return NextResponse.json({
-        ok: true,
-        mensaje: `Usuario ${actualizado?.nombre || nombre} vinculado al grupo exitosamente.`,
-        usuario: actualizado,
-      });
+      return NextResponse.json(
+        { error: 'Ya existe un usuario registrado con este correo electrónico.' },
+        { status: 409 }
+      );
     }
 
-    const nuevo = await crearUsuario({
-      email,
+    // Se genera una contraseña temporal aleatoria única (no un valor fijo)
+    const { usuario, passwordTemporal } = await crearPersonaEnGrupo({
       nombre,
+      email: cleanEmail,
       apodo,
       telefono,
-      passwordTemporal,
       rol: rol || 'miembro',
       grupo_id: grupoId,
     });
 
     return NextResponse.json({
       ok: true,
-      mensaje: `Usuario ${nuevo.nombre} creado para el grupo. Deberá cambiar su clave al ingresar.`,
-      usuario: nuevo,
+      mensaje: `Usuario ${usuario.nombre} creado con éxito.`,
+      usuario,
+      passwordTemporal, // El superadmin la ve una sola vez para pasársela
     });
   } catch (error: any) {
     return NextResponse.json({ error: 'Error al crear usuario.' }, { status: 500 });
@@ -86,32 +78,26 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
     }
 
-    const { id, nombre, apodo, telefono, email, rol, grupo_id, passwordTemporal } = await req.json();
+    const { id, nombre, apodo, telefono, rol, activo } = await req.json();
     if (!id) {
       return NextResponse.json({ error: 'ID de usuario requerido.' }, { status: 400 });
     }
 
     const actualizado = await actualizarUsuario(id, {
-      nombre,
-      apodo,
-      telefono,
-      email,
-      rol,
-      grupo_id,
-      passwordTemporal,
+      ...(nombre ? { nombre: nombre.trim() } : {}),
+      ...(apodo !== undefined ? { apodo: apodo.trim() } : {}),
+      ...(telefono !== undefined ? { telefono: telefono.trim() } : {}),
+      ...(rol ? { rol } : {}),
+      ...(activo !== undefined ? { activo } : {}),
     });
 
     if (!actualizado) {
-      return NextResponse.json({ error: 'No se encontró el usuario.' }, { status: 404 });
+      return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      ok: true,
-      mensaje: 'Usuario modificado con éxito.',
-      usuario: actualizado,
-    });
+    return NextResponse.json({ ok: true, usuario: actualizado, mensaje: 'Usuario actualizado.' });
   } catch (error: any) {
-    return NextResponse.json({ error: 'Error al modificar usuario.' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al actualizar usuario.' }, { status: 500 });
   }
 }
 
@@ -128,17 +114,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'ID de usuario requerido.' }, { status: 400 });
     }
 
-    // Evitar que el superadmin se borre a sí mismo accidentalmente
-    if (id === session.id) {
-      return NextResponse.json({ error: 'No podés eliminar tu propia cuenta de Superadmin.' }, { status: 400 });
+    const u = await buscarUsuarioPorId(id);
+    if (u?.rol === 'superadmin') {
+      return NextResponse.json({ error: 'No es posible eliminar al Superadministrador.' }, { status: 400 });
     }
 
-    const ok = await eliminarUsuarioPermanente(id);
-    if (!ok) {
-      return NextResponse.json({ error: 'No se encontró el usuario a eliminar.' }, { status: 404 });
-    }
-
-    return NextResponse.json({ ok: true, mensaje: 'Usuario eliminado permanentemente.' });
+    dbDelete('usuarios', id);
+    return NextResponse.json({ ok: true, mensaje: 'Usuario eliminado.' });
   } catch (error: any) {
     return NextResponse.json({ error: 'Error al eliminar usuario.' }, { status: 500 });
   }

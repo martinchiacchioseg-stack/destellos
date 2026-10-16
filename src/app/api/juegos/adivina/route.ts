@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerFotosParaAdivinar, registrarAdivinanzas, obtenerGrupoIdPorDefecto } from '@/lib/db';
-import { getFechaArgentina, getAyerFechaArgentina } from '@/lib/date-utils';
+import { guardarAdivinanzas, obtenerEstadoDiaGrupo, listarGrupos } from '@/lib/db';
+import { getFechaArgentina } from '@/lib/date-utils';
 
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
@@ -9,12 +9,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
-  const { searchParams } = new URL(req.url);
-  // Por defecto se juega con las de hoy o ayer
-  const fecha = searchParams.get('fecha') || getAyerFechaArgentina();
+  let grupoId = session.grupo_id;
+  if (!grupoId) {
+    const grupos = await listarGrupos();
+    if (grupos.length > 0) grupoId = grupos[0].id;
+  }
+  if (!grupoId) {
+    return NextResponse.json({ error: 'Sin grupo asignado.' }, { status: 400 });
+  }
 
-  const data = await obtenerFotosParaAdivinar(grupoId, fecha, session.id);
+  const { searchParams } = new URL(req.url);
+  const fecha = searchParams.get('fecha') || getFechaArgentina();
+
+  const data = await obtenerEstadoDiaGrupo(grupoId, fecha, session.id);
   return NextResponse.json(data);
 }
 
@@ -25,26 +32,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
     }
 
-    const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
-    const { fecha, respuestas } = await req.json();
-
-    if (!respuestas || !Array.isArray(respuestas) || respuestas.length === 0) {
-      return NextResponse.json({ error: 'Faltan respuestas para evaluar.' }, { status: 400 });
+    let grupoId = session.grupo_id;
+    if (!grupoId) {
+      const grupos = await listarGrupos();
+      if (grupos.length > 0) grupoId = grupos[0].id;
+    }
+    if (!grupoId) {
+      return NextResponse.json({ error: 'Sin grupo asignado.' }, { status: 400 });
     }
 
-    const res = await registrarAdivinanzas(
+    const { fecha, asignaciones } = await req.json();
+
+    if (!asignaciones || typeof asignaciones !== 'object' || Object.keys(asignaciones).length === 0) {
+      return NextResponse.json({ error: 'Debés asignar un nombre a cada foto.' }, { status: 400 });
+    }
+
+    const fechaHoy = fecha || getFechaArgentina();
+
+    const res = await guardarAdivinanzas(
       grupoId,
-      fecha || getAyerFechaArgentina(),
       session.id,
-      respuestas
+      fechaHoy,
+      asignaciones
     );
 
     return NextResponse.json({
-      ok: true,
       mensaje: `¡Acertaste ${res.aciertos} foto(s) y sumaste +${res.puntosGanados} punto(s)! 🎯`,
       ...res,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: 'Error al registrar adivinanzas.' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Error al guardar adivinanzas.' }, { status: 400 });
   }
 }

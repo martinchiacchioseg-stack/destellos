@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerRanking, obtenerRachaUsuario, obtenerGrupoIdPorDefecto } from '@/lib/db';
+import { obtenerRankingGrupo, listarGrupos } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
@@ -8,26 +8,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
+  let grupoId = session.grupo_id;
+  if (!grupoId) {
+    const grupos = await listarGrupos();
+    if (grupos.length > 0) grupoId = grupos[0].id;
+  }
+  if (!grupoId) {
+    return NextResponse.json({ ranking: [], periodo: 'total' });
+  }
+
   const { searchParams } = new URL(req.url);
-  const periodo = (searchParams.get('periodo') || 'total') as 'diario' | 'semanal' | 'total';
+  const periodo = (searchParams.get('periodo') || 'total') as 'semanal' | 'mensual' | 'total';
 
-  const ranking = await obtenerRanking(grupoId, periodo);
-
-  // Añadir racha a cada participante
-  const rankingConRacha = await Promise.all(
-    ranking.map(async (item) => {
-      const racha = await obtenerRachaUsuario(item.usuario_id, grupoId);
-      return {
-        ...item,
-        racha,
-      };
-    })
-  );
+  const ranking = await obtenerRankingGrupo(grupoId, periodo, session.id);
 
   return NextResponse.json({
     periodo,
-    ranking: rankingConRacha,
+    ranking,
     miUsuarioId: session.id,
   });
 }

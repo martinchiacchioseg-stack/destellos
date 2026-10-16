@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { buscarUsuarioPorId } from '@/lib/db';
+import { buscarUsuarioPorId, actualizarUsuario } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No se puede desactivar al superadministrador.' }, { status: 400 });
     }
 
-    usuario.activo = !usuario.activo;
+    const nuevoEstado = !usuario.activo;
+    await actualizarUsuario(usuarioId, { activo: nuevoEstado });
 
     return NextResponse.json({
       ok: true,

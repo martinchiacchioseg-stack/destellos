@@ -1,148 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
+import { AILog, DificultadTrivia, TriviaPregunta } from './types';
+import { dbUpsert } from './sqlite-store';
+import { randomUUID } from 'crypto';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-// Retos predefinidos de respaldo con tono rioplatense cálido y positivo
-const RETOS_BACKUP = [
-  { tema: 'El mate o café de hoy ☕', descripcion: 'Mostrá tu infusión favorita con algo rico para acompañar.' },
-  { tema: 'Una sonrisa cómplice 😁', descripcion: 'Una selfie divertida, una mueca o alguien de la casa sonriendo.' },
-  { tema: 'Algo de color rojo brillante 🔴', descripcion: 'Buscá algo rojo llamativo en tu casa, jardín o en la calle.' },
-  { tema: 'Tu mascota o planta mimada 🐾🌿', descripcion: 'El rey o la reina de la casa en su momento de gloria.' },
-  { tema: 'El cielo sobre tu cabeza ☁️✨', descripcion: 'Mirá arriba y capturá las nubes, el sol o el atardecer.' },
-  { tema: 'Un recuerdo con historia 🕰️', descripcion: 'Un objeto viejo, un portarretratos o algo que te recuerde a la familia.' },
-  { tema: 'Momento de relax 🛋️', descripcion: 'Ese instante del día donde te sentás a descansar.' },
-  { tema: 'Lo más rico del almuerzo 🍝', descripcion: 'Tu plato preferido, un detalle casero o el bocado del día.' },
-  { tema: 'Calzado del día 👟🧦', descripcion: 'Tus zapatillas, pantuflas o medias favoritas en acción.' },
-  { tema: 'Un detalle que casi nadie nota 🔍', descripcion: 'Una textura, una flor chiquita, una sombra curiosa.' },
-];
-
 /**
- * 1. Genera el Reto del Día para las 06:00 hs
- */
-export async function generarRetoDelDia(fecha: string): Promise<{ tema: string; descripcion: string }> {
-  if (!ai) {
-    // Si no hay API key configurada, seleccionamos un reto de respaldo rotativo
-    const index = Math.abs(fecha.split('-').reduce((acc, curr) => acc + parseInt(curr, 10), 0)) % RETOS_BACKUP.length;
-    return RETOS_BACKUP[index];
-  }
-
-  try {
-    const prompt = `
-Sos el asistente amigable y chispeante de "Destellos", una app para familias y amigos en Argentina.
-Hoy es ${fecha}.
-Generá un RETO FOTOGRÁFICO DEL DÍA:
-- Debe ser positivo, simple, accesible para cualquier persona (incluso abuelos, padres o niños).
-- No requiere salir de casa ni equipos especiales.
-- Debe tener chispa, humor o calidez familiar.
-- Escribí en español rioplatense coloquial y cercano.
-
-Devolvé ÚNICAMENTE un objeto JSON válido con este formato exacto:
-{
-  "tema": "Título corto y simpático con un emoji (máx 5 palabras)",
-  "descripcion": "Instrucción cálida y motivadora en 1 o 2 oraciones breves."
-}
-`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.8,
-      },
-    });
-
-    const text = response.text?.trim() || '';
-    const parsed = JSON.parse(text);
-    if (parsed.tema && parsed.descripcion) {
-      return parsed;
-    }
-  } catch (err) {
-    console.error('Error al generar reto con Gemini, usando fallback:', err);
-  }
-
-  const fallbackIndex = Math.floor(Math.random() * RETOS_BACKUP.length);
-  return RETOS_BACKUP[fallbackIndex];
-}
-
-/**
- * 2. Verifica si la foto o video subido cumple con el reto del día
- * Requisito: "sin ser estricto", premia la participación con buena fe (+2 pts)
- */
-export async function verificarCumpleReto(
-  temaReto: string,
-  descripcionReto: string,
-  pieDeFoto?: string,
-  mediaBase64?: string,
-  mimeType: string = 'image/jpeg'
-): Promise<{ cumple: boolean; detalle: string }> {
-  // Si no hay API Key o la imagen no viene en base64, asumimos buena fe
-  if (!ai || !mediaBase64) {
-    return {
-      cumple: true,
-      detalle: '¡Destello recibido con la mejor onda familiar!',
-    };
-  }
-
-  try {
-    const prompt = `
-Sos el juez bonachón de "Destellos", una aplicación familiar y de amigos.
-El reto del día es: "${temaReto}" (${descripcionReto}).
-El autor agregó este pie de foto (si tiene): "${pieDeFoto || 'Sin texto'}".
-
-Analizá la imagen adjunta. Tu rol NO ES ser un guardia estricto ni un crítico de arte, sino premiar la creatividad, la buena fe y la participación familiar (+2 puntos extra).
-Si hay un intento razonable, metafórico o simpático de relacionar la imagen con el reto, marcalo como cumple: true.
-Solo marcalo como cumple: false si no tiene absolutamente NADA que ver o es una pantalla en negro / spam.
-
-Devolvé ÚNICAMENTE un JSON con:
-{
-  "cumple": true o false,
-  "detalle": "comentario interno simpático en 1 frase corta"
-}
-`;
-
-    const cleanBase64 = mediaBase64.replace(/^data:[a-zA-Z0-9/+-]+;base64,/, '');
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                data: cleanBase64,
-                mimeType: mimeType || 'image/jpeg',
-              },
-            },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const parsed = JSON.parse(response.text?.trim() || '{}');
-    return {
-      cumple: parsed.cumple ?? true,
-      detalle: parsed.detalle || '¡Cumplió el reto!',
-    };
-  } catch (err) {
-    console.error('Error al verificar reto con Gemini:', err);
-    // En caso de error técnico, premiar al usuario
-    return {
-      cumple: true,
-      detalle: '¡Participación registrada con éxito!',
-    };
-  }
-}
-
-/**
- * 3. Cierre diario (23:59 hs): Gemini elige el "Destello del Día"
- * Requisito estricto: "elige el mejor del día (por gracia, belleza, creatividad o emoción) SIN EXPLICAR EL MOTIVO"
+ * Elige el Destello del Día con Gemini de manera resiliente.
+ * Devuelve SOLO el ID de la foto ganadora sin explicar el motivo al usuario.
  */
 export async function elegirDestelloDelDia(
   destellos: Array<{
@@ -151,116 +17,134 @@ export async function elegirDestelloDelDia(
     autor_nombre: string;
     media_url: string;
     pie_de_foto?: string;
-    cumple_reto?: boolean;
-    mediaBase64?: string;
-  }>
-): Promise<{ ganadorDestelloId: string | null; ganadorUsuarioId: string | null }> {
+  }>,
+  grupoId: string,
+  fecha: string
+): Promise<{ ganadorDestelloId: string; ganadorUsuarioId: string; usadoFallback: boolean }> {
   if (!destellos || destellos.length === 0) {
-    return { ganadorDestelloId: null, ganadorUsuarioId: null };
+    throw new Error('No hay destellos para evaluar.');
   }
 
-  // Si solo hay uno, ese es el destello del día
+  // Caso borde: un solo participante
   if (destellos.length === 1) {
     return {
       ganadorDestelloId: destellos[0].id,
       ganadorUsuarioId: destellos[0].usuario_id,
+      usadoFallback: false,
     };
   }
 
+  // Si Gemini está disponible, intentamos la evaluación con reintento y backoff
   if (ai) {
-    try {
-      const summaryList = destellos.map((d, i) => ({
-        indice: i,
-        id: d.id,
-        usuario_id: d.usuario_id,
-        pie: d.pie_de_foto || 'Sin pie',
-        cumple_reto: d.cumple_reto ? 'Sí' : 'No',
-      }));
+    for (let intento = 1; intento <= 2; intento++) {
+      try {
+        const resumen = destellos.map((d) => ({
+          id: d.id,
+          autor: d.autor_nombre,
+          pie_de_foto: d.pie_de_foto || 'Sin pie de foto',
+        }));
 
-      const prompt = `
-Sos el jurado invisible y mágico de "Destellos".
-Hoy los miembros del grupo compartieron estas fotos familiares:
-${JSON.stringify(summaryList, null, 2)}
+        const prompt = `
+Actuá como el jurado de la app familiar "Destellos".
+Hoy los miembros del grupo compartieron estas fotos:
+${JSON.stringify(resumen, null, 2)}
 
-Elegí UN SOLO destello como el "Destello del Día" considerando espontaneidad, emoción, humor, creatividad o belleza cotidiana.
-IMPORTANTE: La app NO muestra el motivo de la elección a los usuarios para mantener el misterio y la chispa.
-
-Devolvé ÚNICAMENTE un JSON con:
+Elegí una sola foto ganadora considerando espontaneidad, emoción, ternura, humor o belleza cotidiana.
+IMPORTANTE: No expliques el motivo. Devolvé ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
 {
-  "ganador_id": "el id del destello elegido",
-  "usuario_id": "el id del usuario autor"
+  "ganador_id": "ID_DE_LA_FOTO_ELEGIDA"
 }
 `;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.7,
-        },
-      });
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.7,
+          },
+        });
 
-      const parsed = JSON.parse(response.text?.trim() || '{}');
-      const elegido = destellos.find((d) => d.id === parsed.ganador_id);
-      if (elegido) {
-        return {
-          ganadorDestelloId: elegido.id,
-          ganadorUsuarioId: elegido.usuario_id,
-        };
+        const texto = response.text?.trim() || '{}';
+        const parsed = JSON.parse(texto);
+        const elegido = destellos.find((d) => d.id === parsed.ganador_id);
+
+        if (elegido) {
+          // Registrar en log de IA
+          const logEntry: AILog = {
+            id: randomUUID(),
+            grupo_id: grupoId,
+            fecha,
+            tipo_accion: 'elegir_destello',
+            prompt_resumen: `Evaluados ${destellos.length} destellos`,
+            respuesta_ia: texto,
+            ganador_elegido_id: elegido.id,
+            usado_fallback: false,
+            creado_en: new Date().toISOString(),
+          };
+          try {
+            dbUpsert('ai_logs' as any, logEntry);
+          } catch {}
+
+          return {
+            ganadorDestelloId: elegido.id,
+            ganadorUsuarioId: elegido.usuario_id,
+            usadoFallback: false,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[Gemini] Intento ${intento} fallido al elegir destello:`, err?.message);
+        if (intento < 2) {
+          await new Promise((res) => setTimeout(res, 1200));
+        }
       }
-    } catch (err) {
-      console.error('Error al evaluar destello con Gemini:', err);
     }
   }
 
-  // Fallback seguro: selección ponderada (privilegia quienes cumplieron el reto)
-  const queCumplieron = destellos.filter((d) => d.cumple_reto);
-  const candidatos = queCumplieron.length > 0 ? queCumplieron : destellos;
-  const seleccionado = candidatos[Math.floor(Math.random() * candidatos.length)];
+  // Fallback justo y aleatorio si la IA no está disponible o falla
+  const indiceAzar = Math.floor(Math.random() * destellos.length);
+  const fallbackElegido = destellos[indiceAzar];
+
+  const logFallback: AILog = {
+    id: randomUUID(),
+    grupo_id: grupoId,
+    fecha,
+    tipo_accion: 'elegir_destello_fallback',
+    prompt_resumen: `Fallback aleatorio sobre ${destellos.length} fotos`,
+    ganador_elegido_id: fallbackElegido.id,
+    usado_fallback: true,
+    error: 'Gemini no respondió o no devolvió un JSON válido. Se aplicó selección aleatoria justa.',
+    creado_en: new Date().toISOString(),
+  };
+  try {
+    dbUpsert('ai_logs' as any, logFallback);
+  } catch {}
 
   return {
-    ganadorDestelloId: seleccionado.id,
-    ganadorUsuarioId: seleccionado.usuario_id,
+    ganadorDestelloId: fallbackElegido.id,
+    ganadorUsuarioId: fallbackElegido.usuario_id,
+    usadoFallback: true,
   };
 }
 
 /**
- * 4. Modera preguntas de la Ruleta Rusa con Gemini
- * Rechaza ofensivas, humillantes o que expongan datos sensibles, pidiendo reformularla
+ * Modera contenido con Gemini antes de publicarlo
  */
-export async function moderarPreguntaRuleta(
-  textoPregunta: string,
-  nivel: 'suave' | 'picante' | 'extra_picante'
-): Promise<{ aprobada: boolean; motivoRechazo?: string }> {
-  if (!textoPregunta || textoPregunta.trim().length < 5) {
-    return { aprobada: false, motivoRechazo: 'La pregunta es demasiado corta.' };
-  }
-
-  if (!ai) {
-    // Si no hay API key, validación básica por palabras ofensivas
-    const palabrasProhibidas = ['estúpido', 'idiota', 'odio', 'hdp'];
-    const esOfensiva = palabrasProhibidas.some((p) => textoPregunta.toLowerCase().includes(p));
-    return {
-      aprobada: !esOfensiva,
-      motivoRechazo: esOfensiva ? 'Contiene términos no apropiados para el grupo familiar.' : undefined,
-    };
+export async function moderarContenido(pieDeFoto?: string): Promise<{ esApto: boolean; motivo?: string }> {
+  if (!pieDeFoto || !ai) {
+    return { esApto: true };
   }
 
   try {
     const prompt = `
-Sos el moderador de "Ruleta Rusa", un juego para familias y amigos en la app "Destellos".
-El nivel seleccionado es: "${nivel}".
-La pregunta enviada es: "${textoPregunta}".
+Analizá el siguiente texto de un usuario en una aplicación para familias y grupos de amigos:
+"${pieDeFoto}"
 
-Reglas estrictas de moderación:
-- Se permite el humor, el doble sentido pícaro y la curiosidad divertida (especialmente en niveles picante y extra picante).
-- Se DEBEN RECHAZAR: preguntas humillantes, acoso, odio, insultos directos, o que expongan secretos íntimos / financieros dañinos.
-
-Devolvé ÚNICAMENTE un JSON con:
+Determiná si contiene lenguaje de odio explícito, amenazas, acoso o contenido inapropiado severo.
+Respondé ÚNICAMENTE un JSON:
 {
-  "aprobada": true o false,
-  "motivo": "explicación simpática y respetuosa para pedirle al usuario que la reformule si es falsa, o vacío si es aprobada"
+  "apto": true o false,
+  "motivo": "explicación breve si fue rechazado"
 }
 `;
 
@@ -269,17 +153,95 @@ Devolvé ÚNICAMENTE un JSON con:
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
+        temperature: 0.2,
       },
     });
 
-    const parsed = JSON.parse(response.text?.trim() || '{}');
+    const parsed = JSON.parse(response.text?.trim() || '{"apto": true}');
     return {
-      aprobada: parsed.aprobada ?? true,
-      motivoRechazo: parsed.motivo || undefined,
+      esApto: Boolean(parsed.apto),
+      motivo: parsed.motivo,
     };
-  } catch (err) {
-    console.error('Error moderando pregunta con Gemini:', err);
-    return { aprobada: true };
+  } catch {
+    // Si la IA falla en moderación, no bloqueamos la subida
+    return { esApto: true };
   }
 }
 
+/**
+ * Genera una pregunta de Trivia Diaria en español rioplatense apto para toda la familia
+ */
+export async function generarTriviaDiaria(
+  dificultad: DificultadTrivia = 'medio',
+  preguntasYaUsadas: string[] = []
+): Promise<Omit<TriviaPregunta, 'id' | 'grupo_id' | 'fecha' | 'creado_en'>> {
+  const puntosWin = dificultad === 'facil' ? 10 : dificultad === 'medio' ? 25 : 50;
+  const puntosPenalty = dificultad === 'facil' ? 0 : dificultad === 'medio' ? -5 : -15;
+
+  if (ai) {
+    try {
+      const prompt = `
+Generá 1 pregunta de trivia en español rioplatense (Argentina/Uruguay), apta y divertida para compartir en familia o con amigos.
+Nivel de dificultad: ${dificultad.toUpperCase()}.
+Temas: cultura general, cine, comidas típicas, geografía, costumbres, ciencia cotidiana, música o historia curiosa.
+
+Preguntas ya realizadas recientemente (NO REPETIR NINGUNA DE ESTAS):
+${JSON.stringify(preguntasYaUsadas.slice(-20))}
+
+ESTRUCTURA JSON REQUERIDA (devolver ÚNICAMENTE JSON):
+{
+  "category": "Categoría (ej: Cine y Series, Costumbres Argentinas, Comida, etc.)",
+  "question": "Texto claro de la pregunta",
+  "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+  "correct_index": 0, // índice de la opción correcta (entre 0 y 3)
+  "explanation": "Explicación breve y amena de por qué esa es la respuesta correcta",
+  "fun_fact": "Un dato curioso o anécdota simpática relacionada"
+}
+`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.85,
+        },
+      });
+
+      const parsed = JSON.parse(response.text?.trim() || '{}');
+      if (
+        parsed.question &&
+        Array.isArray(parsed.options) &&
+        parsed.options.length === 4 &&
+        typeof parsed.correct_index === 'number'
+      ) {
+        return {
+          difficulty: dificultad,
+          category: parsed.category || 'Cultura General',
+          question: parsed.question,
+          options: parsed.options,
+          correct_index: parsed.correct_index,
+          explanation: parsed.explanation || '',
+          fun_fact: parsed.fun_fact || '',
+          points_win: puntosWin,
+          points_penalty: puntosPenalty,
+        };
+      }
+    } catch (err) {
+      console.warn('[Gemini] Error generando trivia:', err);
+    }
+  }
+
+  // Pregunta de reserva de calidad garantizada
+  return {
+    difficulty: dificultad,
+    category: 'Costumbres y Curiosidades',
+    question: '¿En qué año se declaró oficialmente al Mate como infusión nacional en la República Argentina?',
+    options: ['2013', '1995', '2001', '1983'],
+    correct_index: 0,
+    explanation: 'La Ley 26.871 sancionada en 2013 declaró al mate como infusión nacional y a la Argentina como país de origen de esta tradición.',
+    fun_fact: 'En promedio, cada habitante en Argentina consume cerca de 6,4 kilos de yerba mate por año.',
+    points_win: puntosWin,
+    points_penalty: puntosPenalty,
+  };
+}

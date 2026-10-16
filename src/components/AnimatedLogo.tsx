@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { Sparkles } from 'lucide-react';
 
 interface AnimatedLogoProps {
   variant?: 'full' | 'compact' | 'header';
@@ -9,117 +8,67 @@ interface AnimatedLogoProps {
 }
 
 export default function AnimatedLogo({ variant = 'full', className = '' }: AnimatedLogoProps) {
-  const [activeIdx, setActiveIdx] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveIdx((prev) => (prev === 0 ? 1 : 0));
-    }, 5000); // Cambia cada 5 segundos según el requerimiento
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (variant === 'full') {
+  if (variant === 'header') {
     return (
-      <div className={`relative flex flex-col items-center justify-center ${className}`}>
-        <div className="relative w-48 h-44 overflow-hidden rounded-3xl p-1 transition-all duration-700">
-          {/* Logo 1: Chiacchio's */}
-          <div
-            className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ease-in-out ${
-              activeIdx === 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
-            }`}
-          >
-            <Image
-              src="/logos/destellos-chiacchio.jpg"
-              alt="Destellos Chiacchio's"
-              width={200}
-              height={180}
-              priority
-              className="object-contain w-auto h-full rounded-2xl drop-shadow-sm"
-            />
-          </div>
-
-          {/* Logo 2: un clic familiar by Rolphi */}
-          <div
-            className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ease-in-out ${
-              activeIdx === 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
-            }`}
-          >
-            <Image
-              src="/logos/destellos-rolf.jpg"
-              alt="Destellos - un clic familiar by Rolphi"
-              width={200}
-              height={180}
-              priority
-              className="object-contain w-auto h-full rounded-2xl drop-shadow-sm"
-            />
-          </div>
+      <div className={`flex items-center gap-2 select-none ${className}`}>
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF7043] to-[#FFA726] flex items-center justify-center text-white shadow-md shadow-[#FF7043]/30">
+          <Sparkles className="w-4 h-4 fill-white" />
         </div>
-
-        {/* Indicador de cambio sutil (puntos) */}
-        <div className="flex gap-1.5 mt-2">
-          <span
-            className={`h-1.5 rounded-full transition-all duration-500 ${
-              activeIdx === 0 ? 'w-5 bg-[#FF7043]' : 'w-1.5 bg-gray-300 dark:bg-gray-700'
-            }`}
-          />
-          <span
-            className={`h-1.5 rounded-full transition-all duration-500 ${
-              activeIdx === 1 ? 'w-5 bg-[#FF7043]' : 'w-1.5 bg-gray-300 dark:bg-gray-700'
-            }`}
-          />
+        <div className="flex flex-col">
+          <div className="flex items-baseline gap-1.5 leading-none">
+            <span className="font-black text-base tracking-tight bg-gradient-to-r from-[#FF7043] to-[#F4511E] bg-clip-text text-transparent">
+              Destellos
+            </span>
+            <span className="text-[10px] font-semibold text-gray-400">
+              by <strong className="text-gray-700 dark:text-gray-200">Rolφ</strong>
+            </span>
+          </div>
+          <span className="text-[9.5px] font-medium text-gray-500 dark:text-gray-400 tracking-wide mt-0.5">
+            un clic familiar
+          </span>
         </div>
       </div>
     );
   }
 
-  // Variante Header / Compacta para barra superior
+  if (variant === 'compact') {
+    return (
+      <div className={`flex items-center gap-1.5 select-none ${className}`}>
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#FF7043] to-[#FFA726] flex items-center justify-center text-white shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 fill-white" />
+        </div>
+        <span className="font-extrabold text-sm tracking-tight text-gray-900 dark:text-white">
+          Destellos <span className="text-[10px] font-normal text-gray-400">by Rolφ</span>
+        </span>
+      </div>
+    );
+  }
+
+  // Variant "full" para pantallas de Login y Bienvenida
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      {/* Icono circular de la app */}
-      <div className="relative w-9 h-9 rounded-2xl overflow-hidden shrink-0 shadow-sm shadow-[#FF7043]/30 border border-[#FF7043]/20 bg-[#FF623E]">
-        <Image
-          src={activeIdx === 0 ? '/logos/destellos-chiacchio.jpg' : '/logos/destellos-rolf.jpg'}
-          alt="Icono Destellos"
-          width={40}
-          height={40}
-          className="w-full h-full object-cover object-top scale-150 transition-all duration-700"
-        />
+    <div className={`flex flex-col items-center justify-center text-center select-none ${className}`}>
+      {/* Icono central iluminado */}
+      <div className="relative mb-3 group">
+        <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#FF7043] via-[#FFA726] to-[#FF8A65] opacity-75 blur-md group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
+        <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#FF7043] to-[#FFA726] flex items-center justify-center text-white shadow-xl">
+          <Sparkles className="w-10 h-10 fill-white drop-shadow-md" />
+        </div>
       </div>
 
-      {/* Textos alternables cada 5 segundos */}
-      <div className="relative h-9 flex flex-col justify-center overflow-hidden min-w-[140px]">
-        {/* Opción 1: Destellos Chiacchio's */}
-        <div
-          className={`absolute left-0 transition-all duration-700 ${
-            activeIdx === 0
-              ? 'opacity-100 transform translate-y-0'
-              : 'opacity-0 transform -translate-y-2 pointer-events-none'
-          }`}
-        >
-          <h1 className="text-base font-extrabold tracking-tight text-[#FF7043] leading-none flex items-center gap-1">
-            Destellos<span className="text-amber-400">✨</span>
-          </h1>
-          <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">
-            Chiacchio&apos;s
-          </p>
-        </div>
+      {/* Nombre Principal */}
+      <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-[#FF7043] via-[#F4511E] to-[#E64A19] bg-clip-text text-transparent">
+        Destellos
+      </h1>
 
-        {/* Opción 2: Destellos - un clic familiar by Rolphi */}
-        <div
-          className={`absolute left-0 transition-all duration-700 ${
-            activeIdx === 1
-              ? 'opacity-100 transform translate-y-0'
-              : 'opacity-0 transform translate-y-2 pointer-events-none'
-          }`}
-        >
-          <h1 className="text-base font-extrabold tracking-tight text-[#FF7043] leading-none flex items-center gap-1">
-            Destellos<span className="text-amber-400">✨</span>
-          </h1>
-          <p className="text-[9px] font-semibold text-gray-500 dark:text-gray-400 tracking-tight">
-            un clic familiar • <span className="font-bold text-[#FF7043]">by Rolφ</span>
-          </p>
-        </div>
+      {/* Bajada */}
+      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mt-1">
+        un clic familiar
+      </p>
+
+      {/* Sello de Autor Oficial: by Rolφ */}
+      <div className="mt-2.5 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200/60 dark:border-orange-800/40 text-[11px] font-bold text-[#FF7043]">
+        <span>by</span>
+        <span className="font-black text-gray-800 dark:text-gray-100 tracking-wide">Rolφ</span>
       </div>
     </div>
   );

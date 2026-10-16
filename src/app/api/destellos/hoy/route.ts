@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerDestelloUsuarioDia, listarDestellosDia, obtenerGrupoIdPorDefecto } from '@/lib/db';
+import { obtenerEstadoDiaGrupo, listarGrupos } from '@/lib/db';
 import { getFechaArgentina, getTiempoRestanteCierre } from '@/lib/date-utils';
 
 export async function GET() {
@@ -9,22 +9,31 @@ export async function GET() {
     return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   }
 
-  const grupoId = session.grupo_id || (await obtenerGrupoIdPorDefecto());
+  let grupoId = session.grupo_id;
+  if (!grupoId) {
+    const grupos = await listarGrupos();
+    if (grupos.length > 0) grupoId = grupos[0].id;
+  }
+
+  if (!grupoId) {
+    return NextResponse.json({
+      fase: 'subida',
+      mi_destello: null,
+      subieron: [],
+      faltan: [],
+      destellosParaAdivinar: [],
+      yaAdivino: false,
+      mensaje: 'Aún no pertenecés a ningún grupo.',
+    });
+  }
+
   const fechaHoy = getFechaArgentina();
-
-  // 1. Destello propio de hoy (si ya subió)
-  const miDestello = await obtenerDestelloUsuarioDia(grupoId, session.id, fechaHoy);
-
-  // 2. Destellos de todos los miembros del grupo hoy
-  const destellosGrupo = await listarDestellosDia(grupoId, fechaHoy);
-
-  // 3. Tiempo restante para el cierre
+  const estadoDia = await obtenerEstadoDiaGrupo(grupoId, fechaHoy, session.id);
   const tiempoRestante = getTiempoRestanteCierre();
 
   return NextResponse.json({
     fechaHoy,
-    miDestello,
-    destellosGrupo,
     tiempoRestante,
+    ...estadoDia,
   });
 }

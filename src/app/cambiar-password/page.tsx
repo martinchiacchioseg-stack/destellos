@@ -2,7 +2,8 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { KeyRound, ShieldAlert, CheckCircle2, ArrowRight, Lock, Camera, Sparkles } from 'lucide-react';
+import { KeyRound, ShieldAlert, CheckCircle2, ArrowRight, Lock, Camera, Check, X } from 'lucide-react';
+import AnimatedLogo from '@/components/AnimatedLogo';
 
 export default function CambiarPasswordPage() {
   const router = useRouter();
@@ -14,6 +15,12 @@ export default function CambiarPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Validación de fortaleza en vivo
+  const cumpleLargo = passwordNuevo.length >= 8;
+  const cumpleLetra = /[a-zA-Z]/.test(passwordNuevo);
+  const cumpleNumeroOSimbolo = /[\d\W_]/.test(passwordNuevo);
+  const coinciden = passwordNuevo.length > 0 && passwordNuevo === passwordConfirm;
 
   const handleSeleccionarFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,16 +59,18 @@ export default function CambiarPasswordPage() {
     e.preventDefault();
     setError(null);
 
-    if (passwordNuevo.length < 6) {
-      setError('La nueva contraseña debe tener como mínimo 6 caracteres.');
+    if (!cumpleLargo) {
+      setError('La nueva contraseña debe tener como mínimo 8 caracteres.');
       return;
     }
-
+    if (!cumpleLetra || !cumpleNumeroOSimbolo) {
+      setError('La contraseña debe combinar letras con al menos un número o símbolo.');
+      return;
+    }
     if (passwordNuevo !== passwordConfirm) {
       setError('Las contraseñas nuevas no coinciden. Por favor revisalas.');
       return;
     }
-
     if (passwordActual && passwordActual === passwordNuevo) {
       setError('La nueva contraseña debe ser diferente a la contraseña temporal actual.');
       return;
@@ -100,25 +109,27 @@ export default function CambiarPasswordPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-center p-6 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6F0] to-[#F5EFE6] dark:from-[#18161A] dark:via-[#151318] dark:to-[#0F0D12]">
-      <div className="bg-white/95 dark:bg-[#201D24]/95 p-6 rounded-3xl shadow-card border border-[var(--border-soft)] backdrop-blur-sm max-w-md mx-auto w-full">
-        <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 mx-auto">
-          <KeyRound className="w-7 h-7" />
+    <div className="flex-1 flex flex-col justify-center items-center p-4 sm:p-6 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6F0] to-[#F5EFE6] dark:from-[#18161A] dark:via-[#151318] dark:to-[#0F0D12] min-h-screen">
+      <div className="bg-white/95 dark:bg-[#201D24]/95 p-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 backdrop-blur-sm max-w-md w-full space-y-4">
+        <div className="text-center">
+          <AnimatedLogo variant="compact" className="justify-center mb-2" />
+          <h1 className="text-lg font-black text-gray-800 dark:text-gray-100">
+            Primer Ingreso Obligatorio
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Configurá tu contraseña personal y tu foto de perfil
+          </p>
         </div>
 
-        <h1 className="text-xl font-extrabold text-center text-gray-800 dark:text-gray-100">
-          Configurá tu perfil de ingreso
-        </h1>
-
-        <div className="my-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
           <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <span>
-            ¡Bienvenido/a a Destellos! Por seguridad familiar, tenés que configurar tu contraseña personal y podés elegir tu foto de perfil.
+            Por seguridad, debés definir una contraseña segura antes de poder acceder a los destellos de tu grupo.
           </span>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl text-xs text-red-600 dark:text-red-300 font-medium">
+          <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl text-xs text-red-600 dark:text-red-300 font-medium">
             {error}
           </div>
         )}
@@ -127,10 +138,10 @@ export default function CambiarPasswordPage() {
           <div className="py-6 text-center space-y-2">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
             <h3 className="text-base font-bold text-gray-800 dark:text-gray-100">
-              ¡Perfil y contraseña listos!
+              ¡Contraseña configurada con éxito!
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Ingresando a Destellos... ✨
+              Ingresando a tu grupo... ✨
             </p>
           </div>
         ) : (
@@ -174,41 +185,31 @@ export default function CambiarPasswordPage() {
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
-                  Contraseña actual
-                </label>
-                <span className="text-[10px] text-gray-400">
-                  (opcional si ingresaste con 000000 o sin clave)
-                </span>
-              </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
-                <input
-                  type="password"
-                  value={passwordActual}
-                  onChange={(e) => setPasswordActual(e.target.value)}
-                  placeholder="000000 o dejá en blanco"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                Nueva contraseña personal (mín. 6 caracteres)
+                Nueva contraseña personal (mín. 8 caracteres)
               </label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
                 <input
                   type="password"
                   required
-                  minLength={6}
                   value={passwordNuevo}
                   onChange={(e) => setPasswordNuevo(e.target.value)}
                   placeholder="Tu clave secreta nueva"
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
                 />
+              </div>
+
+              {/* Indicadores de fortaleza */}
+              <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10.5px]">
+                <div className={`flex items-center gap-1 font-semibold ${cumpleLargo ? 'text-emerald-600' : 'text-gray-400'}`}>
+                  {cumpleLargo ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                  <span>Mínimo 8 caracteres</span>
+                </div>
+                <div className={`flex items-center gap-1 font-semibold ${cumpleLetra && cumpleNumeroOSimbolo ? 'text-emerald-600' : 'text-gray-400'}`}>
+                  {cumpleLetra && cumpleNumeroOSimbolo ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                  <span>Letras y números/símbolos</span>
+                </div>
               </div>
             </div>
 
@@ -221,25 +222,29 @@ export default function CambiarPasswordPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   placeholder="Repetí la clave nueva"
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
                 />
               </div>
+              {passwordConfirm.length > 0 && (
+                <p className={`text-[11px] mt-1 font-semibold ${coinciden ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {coinciden ? '✓ Las contraseñas coinciden' : '✗ Las contraseñas no coinciden'}
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={cargando}
-              className="w-full mt-3 py-3 px-4 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-bold text-sm shadow-md shadow-[#FF7043]/30 flex items-center justify-center gap-2 transition-transform active:scale-98 disabled:opacity-50"
+              disabled={cargando || !cumpleLargo || !cumpleLetra || !cumpleNumeroOSimbolo || !coinciden}
+              className="w-full mt-3 py-3 px-4 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-extrabold text-sm shadow-md shadow-[#FF7043]/30 flex items-center justify-center gap-2 transition-transform active:scale-98 disabled:opacity-40 cursor-pointer"
             >
               {cargando ? (
                 <span>Guardando cambios...</span>
               ) : (
                 <>
-                  <span>Guardar y continuar</span>
+                  <span>Guardar y acceder a Destellos</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

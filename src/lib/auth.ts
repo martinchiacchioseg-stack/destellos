@@ -8,6 +8,71 @@ const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 export const COOKIE_NAME = 'destellos_session';
 
 /**
+ * Validador estricto de fortaleza de contraseña:
+ * - Mínimo 8 caracteres
+ * - Al menos una letra
+ * - Al menos un número o caracter especial
+ */
+export function validarFortalezaPassword(password: string): { esValida: boolean; error?: string } {
+  if (!password || typeof password !== 'string') {
+    return { esValida: false, error: 'Debés ingresar una contraseña.' };
+  }
+  if (password.length < 8) {
+    return { esValida: false, error: 'La contraseña debe tener como mínimo 8 caracteres.' };
+  }
+  const tieneLetra = /[a-zA-Z]/.test(password);
+  const tieneNumeroOSimbolo = /[\d\W_]/.test(password);
+
+  if (!tieneLetra || !tieneNumeroOSimbolo) {
+    return {
+      esValida: false,
+      error: 'La contraseña debe combinar letras con al menos un número o símbolo para ser segura.',
+    };
+  }
+
+  return { esValida: true };
+}
+
+/**
+ * Rate Limiter en memoria para endpoints sensibles (login, upload, IA)
+ */
+interface RateRecord {
+  intentos: number;
+  primerIntento: number;
+}
+const rateLimitMap = new Map<string, RateRecord>();
+
+export function checkRateLimit(
+  identificador: string,
+  maxIntentos: number = 5,
+  ventanaSegundos: number = 60
+): { permitido: boolean; segundosRestantes: number } {
+  const ahora = Date.now();
+  const registro = rateLimitMap.get(identificador);
+
+  if (!registro) {
+    rateLimitMap.set(identificador, { intentos: 1, primerIntento: ahora });
+    return { permitido: true, segundosRestantes: 0 };
+  }
+
+  const tiempoTranscurrido = (ahora - registro.primerIntento) / 1000;
+
+  if (tiempoTranscurrido > ventanaSegundos) {
+    // Ventana expirada, reiniciamos
+    rateLimitMap.set(identificador, { intentos: 1, primerIntento: ahora });
+    return { permitido: true, segundosRestantes: 0 };
+  }
+
+  if (registro.intentos >= maxIntentos) {
+    const segundosRestantes = Math.ceil(ventanaSegundos - tiempoTranscurrido);
+    return { permitido: false, segundosRestantes };
+  }
+
+  registro.intentos += 1;
+  return { permitido: true, segundosRestantes: 0 };
+}
+
+/**
  * Hashea una contraseña usando bcrypt
  */
 export async function hashPassword(plainText: string): Promise<string> {
