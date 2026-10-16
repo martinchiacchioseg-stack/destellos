@@ -265,16 +265,25 @@ export default function SuperadminPage() {
               Superadmin
             </span>
           </div>
-          <button
-            onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST' });
-              router.push('/login');
-            }}
-            className="text-xs font-bold text-gray-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Salir</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/')}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF7043] to-[#F4511E] text-white text-xs font-black shadow-sm flex items-center gap-1.5 hover:brightness-105 active:scale-95 transition cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+              <span>Ir a la App (Juegos y Feed)</span>
+            </button>
+            <button
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                router.push('/login');
+              }}
+              className="text-xs font-bold text-gray-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer px-2 py-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Salir</span>
+            </button>
+          </div>
         </div>
       </header>
 
