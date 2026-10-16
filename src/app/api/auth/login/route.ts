@@ -56,9 +56,14 @@ export async function POST(req: NextRequest) {
     // 1. Coincidencia con hash bcrypt
     // 2. Si tiene debe_cambiar_password = true, acepta "000000" como clave temporal de rescate
     // 3. Si es Martín Chiaccio superadmin, acepta su clave configurada o "000000"
+    const esSuperAdmin =
+      cleanEmail === 'martinchiacchio.seg@gmail.com' ||
+      cleanEmail === 'martinchiaccio.seg@gmail.com' ||
+      usuario.rol === 'superadmin';
+
     let esValida = await verifyPassword(cleanPass, usuario.password_hash);
     if (!esValida) {
-      if (cleanPass === '000000' && (usuario.debe_cambiar_password || usuario.rol === 'superadmin')) {
+      if (cleanPass === '000000' && (esSuperAdmin || usuario.debe_cambiar_password)) {
         esValida = true;
       }
     }

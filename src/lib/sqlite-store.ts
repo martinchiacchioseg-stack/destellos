@@ -115,12 +115,14 @@ export function getDb(): any {
 
   let sqlite: any = null;
   try {
-    sqlite = (process as any).getBuiltinModule?.('node:sqlite');
-  } catch (e) {
-    console.warn('[db] node:sqlite no disponible en este entorno, usando motor JSON resiliente.');
+    sqlite = eval('require')('node:sqlite');
+  } catch {
+    try {
+      sqlite = (process as any).getBuiltinModule?.('node:sqlite');
+    } catch {}
   }
 
-  if (!sqlite) {
+  if (!sqlite || !sqlite.DatabaseSync) {
     g.__destellos_sqlite = null;
     return null;
   }
