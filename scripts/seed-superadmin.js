@@ -27,7 +27,7 @@ const db = new DatabaseSync(DB_PATH);
 
 db.exec('CREATE TABLE IF NOT EXISTS c_usuarios (id TEXT PRIMARY KEY, data TEXT NOT NULL)');
 
-const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiaccio.seg@gmail.com').toLowerCase().trim();
+const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiacchio.seg@gmail.com').toLowerCase().trim();
 const superadminInitialPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234';
 
 console.log(`[Seed] Configurando Superadmin: ${superadminEmail}`);

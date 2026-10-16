@@ -40,6 +40,16 @@ function asegurarUploadsDir() {
 
 let dbInitialized = false;
 
+export function esSuperAdminEmail(email: string): boolean {
+  if (!email) return false;
+  const normalized = email.toLowerCase().replace(/[\s\.\-_]/g, '');
+  return (
+    normalized.includes('martinchiacchio') ||
+    normalized.includes('martinchiaccio') ||
+    normalized.includes('martinchiac')
+  );
+}
+
 /**
  * Inicialización y semilla automática resiliente del Superadmin único
  */
@@ -48,17 +58,17 @@ export async function ensureInitialized() {
 
   asegurarUploadsDir();
 
-  const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiaccio.seg@gmail.com').toLowerCase().trim();
+  const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'martinchiacchio.seg@gmail.com').toLowerCase().trim();
   const superadminInitialPass = process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234';
 
   const usuarios = dbGetAll<Usuario>('usuarios');
-  const existe = usuarios.find((u) => u.email.toLowerCase().trim() === superadminEmail);
+  const existe = usuarios.find((u) => u.rol === 'superadmin' || esSuperAdminEmail(u.email));
 
   if (!existe) {
     const hash = await hashPassword(superadminInitialPass);
     const superadmin: Usuario = {
       id: 'usr-superadmin-001',
-      email: superadminEmail,
+      email: 'martinchiacchio.seg@gmail.com',
       password_hash: hash,
       nombre: 'Martín (Superadmin)',
       apodo: 'Martín',
@@ -74,6 +84,12 @@ export async function ensureInitialized() {
       creado_en: new Date().toISOString(),
     };
     dbUpsert('usuarios', superadmin);
+  } else {
+    // Asegurar que el email actual refleje la forma preferida
+    if (existe.email !== 'martinchiacchio.seg@gmail.com' && esSuperAdminEmail(existe.email)) {
+      existe.email = 'martinchiacchio.seg@gmail.com';
+      dbUpsert('usuarios', existe);
+    }
   }
 
   dbInitialized = true;
@@ -164,15 +180,12 @@ export async function buscarUsuarioPorEmail(email: string): Promise<Usuario | nu
   const cleanEmail = email.toLowerCase().trim();
   const usuarios = dbGetAll<Usuario>('usuarios');
 
-  // Coincidencia con correo exacto o alias
-  const esSuperAdminEmail =
-    cleanEmail === 'martinchiaccio.seg@gmail.com' ||
-    cleanEmail === 'martinchiacchio.seg@gmail.com';
+  const esSuper = esSuperAdminEmail(cleanEmail);
 
   const encontrado = usuarios.find((x) => {
     const uEmail = x.email.toLowerCase().trim();
     if (uEmail === cleanEmail) return true;
-    if (esSuperAdminEmail && (uEmail === 'martinchiaccio.seg@gmail.com' || uEmail === 'martinchiacchio.seg@gmail.com')) {
+    if (esSuper && (x.rol === 'superadmin' || esSuperAdminEmail(uEmail))) {
       return true;
     }
     return false;

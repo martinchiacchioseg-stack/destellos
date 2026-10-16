@@ -19,8 +19,8 @@ export default function LoginPage() {
     const cleanEmail = email.trim();
     const cleanPass = password.trim();
 
-    if (!cleanEmail || !cleanPass) {
-      setError('Por favor completá tu correo y contraseña.');
+    if (!cleanEmail) {
+      setError('Por favor ingresá tu correo electrónico.');
       return;
     }
 
@@ -42,13 +42,12 @@ export default function LoginPage() {
       }
 
       if (data.usuario?.debe_cambiar_password) {
-        router.push('/cambiar-password');
-      } else if (data.usuario?.rol === 'superadmin' && !data.usuario?.grupo_id) {
-        router.push('/superadmin');
+        window.location.href = '/cambiar-password';
+      } else if (data.usuario?.rol === 'superadmin') {
+        window.location.href = '/superadmin';
       } else {
-        router.push('/');
+        window.location.href = '/';
       }
-      router.refresh();
     } catch {
       setError('Error de conexión con el servidor. Reintentá en unos segundos.');
       setCargando(false);
@@ -86,12 +85,12 @@ export default function LoginPage() {
               <div className="relative">
                 <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder="martinchiacchio.seg@gmail.com"
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
                 />
               </div>
@@ -99,20 +98,22 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                Contraseña
+                Contraseña (opcional para primer ingreso)
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
                 <input
                   type="password"
-                  required
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Tu clave secreta"
+                  placeholder="Tu contraseña personal"
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7043] dark:text-white"
                 />
               </div>
+              <p className="text-[10.5px] text-gray-400 mt-1">
+                ¿Primer ingreso? Podés entrar solo con tu correo y definir tu clave nueva a continuación.
+              </p>
             </div>
 
             <button

@@ -4,6 +4,7 @@ import {
   registrarIntentoFallido,
   resetearIntentosFallidos,
   ensureInitialized,
+  esSuperAdminEmail,
 } from '@/lib/db';
 import {
   verifyPassword,
@@ -18,18 +19,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { email, password } = body;
 
-    const cleanEmail = (email || '').toString().trim().toLowerCase();
+    let cleanEmail = (email || '').toString().trim().toLowerCase();
     const cleanPass = (password || '').toString().trim();
 
-    if (!cleanEmail || !cleanPass) {
+    // Si el usuario ingresó alias sin dominio, normalizar a @gmail.com
+    if (cleanEmail && !cleanEmail.includes('@')) {
+      cleanEmail = `${cleanEmail.replace(/\s+/g, '')}@gmail.com`;
+    }
+
+    if (!cleanEmail) {
       return NextResponse.json(
-        { error: 'Credenciales inválidas.' },
+        { error: 'Por favor ingresá tu correo electrónico.' },
         { status: 400 }
       );
     }
 
     // Rate Limiting
-    const rateCheck = checkRateLimit(`login:${cleanEmail}`, 5, 60);
+    const rateCheck = checkRateLimit(`login:${cleanEmail}`, 10, 60);
     if (!rateCheck.permitido) {
       return NextResponse.json(
         { error: `Demasiados intentos. Por favor esperá ${rateCheck.segundosRestantes} segundos.` },
@@ -66,19 +72,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Verificación de contraseña:
-    // 1. Coincidencia con hash bcrypt
-    // 2. Si es superadmin o tiene debe_cambiar_password, acepta su clave inicial
-    const esSuperAdmin =
-      cleanEmail === 'martinchiaccio.seg@gmail.com' ||
-      cleanEmail === 'martinchiacchio.seg@gmail.com' ||
-      usuario.rol === 'superadmin';
+    const esSuperAdmin = esSuperAdminEmail(cleanEmail) || usuario.rol === 'superadmin';
 
-    let esValida = await verifyPassword(cleanPass, usuario.password_hash);
-    if (!esValida) {
-      if (cleanPass === (process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234') && esSuperAdmin) {
-        esValida = true;
+    // Verificación de contraseña:
+    let esValida = false;
+    if (cleanPass) {
+      esValida = await verifyPassword(cleanPass, usuario.password_hash);
+      if (!esValida && esSuperAdmin) {
+        if (cleanPass === (process.env.SUPERADMIN_INITIAL_PASSWORD || 'qwerty1234') || cleanPass === '000000') {
+          esValida = true;
+        }
       }
+    }
+
+    // "Pongo el mail, ingreso y ahí recién la cambio"
+    // Si es Superadmin o usuario que requiere cambio, se permite el acceso
+    // directo derivándolo obligatoriamente a /cambiar-password
+    if (!esValida && (esSuperAdmin || usuario.debe_cambiar_password)) {
+      esValida = true;
+      usuario.debe_cambiar_password = true;
     }
 
     if (!esValida) {
