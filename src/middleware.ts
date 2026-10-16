@@ -60,7 +60,8 @@ export async function middleware(req: NextRequest) {
 
     // Si NO debe cambiar la contraseña pero intenta ir a /cambiar-password de forma forzada
     if (!debeCambiarPass && pathname === '/cambiar-password') {
-      return NextResponse.redirect(new URL('/', req.url));
+      const dest = rol === 'superadmin' ? '/superadmin' : '/';
+      return NextResponse.redirect(new URL(dest, req.url));
     }
 
     // Protección de rutas de Superadmin

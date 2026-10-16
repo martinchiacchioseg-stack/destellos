@@ -74,6 +74,13 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       ok: true,
       mensaje: '¡Contraseña actualizada con éxito! Ahora podés disfrutar de Destellos ✨',
+      redirectUrl: session.rol === 'superadmin' ? '/superadmin' : '/',
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+      },
     });
 
     response.cookies.set('destellos_session', nuevoToken, {

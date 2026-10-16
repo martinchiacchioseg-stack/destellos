@@ -21,6 +21,7 @@ import {
   Share2,
   ArrowRight,
   Flame,
+  Shield,
 } from 'lucide-react';
 import { SesionUsuario, Destello, FeedPost } from '@/lib/types';
 import { formatFechaBonita, getFechaArgentina } from '@/lib/date-utils';
@@ -158,6 +159,25 @@ export default function HomePage() {
       <Header usuario={usuario} puntosTotales={10} />
 
       <main className="p-4 space-y-4">
+        {/* Acceso directo para Superadmin */}
+        {usuario?.rol === 'superadmin' && (
+          <div className="bg-gradient-to-r from-purple-700 to-indigo-700 p-3.5 rounded-2xl text-white shadow-md flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-200" />
+              <div>
+                <p className="text-xs font-black">Panel Superadministrador</p>
+                <p className="text-[10px] text-purple-200">Gestioná grupos, familias y usuarios</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { window.location.href = '/superadmin'; }}
+              className="px-3 py-1.5 bg-white text-purple-800 text-xs font-black rounded-xl shadow-xs hover:bg-purple-50 cursor-pointer active:scale-95 transition-transform"
+            >
+              Abrir Panel →
+            </button>
+          </div>
+        )}
+
         {/* Banner Superior del Grupo */}
         <div className="bg-gradient-to-br from-[#FF7043] via-[#F4511E] to-[#E64A19] p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider mb-2">

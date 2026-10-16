@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { KeyRound, ShieldAlert, CheckCircle2, ArrowRight, Lock, Camera, Check, X } from 'lucide-react';
 import AnimatedLogo from '@/components/AnimatedLogo';
@@ -14,7 +14,26 @@ export default function CambiarPasswordPage() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string>('/');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Verificar estado de sesión al cargar
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.authenticated) {
+          window.location.href = '/login';
+        } else if (!data.usuario.debe_cambiar_password) {
+          // Ya completó el cambio: redirigir de inmediato a su panel
+          const dest = data.usuario.rol === 'superadmin' ? '/superadmin' : '/';
+          window.location.href = dest;
+        } else if (data.usuario.rol === 'superadmin') {
+          setRedirectUrl('/superadmin');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Validación de fortaleza en vivo
   const cumpleLargo = passwordNuevo.length >= 8;
@@ -97,11 +116,14 @@ export default function CambiarPasswordPage() {
         return;
       }
 
+      const dest = data.redirectUrl || (data.usuario?.rol === 'superadmin' ? '/superadmin' : '/');
+      setRedirectUrl(dest);
       setExito(true);
+
+      // Redirección confiable por recarga completa de sesión
       setTimeout(() => {
-        router.push('/');
-        router.refresh();
-      }, 1500);
+        window.location.href = dest;
+      }, 1000);
     } catch {
       setError('Error de conexión. Intentalo de nuevo.');
       setCargando(false);
@@ -135,14 +157,24 @@ export default function CambiarPasswordPage() {
         )}
 
         {exito ? (
-          <div className="py-6 text-center space-y-2">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
+          <div className="py-6 text-center space-y-3">
+            <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto animate-bounce" />
             <h3 className="text-base font-bold text-gray-800 dark:text-gray-100">
               ¡Contraseña configurada con éxito!
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Ingresando a tu grupo... ✨
+              Ingresando a Destellos... ✨
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = redirectUrl;
+              }}
+              className="mt-3 px-6 py-2.5 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-black text-xs shadow-md shadow-[#FF7043]/30 flex items-center justify-center gap-2 mx-auto cursor-pointer transition-transform active:scale-95"
+            >
+              <span>{redirectUrl === '/superadmin' ? 'Entrar al Panel Superadmin' : 'Continuar a Destellos'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
