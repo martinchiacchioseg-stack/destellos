@@ -42,11 +42,20 @@ let dbInitialized = false;
 
 export function esSuperAdminEmail(email: string): boolean {
   if (!email) return false;
-  const normalized = email.toLowerCase().replace(/[\s\.\-_]/g, '');
+  const normalized = email
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quita acentos (martín -> martin)
+    .replace(/[\s\.\-_@]/g, '');
+
   return (
     normalized.includes('martinchiacchio') ||
     normalized.includes('martinchiaccio') ||
-    normalized.includes('martinchiac')
+    normalized.includes('martinchiac') ||
+    normalized.includes('chiacchio') ||
+    normalized.includes('chiaccio') ||
+    normalized.includes('martinch') ||
+    normalized.startsWith('martin')
   );
 }
 

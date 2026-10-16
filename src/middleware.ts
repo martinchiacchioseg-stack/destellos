@@ -42,9 +42,10 @@ export async function middleware(req: NextRequest) {
     const debeCambiarPass = Boolean(payload.debe_cambiar_password);
     const rol = payload.rol as string;
 
-    // Si debe cambiar la contraseña, obligarlo a ir a /cambiar-password
+    // Si debe cambiar la contraseña, obligarlo a ir a /cambiar-password (excepto superadmin entrando a su panel)
     if (
       debeCambiarPass &&
+      rol !== 'superadmin' &&
       pathname !== '/cambiar-password' &&
       pathname !== '/api/auth/cambiar-password' &&
       pathname !== '/api/auth/me' &&
