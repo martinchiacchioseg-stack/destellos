@@ -18,7 +18,7 @@ export function api<A extends unknown[]>(fn: (...args: A) => Promise<Response | 
       }
       if (e instanceof ConfigError) {
         console.error("[config]", e.message);
-        return NextResponse.json({ error: "El servidor no está configurado todavía." }, { status: 503 });
+        return NextResponse.json({ error: e.message }, { status: 503 });
       }
       console.error("[api]", e);
       return NextResponse.json({ error: "Algo salió mal. Probá de nuevo en un momento." }, { status: 500 });
