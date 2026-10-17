@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentSession } from '@/lib/auth';
+import { getCurrentSession, hashPassword } from '@/lib/auth';
 import {
   listarUsuariosGrupo,
   crearPersonaEnGrupo,
@@ -78,17 +78,40 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
     }
 
-    const { id, nombre, apodo, telefono, rol, activo } = await req.json();
+    const {
+      id,
+      nombre,
+      apodo,
+      email,
+      telefono,
+      whatsapp,
+      rol,
+      activo,
+      fecha_nacimiento,
+      avatar_url,
+      password,
+    } = await req.json();
+
     if (!id) {
       return NextResponse.json({ error: 'ID de usuario requerido.' }, { status: 400 });
+    }
+
+    let passwordHash: string | undefined;
+    if (password && password.trim().length >= 6) {
+      passwordHash = await hashPassword(password.trim());
     }
 
     const actualizado = await actualizarUsuario(id, {
       ...(nombre ? { nombre: nombre.trim() } : {}),
       ...(apodo !== undefined ? { apodo: apodo.trim() } : {}),
+      ...(email ? { email: email.toLowerCase().trim() } : {}),
       ...(telefono !== undefined ? { telefono: telefono.trim() } : {}),
+      ...(whatsapp !== undefined ? { whatsapp: whatsapp.trim() } : {}),
       ...(rol ? { rol } : {}),
-      ...(activo !== undefined ? { activo } : {}),
+      ...(activo !== undefined ? { activo: Boolean(activo) } : {}),
+      ...(fecha_nacimiento !== undefined ? { fecha_nacimiento: fecha_nacimiento.trim() } : {}),
+      ...(avatar_url !== undefined ? { avatar_url: avatar_url.trim() } : {}),
+      ...(passwordHash ? { password_hash: passwordHash, debe_cambiar_password: false } : {}),
     });
 
     if (!actualizado) {

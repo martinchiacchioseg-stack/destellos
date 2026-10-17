@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validación estricta de Licencia Familiar
-    if (grupo.licencia_activa === false || !grupo.activo) {
+    // Validación de Licencia Familiar
+    if (grupo.licencia_activa === false || grupo.activo === false) {
       return NextResponse.json(
         {
           error: `La licencia de la familia "${grupo.nombre}" se encuentra temporalmente suspendida. Comunicate con el administrador para reactivar el acceso.`,
@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const { listarUsuariosGrupo } = await import('@/lib/db');
+    const miembros = await listarUsuariosGrupo(grupo.id);
+
     return NextResponse.json({
       ok: true,
       mensaje: `¡Bienvenido a la familia ${grupo.nombre}!`,
@@ -65,6 +68,13 @@ export async function POST(req: NextRequest) {
         descripcion: grupo.descripcion || '',
         admin_nombre: grupo.admin_nombre || 'el Administrador',
       },
+      miembros: miembros.map((m) => ({
+        id: m.id,
+        nombre: m.nombre,
+        apodo: m.apodo,
+        avatar_url: m.avatar_url,
+        email: m.email,
+      })),
     });
   } catch (error: any) {
     return NextResponse.json(

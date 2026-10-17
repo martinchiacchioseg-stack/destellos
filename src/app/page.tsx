@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import UploadModal from '@/components/UploadModal';
+import LedBoard from '@/components/LedBoard';
 import { dispararConfeti } from '@/components/ConfettiCelebration';
 import {
   Sparkles,
@@ -200,6 +201,9 @@ export default function HomePage() {
   return (
     <div className="flex-1 flex flex-col pb-24 max-w-md mx-auto w-full min-h-screen bg-gray-50 dark:bg-[#121014]">
       <Header usuario={usuario} puntosTotales={10} />
+
+      {/* Cartel LED de Pizarra General (Desplazamiento Continuo) */}
+      <LedBoard grupoId={usuario?.grupo_id || undefined} />
 
       <main className="p-4 space-y-4">
         {/* Acceso directo para Superadmin */}

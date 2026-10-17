@@ -92,6 +92,10 @@ export async function PUT(req: NextRequest) {
       hora_limite,
       estado,
       descripcion,
+      codigo_familia,
+      admin_nombre,
+      admin_email,
+      admin_id,
       fecha_vencimiento,
       licencia_activa,
     } = await req.json();
@@ -106,6 +110,15 @@ export async function PUT(req: NextRequest) {
       ...(hora_limite !== undefined ? { hora_limite } : {}),
       ...(estado !== undefined ? { estado, activo: estado === 'activo' } : {}),
       ...(descripcion !== undefined ? { descripcion: descripcion.trim() } : {}),
+      ...(codigo_familia
+        ? {
+            codigo_familia: codigo_familia.trim().toUpperCase(),
+            codigo_invitacion: codigo_familia.trim().toUpperCase(),
+          }
+        : {}),
+      ...(admin_nombre !== undefined ? { admin_nombre: admin_nombre.trim() } : {}),
+      ...(admin_email !== undefined ? { admin_email: admin_email.trim() } : {}),
+      ...(admin_id !== undefined ? { admin_id } : {}),
       ...(fecha_vencimiento !== undefined ? { fecha_vencimiento } : {}),
       ...(licencia_activa !== undefined ? { licencia_activa: Boolean(licencia_activa) } : {}),
     });

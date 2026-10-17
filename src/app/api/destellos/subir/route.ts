@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession, checkRateLimit } from '@/lib/auth';
-import { subirDestello } from '@/lib/db';
+import { subirDestello, dispararEventoPizarraArlequin } from '@/lib/db';
 import { getFechaArgentina } from '@/lib/date-utils';
 import { procesarYSanitizarImagen } from '@/lib/image-processor';
 import { moderarContenido } from '@/lib/gemini';
@@ -87,6 +87,15 @@ export async function POST(req: NextRequest) {
       media_url: finalMediaUrl,
       pie_de_foto: pie_de_foto?.trim(),
     });
+
+    // Notificar en Pizarra LED (respetando rate-limit de 10 min de Arlequín)
+    dispararEventoPizarraArlequin({
+      tipo: 'foto',
+      grupoId: session.grupo_id,
+      metadata: {
+        usuarioNombre: session.apodo || session.nombre,
+      },
+    }).catch(() => {});
 
     return NextResponse.json({
       ok: true,

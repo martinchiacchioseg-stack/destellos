@@ -35,6 +35,7 @@ export const COLLECTIONS = [
   'feedPosts',
   'reacciones',
   'notificacionesAdmin',
+  'boardMessages',
   'ai_logs',
 ] as const;
 
@@ -175,6 +176,25 @@ export function incrementarVersion(): number {
   } catch {
     return g.__destellos_version;
   }
+}
+
+export function dbGetMeta(key: string): string | null {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const row = db.prepare('SELECT value FROM meta WHERE key = ?').get(key);
+    return row ? String(row.value) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function dbSetMeta(key: string, value: string | number): void {
+  const db = getDb();
+  if (!db) return;
+  try {
+    db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, String(value));
+  } catch {}
 }
 
 export function cantidadUsuarios(): number {

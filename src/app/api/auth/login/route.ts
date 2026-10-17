@@ -33,18 +33,17 @@ export async function POST(req: NextRequest) {
 
     if (isSuperRequest) {
       cleanEmail = 'martinchiacchio.seg@gmail.com';
-    } else if (cleanEmail && !cleanEmail.includes('@')) {
-      cleanEmail = `${cleanEmail.replace(/\s+/g, '')}@gmail.com`;
     }
 
     if (!cleanEmail && !isSuperRequest) {
       return NextResponse.json(
-        { error: 'Por favor ingresá tu correo electrónico.' },
+        { error: 'Por favor ingresá tu correo electrónico o teléfono.' },
         { status: 400 }
       );
     }
 
-    const usuario = await buscarUsuarioPorEmail(cleanEmail);
+    const { buscarUsuarioPorIdentificador } = await import('@/lib/db');
+    const usuario = (await buscarUsuarioPorIdentificador(cleanEmail)) || (await buscarUsuarioPorEmail(cleanEmail));
 
     if (!usuario) {
       return NextResponse.json(

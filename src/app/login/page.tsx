@@ -28,6 +28,8 @@ export default function LoginPage() {
 
   // Estados del flujo principal
   const [modo, setModo] = useState<'nuevo' | 'existente'>('nuevo');
+  const [submodoFamilia, setSubmodoFamilia] = useState<'alta' | 'login'>('alta');
+  const [miembrosFamilia, setMiembrosFamilia] = useState<any[]>([]);
   const [codigoFamilia, setCodigoFamilia] = useState('');
   const [grupoValidado, setGrupoValidado] = useState<{
     id: string;
@@ -112,9 +114,11 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Código no válido.');
         setGrupoValidado(null);
+        setMiembrosFamilia([]);
         hablarArlequin('Mmm, no encontré esa familia con este código. Por favor revisalo.');
       } else {
         setGrupoValidado(data.grupo);
+        setMiembrosFamilia(data.miembros || []);
         setError(null);
         hablarArlequin(`¡Listo, bienvenido a la familia ${data.grupo.nombre}!`);
       }
@@ -441,8 +445,8 @@ export default function LoginPage() {
                 </button>
               </form>
             ) : (
-              /* Paso 2: Mensaje de Bienvenida + Formulario de Datos del Integrante */
-              <form onSubmit={handleRegistrarNuevoMiembro} className="space-y-3.5">
+              /* Paso 2: Mensaje de Bienvenida + Alta o Ingreso a la Familia */
+              <div className="space-y-4">
                 {/* Banner de Bienvenida Cálido con Arlequín */}
                 <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-orange-950/40 dark:to-amber-950/20 border border-orange-200/80 dark:border-orange-900/50 text-center space-y-2">
                   <span className="text-2xl">{grupoValidado.emoji_or_logo || '✨'}</span>
@@ -450,7 +454,7 @@ export default function LoginPage() {
                     ¡Bienvenido a la familia {grupoValidado.nombre}!
                   </h3>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Completá tus datos para sumarte al espacio familiar.
+                    Espacio familiar privado y seguro
                   </p>
 
                   {/* Burbuja de Arlequín con voz */}
@@ -471,156 +475,301 @@ export default function LoginPage() {
 
                   <button
                     type="button"
-                    onClick={() => setGrupoValidado(null)}
-                    className="text-[10px] text-[#FF7043] underline font-bold"
+                    onClick={() => {
+                      setGrupoValidado(null);
+                      setMiembrosFamilia([]);
+                    }}
+                    className="text-[10px] text-[#FF7043] underline font-bold cursor-pointer"
                   >
-                    Cambiar código
+                    Ingresar con otro código de familia
                   </button>
                 </div>
 
-                {/* Foto opcional */}
-                <div className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-[#25202D] rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-orange-100 dark:bg-orange-950 flex items-center justify-center text-[#FF7043] font-bold text-lg shrink-0">
-                    {fotoPreview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera className="w-5 h-5 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[11px] font-bold text-gray-700 dark:text-gray-200 block">
-                      Foto de perfil (opcional)
-                    </label>
-                    <p className="text-[10px] text-gray-400">Podés cargarla ahora o después desde tu perfil</p>
-                    <label className="text-[11px] text-[#FF7043] font-bold cursor-pointer hover:underline inline-block mt-0.5">
-                      Subir foto
+                {/* Subpestañas: Nuevo integrante vs Ya tengo cuenta */}
+                <div className="flex bg-gray-100 dark:bg-[#1C1822] p-1 rounded-2xl border border-gray-200 dark:border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmodoFamilia('alta');
+                      setError(null);
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-black rounded-xl transition cursor-pointer ${
+                      submodoFamilia === 'alta'
+                        ? 'bg-white dark:bg-[#2C2733] text-[#FF7043] shadow-xs'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Sumarme como nuevo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmodoFamilia('login');
+                      setError(null);
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-black rounded-xl transition cursor-pointer ${
+                      submodoFamilia === 'login'
+                        ? 'bg-white dark:bg-[#2C2733] text-[#FF7043] shadow-xs'
+                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Ya tengo cuenta
+                  </button>
+                </div>
+
+                {/* CASO A: ALTA DE NUEVO INTEGRANTE */}
+                {submodoFamilia === 'alta' ? (
+                  <form onSubmit={handleRegistrarNuevoMiembro} className="space-y-3">
+                    {/* Foto opcional */}
+                    <div className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-[#25202D] rounded-2xl border border-gray-100 dark:border-gray-800">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-orange-100 dark:bg-orange-950 flex items-center justify-center text-[#FF7043] font-bold text-lg shrink-0">
+                        {fotoPreview ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <Camera className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <label className="text-[11px] font-bold text-gray-700 dark:text-gray-200 block">
+                          Foto de perfil (opcional)
+                        </label>
+                        <p className="text-[10px] text-gray-400">Podés cargarla ahora o después</p>
+                        <label className="text-[11px] text-[#FF7043] font-bold cursor-pointer hover:underline inline-block mt-0.5">
+                          Subir foto
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSeleccionarFoto}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Nombre completo */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Nombre completo *
+                      </label>
                       <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleSeleccionarFoto}
-                        className="hidden"
+                        type="text"
+                        required
+                        placeholder="ej: Juan Chiachio"
+                        value={nombre}
+                        onChange={(e) => setNombre(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs focus:ring-2 focus:ring-[#FF7043] dark:text-white"
                       />
-                    </label>
-                  </div>
-                </div>
+                    </div>
 
-                {/* Nombre completo */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Nombre completo *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="ej: Juan Chiachio"
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs focus:ring-2 focus:ring-[#FF7043] dark:text-white"
-                  />
-                </div>
+                    {/* Apodo y Fecha de Nacimiento en 2 columnas */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                          Apodo
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="ej: Juancito"
+                          value={apodo}
+                          onChange={(e) => setApodo(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                          Nacimiento
+                        </label>
+                        <input
+                          type="date"
+                          value={fechaNacimiento}
+                          onChange={(e) => setFechaNacimiento(e.target.value)}
+                          className="w-full px-2 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                        />
+                      </div>
+                    </div>
 
-                {/* Apodo y Fecha de Nacimiento en 2 columnas */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                      Apodo
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="ej: Juancito"
-                      value={apodo}
-                      onChange={(e) => setApodo(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                      Nacimiento
-                    </label>
-                    <input
-                      type="date"
-                      value={fechaNacimiento}
-                      onChange={(e) => setFechaNacimiento(e.target.value)}
-                      className="w-full px-2 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
-                    />
-                  </div>
-                </div>
+                    {/* WhatsApp */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Número de WhatsApp
+                      </label>
+                      <div className="relative">
+                        <Phone className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="tel"
+                          placeholder="+54 9 11 1234-5678"
+                          value={whatsapp}
+                          onChange={(e) => setWhatsapp(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                        />
+                      </div>
+                    </div>
 
-                {/* WhatsApp */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Número de WhatsApp
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-                    <input
-                      type="tel"
-                      placeholder="+54 9 11 1234-5678"
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
-                    />
-                  </div>
-                </div>
+                    {/* Correo electrónico */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Correo electrónico (opcional)
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="email"
+                          placeholder="juan@gmail.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                        />
+                      </div>
+                    </div>
 
-                {/* Correo electrónico */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Correo electrónico (para recuperar tu clave)
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-                    <input
-                      type="email"
-                      placeholder="juan@gmail.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
-                    />
-                  </div>
-                </div>
+                    {/* Contraseña para volver a ingresar */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Elegí tu Contraseña *
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type={mostrarPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Mínimo 6 caracteres"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full pl-9 pr-9 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarPassword(!mostrarPassword)}
+                          className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                        >
+                          {mostrarPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
 
-                {/* Contraseña para volver a ingresar */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Elegí tu Contraseña *
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-                    <input
-                      type={mostrarPassword ? 'text' : 'password'}
-                      required
-                      placeholder="Mínimo 6 caracteres"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-9 pr-9 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
-                    />
                     <button
-                      type="button"
-                      onClick={() => setMostrarPassword(!mostrarPassword)}
-                      className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                      type="submit"
+                      disabled={cargando}
+                      className="w-full mt-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF7043] to-[#F4511E] hover:brightness-105 active:scale-98 text-white font-black text-sm shadow-md shadow-[#FF7043]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition"
                     >
-                      {mostrarPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {cargando ? (
+                        <span>Registrando en la familia...</span>
+                      ) : (
+                        <>
+                          <span>¡Unirme a la familia y empezar!</span>
+                          <Sparkles className="w-4 h-4 text-amber-200" />
+                        </>
+                      )}
                     </button>
-                  </div>
-                </div>
+                  </form>
+                ) : (
+                  /* CASO B: INTEGRANTE QUE YA TIENE CUENTA EN ESTA FAMILIA */
+                  <form onSubmit={handleLoginExistente} className="space-y-3.5">
+                    {miembrosFamilia.length > 0 && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1.5">
+                          Tocá tu nombre si figurás en la lista:
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1">
+                          {miembrosFamilia.map((m) => {
+                            const esSeleccionado =
+                              identificadorLogin === m.email ||
+                              (m.whatsapp && identificadorLogin === m.whatsapp);
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => {
+                                  setIdentificadorLogin(m.email || m.whatsapp || m.nombre);
+                                }}
+                                className={`p-2 rounded-xl border flex items-center gap-2 text-left transition cursor-pointer ${
+                                  esSeleccionado
+                                    ? 'border-[#FF7043] bg-orange-50/60 dark:bg-orange-950/40 ring-1 ring-[#FF7043]'
+                                    : 'border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-[#25202D]'
+                                }`}
+                              >
+                                <div className="w-7 h-7 rounded-full overflow-hidden bg-orange-100 flex items-center justify-center text-xs font-bold text-[#FF7043] shrink-0">
+                                  {m.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={m.avatar_url} alt={m.nombre} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span>{m.nombre.charAt(0)}</span>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">
+                                    {m.apodo || m.nombre}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                <button
-                  type="submit"
-                  disabled={cargando}
-                  className="w-full mt-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF7043] to-[#F4511E] hover:brightness-105 active:scale-98 text-white font-black text-sm shadow-md shadow-[#FF7043]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition"
-                >
-                  {cargando ? (
-                    <span>Registrando en la familia...</span>
-                  ) : (
-                    <>
-                      <span>¡Unirme a la familia y empezar!</span>
-                      <Sparkles className="w-4 h-4 text-amber-200" />
-                    </>
-                  )}
-                </button>
-              </form>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Correo o WhatsApp
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="ej: juan@gmail.com o 1123456789"
+                        value={identificadorLogin}
+                        onChange={(e) => setIdentificadorLogin(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Contraseña
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type={mostrarPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Tu clave personal"
+                          value={passwordLogin}
+                          onChange={(e) => setPasswordLogin(e.target.value)}
+                          className="w-full pl-9 pr-9 py-2 rounded-xl bg-gray-50 dark:bg-[#2A2630] border border-gray-200 dark:border-gray-700 text-xs dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarPassword(!mostrarPassword)}
+                          className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                        >
+                          {mostrarPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={cargando}
+                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF7043] to-[#F4511E] hover:brightness-105 active:scale-98 text-white font-extrabold text-sm shadow-md shadow-[#FF7043]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition"
+                    >
+                      {cargando ? <span>Ingresando...</span> : <span>Ingresar a Destellos</span>}
+                    </button>
+
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmailRecuperar(identificadorLogin);
+                          setMostrarModalRecuperar(true);
+                        }}
+                        className="text-xs text-[#FF7043] hover:underline font-semibold cursor-pointer"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
             )}
           </div>
         )}

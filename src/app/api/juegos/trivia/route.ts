@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth';
-import { obtenerTriviaDelDia, responderTrivia, listarGrupos } from '@/lib/db';
+import { obtenerTriviaDelDia, responderTrivia, listarGrupos, dispararEventoPizarraArlequin } from '@/lib/db';
 import { getFechaArgentina } from '@/lib/date-utils';
 import { DificultadTrivia, TriviaIntento, TriviaPregunta } from '@/lib/types';
 import { dbGetAll } from '@/lib/sqlite-store';
@@ -100,6 +100,16 @@ export async function POST(req: NextRequest) {
       fechaHoy,
       selectedIndex
     );
+
+    // Disparar evento a la Pizarra LED (respetando rate-limit de 10 min)
+    dispararEventoPizarraArlequin({
+      tipo: 'trivia',
+      grupoId,
+      metadata: {
+        usuarioNombre: session.apodo || session.nombre,
+        puntos: resultado.puntos,
+      },
+    }).catch(() => {});
 
     return NextResponse.json({
       ok: true,

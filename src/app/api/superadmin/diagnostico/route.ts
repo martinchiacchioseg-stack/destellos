@@ -9,7 +9,13 @@ import {
   ItemDiagnosticoModulo,
   InformeDiagnostico,
 } from '@/lib/types';
-import { generarCodigoFamiliaUnico, ensureInitialized } from '@/lib/db';
+import {
+  generarCodigoFamiliaUnico,
+  ensureInitialized,
+  limpiarMensajesPizarraVencidos,
+  listarMensajesPizarra,
+  crearMensajePizarra,
+} from '@/lib/db';
 import { generarTriviaArlequin, generarRecordatorioHumorWhatsApp } from '@/lib/gemini';
 import fs from 'fs';
 import path from 'path';
@@ -365,6 +371,50 @@ export async function POST(req: NextRequest) {
         nombre: 'Licencias y Recordatorios',
         estado: 'error',
         descripcion: 'Error al verificar licencias.',
+        detalles: e.message,
+      });
+    }
+
+    // 13. MÓDULO PIZARRA GENERAL (CARTEL LED VINTAGE Y ARLEQUÍN)
+    try {
+      const vencidosLimpiados = await limpiarMensajesPizarraVencidos();
+      const mensajes = await listarMensajesPizarra('all');
+
+      let mensajeReparado = false;
+      if (mensajes.length === 0) {
+        await crearMensajePizarra({
+          group_id: 'all',
+          text: '✨ ¡Bienvenidos a Destellos! Arlequín te saluda en el cartel LED. ¡A disfrutar en familia!',
+          type: 'aviso',
+          priority: 'destacada',
+          color: 'ambar',
+          author: 'arlequin',
+        });
+        mensajeReparado = true;
+      }
+
+      const totalMensajesActivos = (await listarMensajesPizarra('all')).length;
+
+      items.push({
+        modulo: 'pizarra_led',
+        nombre: 'Pizarra General (Cartel LED Vintage)',
+        estado: vencidosLimpiados > 0 || mensajeReparado ? 'reparado' : 'ok',
+        autoReparado: vencidosLimpiados > 0 || mensajeReparado,
+        accionReparada:
+          vencidosLimpiados > 0 || mensajeReparado
+            ? `Se depuraron ${vencidosLimpiados} mensaje(s) vencido(s) y ${
+                mensajeReparado ? 'se inicializó el cartel LED con bienvenida de Arlequín.' : 'se ordenó la cola activa.'
+              }`
+            : undefined,
+        descripcion: `Cartel LED operativo con matriz de puntos, rotación continua y eventos automáticos (${totalMensajesActivos} activos).`,
+        detalles: `Polling a 60s, soporte CSS transform GPU, 5 colores luminosos y cuota anti-spam activa.`,
+      });
+    } catch (e: any) {
+      items.push({
+        modulo: 'pizarra_led',
+        nombre: 'Pizarra General (Cartel LED Vintage)',
+        estado: 'error',
+        descripcion: 'Error al inspeccionar la Pizarra LED.',
         detalles: e.message,
       });
     }

@@ -633,4 +633,106 @@ Hora límite del grupo: ${horaLimite} hs.
   }
 }
 
+/**
+ * Genera mensajes breves para el Cartel LED de Pizarra de Destellos (Máx 120 caracteres)
+ */
+export async function generarMensajePizarraArlequin(params: {
+  tipo: 'ranking' | 'foto' | 'trivia' | 'prode' | 'cumpleanos' | 'aviso' | 'humor' | 'manual';
+  grupoNombre?: string;
+  metadata?: {
+    usuarioNombre?: string;
+    horaLimite?: string;
+    puntos?: number;
+    partido?: string;
+    detalle?: string;
+  };
+}): Promise<{ text: string; color: 'rojo' | 'verde' | 'ambar' | 'celeste' | 'magenta' }> {
+  const { tipo, grupoNombre = 'Familia', metadata = {} } = params;
+  const nombre = metadata.usuarioNombre || 'Alguien';
+  const hora = metadata.horaLimite || '22:00';
+
+  const coloresPorTipo: Record<string, 'rojo' | 'verde' | 'ambar' | 'celeste' | 'magenta'> = {
+    ranking: 'verde',
+    foto: 'celeste',
+    trivia: 'magenta',
+    prode: 'verde',
+    cumpleanos: 'magenta',
+    aviso: 'ambar',
+    humor: 'ambar',
+    manual: 'celeste',
+  };
+
+  const color = coloresPorTipo[tipo] || 'ambar';
+
+  // Plantillas de respaldo fijas y rápidas (<= 120 caracteres garantizados)
+  const fallbacksPorTipo: Record<string, string[]> = {
+    foto: [
+      `📸 ¡${nombre} subió su destello! Falta menos para las ${hora} hs. 🎭`,
+      `✨ ¡Hay foto nueva en la mesa! ${nombre} ya puso la suya. 🎭`,
+      `📸 ¡Un destello más! ${nombre} no se quedó afuera hoy. 🎭`,
+    ],
+    ranking: [
+      `🏅 ¡${nombre} trepó en el ranking familiar! ¿Quién se le anima? 🎭✨`,
+      `🏆 ¡Se mueve la tabla! ${nombre} sumó fuerte en la copa familiar. 🎭`,
+    ],
+    trivia: [
+      `🧠 ¡${nombre} desafió la Trivia de Arlequín y sumó puntos! 🎭`,
+      `🎭 ¡Atención! ${nombre} contestó la trivia. ¿Vos ya jugaste? ✨`,
+    ],
+    prode: [
+      `⚽ ¡Fecha del Prode abierta! Pronosticá los partidos de hoy. 🎭`,
+      `⚽ ¡${nombre} clavó pleno en el Prode! La tribuna festeja. 🎭`,
+    ],
+    cumpleanos: [
+      `🎂 ¡Feliz cumple ${nombre}! Hoy la familia te abraza fuerte. 🎭🎉`,
+      `🎉 ¡Brindis por ${nombre}! Que los destellos de hoy sean de fiesta. 🎭`,
+    ],
+    aviso: [
+      `⏰ ¡Atención ${grupoNombre}! Quedan minutos para el cierre de las ${hora} hs. 🎭`,
+      `📢 ¡Alerta Arlequín! No se olviden de subir su momento del día. 🎭`,
+    ],
+    humor: [
+      `🎭 Arlequín dice: La vida es un destello... ¡y el mate nunca se lava! ✨`,
+      `🎭 ¡Sonrían que la foto del día no perdona caritas de dormidos! 📸`,
+      `🎭 El ranking familiar está que arde... ¡a ponerle chispa! ✨`,
+    ],
+    manual: [`📢 Mensaje de ${grupoNombre}: ¡Disfrutemos de los destellos! 🎭`],
+  };
+
+  const listaFallbacks = fallbacksPorTipo[tipo] || fallbacksPorTipo.humor;
+  const fallback = listaFallbacks[Math.floor(Math.random() * listaFallbacks.length)].slice(0, 120);
+
+  if (!ai) {
+    return { text: fallback, color };
+  }
+
+  try {
+    const prompt = `
+Sos Arlequín, anfitrión divertido de "Destellos". Generá 1 mensaje de cartel LED antiguo.
+Evento: "${tipo}". Familia: "${grupoNombre}".
+Datos: ${JSON.stringify(metadata)}.
+REGLAS ESTRICTAS:
+- Máximo 115 caracteres.
+- Español rioplatense lúdico y cariñoso.
+- Sin groserías ni insultos.
+- Incluí emoji 🎭 o acorde.
+- Devolvé SOLO el texto sin comillas ni títulos.
+`;
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { temperature: 0.8 },
+    });
+
+    const generado = res.text?.trim().replace(/^["']|["']$/g, '') || fallback;
+    return {
+      text: generado.length > 120 ? generado.slice(0, 117) + '...' : generado,
+      color,
+    };
+  } catch {
+    return { text: fallback, color };
+  }
+}
+
+
 

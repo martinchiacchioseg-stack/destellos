@@ -28,16 +28,24 @@ import {
   UbicacionPublicidad,
   Publicidad,
   NotificacionAdmin,
+  MensajePizarra,
+  TipoMensajePizarra,
+  ColorLedPizarra,
+  PrioridadMensajePizarra,
+  AutorMensajePizarra,
+  EstadoMensajePizarra,
 } from './types';
 import { hashPassword } from './auth';
 import { getFechaArgentina, getAyerFechaArgentina } from './date-utils';
-import { elegirDestelloDelDia, generarTriviaDiaria } from './gemini';
+import { elegirDestelloDelDia, generarTriviaDiaria, generarMensajePizarraArlequin } from './gemini';
 import { estamparDiploma } from './image-processor';
 import {
   dbUpsert,
   dbDelete,
   dbGet,
   dbGetAll,
+  dbGetMeta,
+  dbSetMeta,
   COLLECTIONS,
 } from './sqlite-store';
 import fs from 'fs';
@@ -129,8 +137,9 @@ export async function ensureInitialized() {
     }
 
     // Inicializar o asegurar código de familia en los grupos
+    const seedYaEjecutado = dbGetMeta('seed_inicial_grupos_ejecutado');
     const gruposExistentes = dbGetAll<Grupo>('grupos');
-    if (gruposExistentes.length === 0) {
+    if (gruposExistentes.length === 0 && seedYaEjecutado !== '1') {
       const grupoDefecto: Grupo = {
         id: 'grp-chiachio-001',
         nombre: 'Familia Chiachio',
@@ -142,11 +151,14 @@ export async function ensureInitialized() {
         admin_email: 'martinchiacchio.seg@gmail.com',
         admin_nombre: 'Martín Chiacchio',
         descripcion: 'Espacio familiar oficial',
+        fecha_vencimiento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        licencia_activa: true,
         estado: 'activo',
         activo: true,
         creado_en: new Date().toISOString(),
       };
       dbUpsert('grupos', grupoDefecto);
+      dbSetMeta('seed_inicial_grupos_ejecutado', '1');
     } else {
       for (const g of gruposExistentes) {
         if (!g.codigo_familia) {
@@ -167,6 +179,15 @@ export async function ensureInitialized() {
 // GESTIÓN DE GRUPOS Y CÓDIGOS DE FAMILIA
 // ==============================================================================
 
+export function normalizarCodigoFamilia(codigo: string): string {
+  if (!codigo) return '';
+  return codigo
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]/g, '');
+}
+
 export function generarCodigoFamiliaUnico(nombre: string): string {
   const clean = nombre
     .toUpperCase()
@@ -180,17 +201,20 @@ export function generarCodigoFamiliaUnico(nombre: string): string {
 
 export async function buscarGrupoPorCodigo(codigo: string): Promise<Grupo | null> {
   await ensureInitialized();
-  if (!codigo) return null;
-  const clean = codigo.toUpperCase().trim().replace(/\s+/g, '');
+  if (!codigo || typeof codigo !== 'string') return null;
+  const clean = normalizarCodigoFamilia(codigo);
+  if (!clean) return null;
+
   const grupos = dbGetAll<Grupo>('grupos');
   return (
-    grupos.find(
-      (g) =>
-        g.activo &&
-        g.estado === 'activo' &&
-        ((g.codigo_familia && g.codigo_familia.toUpperCase().trim() === clean) ||
-          (g.codigo_invitacion && g.codigo_invitacion.toUpperCase().trim() === clean))
-    ) || null
+    grupos.find((g) => {
+      if (g.activo === false || g.estado === 'pausado') {
+        return false;
+      }
+      const codFam = normalizarCodigoFamilia(g.codigo_familia || '');
+      const codInv = normalizarCodigoFamilia(g.codigo_invitacion || '');
+      return codFam === clean || codInv === clean;
+    }) || null
   );
 }
 
@@ -244,6 +268,7 @@ export async function crearGrupo(data: {
   };
 
   dbUpsert('grupos', nuevoGrupo);
+  dbSetMeta('seed_inicial_grupos_ejecutado', '1');
   return nuevoGrupo;
 }
 
@@ -255,6 +280,7 @@ export async function actualizarGrupo(id: string, data: Partial<Grupo>): Promise
   const actualizado: Grupo = {
     ...grupo,
     ...data,
+    codigo_invitacion: data.codigo_familia || data.codigo_invitacion || grupo.codigo_invitacion,
     actualizado_en: new Date().toISOString(),
   };
 
@@ -264,6 +290,7 @@ export async function actualizarGrupo(id: string, data: Partial<Grupo>): Promise
 
 export async function eliminarGrupo(id: string): Promise<boolean> {
   await ensureInitialized();
+  dbSetMeta('seed_inicial_grupos_ejecutado', '1');
   // Borrar usuarios vinculados
   const usuarios = dbGetAll<Usuario>('usuarios');
   for (const u of usuarios) {
@@ -1844,3 +1871,201 @@ export async function sincronizarPartidosProde(grupoId: string) {
 
   return { ok: true, fecha };
 }
+
+// ==============================================================================
+// PIZARRA GENERAL (CARTEL LED VINTAGE)
+// ==============================================================================
+
+const ultimosEventosArlequinTimestamp = new Map<string, number>();
+
+export async function crearMensajePizarra(data: {
+  group_id?: string;
+  text: string;
+  type?: TipoMensajePizarra;
+  priority?: PrioridadMensajePizarra;
+  color?: ColorLedPizarra;
+  author?: AutorMensajePizarra;
+  scheduled_at?: string;
+  expires_at?: string;
+}): Promise<MensajePizarra> {
+  await ensureInitialized();
+
+  // Truncar estrictamente a 120 caracteres y sanitizar
+  const textoLimpio = data.text
+    .trim()
+    .replace(/[<>]/g, '')
+    .slice(0, 120);
+
+  const mensaje: MensajePizarra = {
+    id: 'board-' + uuidv4(),
+    group_id: data.group_id || 'all',
+    text: textoLimpio,
+    type: data.type || 'manual',
+    priority: data.priority || 'normal',
+    color: data.color || 'ambar',
+    author: data.author || 'superadmin',
+    status: 'activo',
+    created_at: new Date().toISOString(),
+    scheduled_at: data.scheduled_at,
+    expires_at: data.expires_at,
+  };
+
+  dbUpsert('boardMessages', mensaje);
+  return mensaje;
+}
+
+export async function listarMensajesPizarra(
+  grupoId?: string,
+  soloActivos: boolean = true
+): Promise<MensajePizarra[]> {
+  await ensureInitialized();
+  const ahora = new Date().toISOString();
+  let todos = dbGetAll<MensajePizarra>('boardMessages');
+
+  // Si no hay mensajes, sembrar mensajes iniciales de Arlequín
+  if (todos.length === 0) {
+    const m1: MensajePizarra = {
+      id: 'board-init-1',
+      group_id: 'all',
+      text: '🎭 ¡BIENVENIDOS A DESTELLOS! Subí tu momento del día antes del cierre y sumá puntos. ✨',
+      type: 'aviso',
+      priority: 'destacada',
+      color: 'ambar',
+      author: 'arlequin',
+      status: 'activo',
+      created_at: ahora,
+    };
+    const m2: MensajePizarra = {
+      id: 'board-init-2',
+      group_id: 'all',
+      text: '🏆 HOY HAY TRIVIA FAMILIAR: Poné a prueba tus conocimientos con Arlequín y escalá la tabla. 🧠',
+      type: 'trivia',
+      priority: 'normal',
+      color: 'celeste',
+      author: 'arlequin',
+      status: 'activo',
+      created_at: ahora,
+    };
+    dbUpsert('boardMessages', m1);
+    dbUpsert('boardMessages', m2);
+    todos = [m1, m2];
+  }
+
+  return todos
+    .filter((m) => {
+      // Filtrar por grupo: sólo los de su grupo o 'all'
+      if (grupoId && m.group_id !== 'all' && m.group_id !== grupoId) {
+        return false;
+      }
+
+      if (soloActivos) {
+        if (m.status !== 'activo') return false;
+        // Si tiene fecha de programación futura, no mostrar aún
+        if (m.scheduled_at && m.scheduled_at > ahora) return false;
+        // Si ya expiró, no mostrar
+        if (m.expires_at && m.expires_at < ahora) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Prioridad destacada primero
+      if (a.priority === 'destacada' && b.priority !== 'destacada') return -1;
+      if (a.priority !== 'destacada' && b.priority === 'destacada') return 1;
+      // Más recientes primero
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })
+    .slice(0, 15); // Máximo 15 mensajes en el ciclo
+}
+
+export async function actualizarMensajePizarra(
+  id: string,
+  data: Partial<MensajePizarra>
+): Promise<MensajePizarra | null> {
+  await ensureInitialized();
+  const actual = dbGet<MensajePizarra>('boardMessages', id);
+  if (!actual) return null;
+
+  const actualizado: MensajePizarra = {
+    ...actual,
+    ...(data.text ? { text: data.text.trim().slice(0, 120) } : {}),
+    ...(data.color ? { color: data.color } : {}),
+    ...(data.priority ? { priority: data.priority } : {}),
+    ...(data.status ? { status: data.status } : {}),
+    ...(data.expires_at !== undefined ? { expires_at: data.expires_at } : {}),
+    ...(data.scheduled_at !== undefined ? { scheduled_at: data.scheduled_at } : {}),
+    ...(data.group_id ? { group_id: data.group_id } : {}),
+  };
+
+  dbUpsert('boardMessages', actualizado);
+  return actualizado;
+}
+
+export async function eliminarMensajePizarra(id: string): Promise<boolean> {
+  await ensureInitialized();
+  return dbDelete('boardMessages', id);
+}
+
+export async function limpiarMensajesPizarraVencidos(): Promise<number> {
+  await ensureInitialized();
+  const ahora = new Date().toISOString();
+  const todos = dbGetAll<MensajePizarra>('boardMessages');
+  let vencidos = 0;
+
+  for (const m of todos) {
+    if (m.status === 'activo' && m.expires_at && m.expires_at < ahora) {
+      m.status = 'vencido';
+      dbUpsert('boardMessages', m);
+      vencidos++;
+    }
+  }
+
+  return vencidos;
+}
+
+export async function dispararEventoPizarraArlequin(params: {
+  tipo: TipoMensajePizarra;
+  grupoId?: string;
+  grupoNombre?: string;
+  metadata?: {
+    usuarioNombre?: string;
+    horaLimite?: string;
+    puntos?: number;
+    partido?: string;
+    detalle?: string;
+  };
+}) {
+  const { tipo, grupoId = 'all', grupoNombre = 'Familia', metadata = {} } = params;
+
+  // Límite de frecuencia: 1 mensaje por tipo y grupo cada 10 minutos (600.000 ms)
+  const claveRate = `${tipo}:${grupoId}`;
+  const ultimoEnvio = ultimosEventosArlequinTimestamp.get(claveRate) || 0;
+  const ahora = Date.now();
+  if (ahora - ultimoEnvio < 10 * 60 * 1000) {
+    return null; // Omitir para no saturar el cartel
+  }
+
+  ultimosEventosArlequinTimestamp.set(claveRate, ahora);
+
+  try {
+    const { text, color } = await generarMensajePizarraArlequin({
+      tipo,
+      grupoNombre,
+      metadata,
+    });
+
+    return await crearMensajePizarra({
+      group_id: grupoId,
+      text,
+      type: tipo,
+      priority: tipo === 'aviso' || tipo === 'cumpleanos' ? 'destacada' : 'normal',
+      color,
+      author: 'arlequin',
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+  } catch (err) {
+    console.warn('[Pizarra] Error al disparar mensaje automático de Arlequín:', err);
+    return null;
+  }
+}
+

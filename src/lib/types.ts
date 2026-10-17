@@ -28,6 +28,35 @@ export interface MensajeChatArlequin {
   timestamp: string;
 }
 
+export type TipoMensajePizarra =
+  | 'ranking'
+  | 'foto'
+  | 'trivia'
+  | 'prode'
+  | 'cumpleanos'
+  | 'aviso'
+  | 'humor'
+  | 'manual';
+
+export type ColorLedPizarra = 'rojo' | 'verde' | 'ambar' | 'celeste' | 'magenta';
+export type PrioridadMensajePizarra = 'normal' | 'destacada';
+export type AutorMensajePizarra = 'arlequin' | 'superadmin';
+export type EstadoMensajePizarra = 'activo' | 'pausado' | 'vencido';
+
+export interface MensajePizarra {
+  id: string;
+  group_id: string; // ID del grupo o "all"
+  text: string; // Máx. 120 caracteres
+  type: TipoMensajePizarra;
+  priority: PrioridadMensajePizarra;
+  color: ColorLedPizarra;
+  author: AutorMensajePizarra;
+  status: EstadoMensajePizarra;
+  created_at: string;
+  scheduled_at?: string;
+  expires_at?: string;
+}
+
 export type EstadoModuloDiagnostico = 'ok' | 'advertencia' | 'error' | 'reparado';
 
 export interface ItemDiagnosticoModulo {

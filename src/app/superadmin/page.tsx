@@ -29,6 +29,7 @@ import {
   FileText,
   Download,
   Calendar,
+  Tv,
 } from 'lucide-react';
 import {
   SesionUsuario,
@@ -37,13 +38,18 @@ import {
   Publicidad,
   UbicacionPublicidad,
   InformeDiagnostico,
+  MensajePizarra,
+  ColorLedPizarra,
+  PrioridadMensajePizarra,
 } from '@/lib/types';
 import AnimatedLogo from '@/components/AnimatedLogo';
 import { jsPDF } from 'jspdf';
 
 export default function SuperadminPage() {
   const router = useRouter();
-  const [tabActivo, setTabActivo] = useState<'grupos' | 'licencias' | 'diagnostico' | 'publicidad'>('grupos');
+  const [tabActivo, setTabActivo] = useState<
+    'grupos' | 'licencias' | 'pizarra' | 'diagnostico' | 'publicidad'
+  >('grupos');
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null);
   const [metricas, setMetricas] = useState<any>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -51,6 +57,17 @@ export default function SuperadminPage() {
   const [usuariosGrupo, setUsuariosGrupo] = useState<UsuarioPublico[]>([]);
   const [publicidades, setPublicidades] = useState<Publicidad[]>([]);
   const [cargando, setCargando] = useState(true);
+
+  // Estados de Pizarra LED
+  const [boardMensajes, setBoardMensajes] = useState<MensajePizarra[]>([]);
+  const [boardTexto, setBoardTexto] = useState('');
+  const [boardColor, setBoardColor] = useState<ColorLedPizarra>('ambar');
+  const [boardGrupoId, setBoardGrupoId] = useState('all');
+  const [boardPrioridad, setBoardPrioridad] = useState<PrioridadMensajePizarra>('normal');
+  const [boardVencimiento, setBoardVencimiento] = useState('');
+  const [boardProgramado, setBoardProgramado] = useState('');
+  const [boardEditandoId, setBoardEditandoId] = useState<string | null>(null);
+  const [mostrarModalBoard, setMostrarModalBoard] = useState(false);
 
   // Estados de Diagnóstico y Mantenimiento
   const [ejecutandoDiagnostico, setEjecutandoDiagnostico] = useState(false);
@@ -73,6 +90,28 @@ export default function SuperadminPage() {
   const [personaEmail, setPersonaEmail] = useState('');
   const [personaRol, setPersonaRol] = useState<'admin' | 'miembro'>('miembro');
   const [personaApodo, setPersonaApodo] = useState('');
+
+  // Estados para Edición de Grupo
+  const [mostrarModalEditarGrupo, setMostrarModalEditarGrupo] = useState(false);
+  const [editGrupoId, setEditGrupoId] = useState('');
+  const [editNombreGrupo, setEditNombreGrupo] = useState('');
+  const [editEmojiGrupo, setEditEmojiGrupo] = useState('✨');
+  const [editHoraLimiteGrupo, setEditHoraLimiteGrupo] = useState('22:00');
+  const [editDescGrupo, setEditDescGrupo] = useState('');
+  const [editCodigoFamilia, setEditCodigoFamilia] = useState('');
+  const [editAdminNombre, setEditAdminNombre] = useState('');
+  const [editAdminEmail, setEditAdminEmail] = useState('');
+
+  // Estados para Edición de Persona / Integrante
+  const [mostrarModalEditarPersona, setMostrarModalEditarPersona] = useState(false);
+  const [editPersonaId, setEditPersonaId] = useState('');
+  const [editPersonaNombre, setEditPersonaNombre] = useState('');
+  const [editPersonaApodo, setEditPersonaApodo] = useState('');
+  const [editPersonaEmail, setEditPersonaEmail] = useState('');
+  const [editPersonaTelefono, setEditPersonaTelefono] = useState('');
+  const [editPersonaRol, setEditPersonaRol] = useState<'admin' | 'miembro'>('miembro');
+  const [editPersonaFechaNacimiento, setEditPersonaFechaNacimiento] = useState('');
+  const [editPersonaPassword, setEditPersonaPassword] = useState('');
 
   // Modales Publicidad
   const [mostrarModalAd, setMostrarModalAd] = useState(false);
@@ -112,10 +151,11 @@ export default function SuperadminPage() {
       }
       setUsuario(meData.usuario);
 
-      const [metRes, grupRes, pubRes] = await Promise.all([
+      const [metRes, grupRes, pubRes, boardRes] = await Promise.all([
         fetch('/api/superadmin/metricas', { headers: authH }),
         fetch('/api/superadmin/grupos', { headers: authH }),
         fetch('/api/superadmin/publicidades', { headers: authH }),
+        fetch('/api/superadmin/board', { headers: authH }),
       ]);
 
       if (metRes.ok) setMetricas(await metRes.json());
@@ -131,10 +171,110 @@ export default function SuperadminPage() {
         const pData = await pubRes.json();
         setPublicidades(pData.publicidades || []);
       }
+      if (boardRes && boardRes.ok) {
+        const bData = await boardRes.json();
+        setBoardMensajes(bData.mensajes || []);
+      }
     } catch {
       setFeedback({ tipo: 'error', texto: 'Error al cargar datos del panel.' });
     } finally {
       setCargando(false);
+    }
+  };
+
+  // Handlers de Pizarra LED
+  const handleAbrirNuevoBoardMensaje = () => {
+    setBoardEditandoId(null);
+    setBoardTexto('');
+    setBoardColor('ambar');
+    setBoardGrupoId('all');
+    setBoardPrioridad('normal');
+    setBoardVencimiento('');
+    setBoardProgramado('');
+    setMostrarModalBoard(true);
+  };
+
+  const handleAbrirEditarBoardMensaje = (m: MensajePizarra) => {
+    setBoardEditandoId(m.id);
+    setBoardTexto(m.text);
+    setBoardColor(m.color);
+    setBoardGrupoId(m.group_id);
+    setBoardPrioridad(m.priority);
+    setBoardVencimiento(m.expires_at || '');
+    setBoardProgramado(m.scheduled_at || '');
+    setMostrarModalBoard(true);
+  };
+
+  const handleGuardarBoardMensaje = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    if (!boardTexto.trim()) {
+      setFeedback({ tipo: 'error', texto: 'El texto del mensaje no puede estar vacío.' });
+      return;
+    }
+    try {
+      const authH = getAuthHeaders();
+      const method = boardEditandoId ? 'PUT' : 'POST';
+      const body = {
+        id: boardEditandoId || undefined,
+        text: boardTexto.trim(),
+        color: boardColor,
+        group_id: boardGrupoId,
+        priority: boardPrioridad,
+        scheduled_at: boardProgramado || undefined,
+        expires_at: boardVencimiento || undefined,
+      };
+
+      const res = await fetch('/api/superadmin/board', {
+        method,
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        setFeedback({ tipo: 'error', texto: errData.error || 'Error al guardar mensaje.' });
+      } else {
+        setMostrarModalBoard(false);
+        setFeedback({ tipo: 'ok', texto: '¡Mensaje guardado para el Cartel LED con éxito!' });
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al conectar con el servidor.' });
+    }
+  };
+
+  const handleToggleEstadoBoardMensaje = async (m: MensajePizarra) => {
+    try {
+      const nuevoEstado = m.status === 'activo' ? 'pausado' : 'activo';
+      const authH = getAuthHeaders();
+      const res = await fetch('/api/superadmin/board', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify({ id: m.id, status: nuevoEstado }),
+      });
+      if (res.ok) {
+        cargarDatos();
+      }
+    } catch {
+      alert('Error al modificar estado del mensaje.');
+    }
+  };
+
+  const handleEliminarBoardMensaje = async (id: string) => {
+    if (!confirm('¿Eliminar este mensaje de la Pizarra LED?')) return;
+    try {
+      const authH = getAuthHeaders();
+      const res = await fetch(`/api/superadmin/board?id=${id}`, {
+        method: 'DELETE',
+        headers: authH,
+      });
+      if (res.ok) {
+        setBoardMensajes((prev) => prev.filter((m) => m.id !== id));
+        setFeedback({ tipo: 'ok', texto: 'Mensaje eliminado del Cartel LED.' });
+      }
+    } catch {
+      alert('Error al eliminar mensaje.');
     }
   };
 
@@ -242,7 +382,7 @@ export default function SuperadminPage() {
       setUsuariosGrupo([]);
       return;
     }
-    fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`)
+    fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`, { headers: getAuthHeaders() })
       .then((r) => r.json())
       .then((d) => setUsuariosGrupo(d.usuarios || []))
       .catch(() => {});
@@ -252,9 +392,10 @@ export default function SuperadminPage() {
     e.preventDefault();
     setFeedback(null);
     try {
+      const authH = getAuthHeaders();
       const res = await fetch('/api/superadmin/grupos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({
           nombre: nombreGrupo,
           emoji_or_logo: emojiGrupo,
@@ -288,12 +429,57 @@ export default function SuperadminPage() {
     }
   };
 
+  const handleAbrirEditarGrupo = (g: Grupo) => {
+    setEditGrupoId(g.id);
+    setEditNombreGrupo(g.nombre || '');
+    setEditEmojiGrupo(g.emoji_or_logo || '✨');
+    setEditHoraLimiteGrupo(g.hora_limite || '22:00');
+    setEditDescGrupo(g.descripcion || '');
+    setEditCodigoFamilia(g.codigo_familia || g.codigo_invitacion || '');
+    setEditAdminNombre(g.admin_nombre || '');
+    setEditAdminEmail(g.admin_email || '');
+    setMostrarModalEditarGrupo(true);
+  };
+
+  const handleGuardarEditarGrupo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    try {
+      const authH = getAuthHeaders();
+      const res = await fetch('/api/superadmin/grupos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify({
+          id: editGrupoId,
+          nombre: editNombreGrupo.trim(),
+          emoji_or_logo: editEmojiGrupo.trim(),
+          hora_limite: editHoraLimiteGrupo.trim(),
+          descripcion: editDescGrupo.trim(),
+          codigo_familia: editCodigoFamilia.trim().toUpperCase(),
+          admin_nombre: editAdminNombre.trim(),
+          admin_email: editAdminEmail.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error || 'Error al actualizar grupo.' });
+      } else {
+        setFeedback({ tipo: 'ok', texto: `¡Familia "${editNombreGrupo}" modificada con éxito!` });
+        setMostrarModalEditarGrupo(false);
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al conectar con el servidor.' });
+    }
+  };
+
   const handleToggleEstadoGrupo = async (g: Grupo) => {
     const nuevoEstado = g.estado === 'activo' ? 'pausado' : 'activo';
     try {
+      const authH = getAuthHeaders();
       const res = await fetch('/api/superadmin/grupos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({ id: g.id, estado: nuevoEstado }),
       });
       if (res.ok) {
@@ -307,9 +493,14 @@ export default function SuperadminPage() {
   const handleEliminarGrupo = async (g: Grupo) => {
     if (!confirm(`¿Eliminar permanentemente el grupo "${g.nombre}" y todos sus miembros?`)) return;
     try {
-      const res = await fetch(`/api/superadmin/grupos?id=${g.id}`, { method: 'DELETE' });
+      const authH = getAuthHeaders();
+      const res = await fetch(`/api/superadmin/grupos?id=${g.id}`, {
+        method: 'DELETE',
+        headers: authH,
+      });
       if (res.ok) {
         if (grupoSeleccionadoId === g.id) setGrupoSeleccionadoId('');
+        setFeedback({ tipo: 'ok', texto: `Familia "${g.nombre}" eliminada correctamente.` });
         cargarDatos();
       }
     } catch {
@@ -320,6 +511,7 @@ export default function SuperadminPage() {
   // Gestión de Licencias Familiares
   const handleRenovarLicencia = async (g: Grupo, diasSuma: number) => {
     try {
+      const authH = getAuthHeaders();
       const hoy = new Date();
       const baseFecha = g.fecha_vencimiento && new Date(g.fecha_vencimiento) > hoy
         ? new Date(g.fecha_vencimiento)
@@ -329,7 +521,7 @@ export default function SuperadminPage() {
 
       const res = await fetch('/api/superadmin/grupos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({
           id: g.id,
           fecha_vencimiento: nuevaFecha,
@@ -348,10 +540,11 @@ export default function SuperadminPage() {
 
   const handleToggleLicencia = async (g: Grupo) => {
     try {
+      const authH = getAuthHeaders();
       const nuevoEstado = !g.licencia_activa;
       const res = await fetch('/api/superadmin/grupos', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({
           id: g.id,
           licencia_activa: nuevoEstado,
@@ -492,9 +685,10 @@ export default function SuperadminPage() {
     }
 
     try {
+      const authH = getAuthHeaders();
       const res = await fetch('/api/superadmin/usuarios', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({
           grupoId: grupoSeleccionadoId,
           nombre: personaNombre,
@@ -520,7 +714,7 @@ export default function SuperadminPage() {
         setMostrarModalPersona(false);
 
         // Recargar usuarios del grupo
-        const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`);
+        const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`, { headers: authH });
         if (uRes.ok) {
           const uData = await uRes.json();
           setUsuariosGrupo(uData.usuarios || []);
@@ -529,6 +723,59 @@ export default function SuperadminPage() {
       }
     } catch {
       setFeedback({ tipo: 'error', texto: 'Error al crear persona.' });
+    }
+  };
+
+  const handleAbrirEditarPersona = (u: any) => {
+    setEditPersonaId(u.id);
+    setEditPersonaNombre(u.nombre || '');
+    setEditPersonaApodo(u.apodo || '');
+    setEditPersonaEmail(u.email || '');
+    setEditPersonaTelefono(u.whatsapp || u.telefono || '');
+    setEditPersonaRol(u.rol || 'miembro');
+    setEditPersonaFechaNacimiento(u.fecha_nacimiento || '');
+    setEditPersonaPassword('');
+    setMostrarModalEditarPersona(true);
+  };
+
+  const handleGuardarEditarPersona = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    try {
+      const authH = getAuthHeaders();
+      const res = await fetch('/api/superadmin/usuarios', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authH },
+        body: JSON.stringify({
+          id: editPersonaId,
+          nombre: editPersonaNombre.trim(),
+          apodo: editPersonaApodo.trim(),
+          email: editPersonaEmail.trim(),
+          telefono: editPersonaTelefono.trim(),
+          whatsapp: editPersonaTelefono.trim(),
+          rol: editPersonaRol,
+          fecha_nacimiento: editPersonaFechaNacimiento.trim(),
+          password: editPersonaPassword.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback({ tipo: 'error', texto: data.error || 'Error al actualizar usuario.' });
+      } else {
+        setFeedback({ tipo: 'ok', texto: `¡Integrante "${editPersonaNombre}" actualizado con éxito!` });
+        setMostrarModalEditarPersona(false);
+        if (grupoSeleccionadoId) {
+          const uRes = await fetch(`/api/superadmin/usuarios?grupoId=${grupoSeleccionadoId}`, { headers: authH });
+          if (uRes.ok) {
+            const uData = await uRes.json();
+            setUsuariosGrupo(uData.usuarios || []);
+          }
+        }
+        cargarDatos();
+      }
+    } catch {
+      setFeedback({ tipo: 'error', texto: 'Error al actualizar usuario.' });
     }
   };
 
@@ -544,9 +791,14 @@ export default function SuperadminPage() {
   const handleEliminarPersona = async (p: UsuarioPublico) => {
     if (!confirm(`¿Eliminar al miembro "${p.nombre}"?`)) return;
     try {
-      const res = await fetch(`/api/superadmin/usuarios?id=${p.id}`, { method: 'DELETE' });
+      const authH = getAuthHeaders();
+      const res = await fetch(`/api/superadmin/usuarios?id=${p.id}`, {
+        method: 'DELETE',
+        headers: authH,
+      });
       if (res.ok) {
         setUsuariosGrupo((prev) => prev.filter((u) => u.id !== p.id));
+        setFeedback({ tipo: 'ok', texto: `Miembro "${p.nombre}" eliminado.` });
         cargarDatos();
       }
     } catch {
@@ -656,6 +908,17 @@ export default function SuperadminPage() {
             <span>Licencias Familiares</span>
           </button>
           <button
+            onClick={() => setTabActivo('pizarra')}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer shrink-0 ${
+              tabActivo === 'pizarra'
+                ? 'border-[#FF7043] text-[#FF7043] bg-orange-50/50 dark:bg-orange-950/20'
+                : 'border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Tv className="w-4 h-4" />
+            <span>Pizarra LED ({boardMensajes.length})</span>
+          </button>
+          <button
             onClick={() => setTabActivo('diagnostico')}
             className={`flex items-center gap-1.5 px-3.5 py-2.5 font-bold text-xs rounded-t-2xl border-b-2 transition cursor-pointer shrink-0 ${
               tabActivo === 'diagnostico'
@@ -751,10 +1014,20 @@ export default function SuperadminPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              handleAbrirEditarGrupo(g);
+                            }}
+                            title="Modificar familia"
+                            className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 hover:text-[#FF7043] transition cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               handleToggleEstadoGrupo(g);
                             }}
                             title={g.estado === 'activo' ? 'Pausar grupo' : 'Activar grupo'}
-                            className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+                            className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition cursor-pointer"
                           >
                             {g.estado === 'activo' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-500" />}
                           </button>
@@ -764,7 +1037,7 @@ export default function SuperadminPage() {
                               handleEliminarGrupo(g);
                             }}
                             title="Eliminar grupo"
-                            className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500"
+                            className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500 transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -835,13 +1108,22 @@ export default function SuperadminPage() {
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => handleEliminarPersona(u)}
-                          className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500"
-                          title="Eliminar usuario"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleAbrirEditarPersona(u)}
+                            className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                            title="Modificar integrante"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleEliminarPersona(u)}
+                            className="p-1.5 rounded-xl hover:bg-rose-100 text-rose-500 transition cursor-pointer"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -950,7 +1232,208 @@ export default function SuperadminPage() {
         )}
 
         {/* =========================================================================
-            PESTAÑA DIAGNÓSTICO Y MANTENIMIENTO (12 Flujos, Auto-reparación y PDF)
+            PESTAÑA PIZARRA GENERAL (Cartel LED Vintage - Arlequín & Superadmin)
+           ========================================================================= */}
+        {tabActivo === 'pizarra' && (
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <Tv className="w-5 h-5 text-[#FF7043]" />
+                  Pizarra General — Cartel LED Vintage ({boardMensajes.length})
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Marquesina luminosa superior visible para todas las familias o grupos seleccionados
+                </p>
+              </div>
+              <button
+                onClick={handleAbrirNuevoBoardMensaje}
+                className="py-2 px-3.5 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-[#FF7043]/20 cursor-pointer transition"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Nuevo Mensaje LED</span>
+              </button>
+            </div>
+
+            {boardMensajes.length === 0 ? (
+              <div className="text-center py-10 space-y-2">
+                <Tv className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto" />
+                <p className="text-xs text-gray-400">
+                  No hay mensajes configurados en el Cartel LED todavía.
+                </p>
+                <button
+                  onClick={handleAbrirNuevoBoardMensaje}
+                  className="px-3 py-1.5 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-[#FF7043] font-bold text-xs cursor-pointer hover:bg-orange-200 transition"
+                >
+                  Crear el primer mensaje LED
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {boardMensajes.map((m) => {
+                  const grupoNombre =
+                    m.group_id === 'all'
+                      ? 'Todas las familias (Público general)'
+                      : grupos.find((g) => g.id === m.group_id)?.nombre || m.group_id;
+
+                  const colorStyles: Record<string, { text: string; glow: string; bg: string; border: string }> = {
+                    rojo: {
+                      text: '#FF3333',
+                      glow: '0 0 6px rgba(255,51,51,0.8)',
+                      bg: 'bg-red-500/10 text-red-500 border-red-500/30',
+                      border: 'border-red-900/40',
+                    },
+                    verde: {
+                      text: '#00FF66',
+                      glow: '0 0 6px rgba(0,255,102,0.8)',
+                      bg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
+                      border: 'border-emerald-900/40',
+                    },
+                    ambar: {
+                      text: '#FFB300',
+                      glow: '0 0 6px rgba(255,179,0,0.8)',
+                      bg: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
+                      border: 'border-amber-900/40',
+                    },
+                    celeste: {
+                      text: '#00E5FF',
+                      glow: '0 0 6px rgba(0,229,255,0.8)',
+                      bg: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30',
+                      border: 'border-cyan-900/40',
+                    },
+                    magenta: {
+                      text: '#FF007F',
+                      glow: '0 0 6px rgba(255,0,127,0.8)',
+                      bg: 'bg-pink-500/10 text-pink-500 border-pink-500/30',
+                      border: 'border-pink-900/40',
+                    },
+                  };
+
+                  const currentStyle = colorStyles[m.color] || colorStyles.ambar;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#18141F] space-y-3"
+                    >
+                      {/* Simulación Cartel LED Vintage */}
+                      <div className="bg-[#050505] p-3 rounded-xl border border-gray-800 shadow-inner overflow-hidden relative">
+                        <div
+                          className="font-mono uppercase tracking-wider text-xs md:text-sm select-none break-words"
+                          style={{
+                            color: currentStyle.text,
+                            textShadow: currentStyle.glow,
+                          }}
+                        >
+                          {m.text}
+                        </div>
+                      </div>
+
+                      {/* Metadatos y Acciones */}
+                      <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase ${currentStyle.bg}`}
+                          >
+                            ● LED {m.color}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[10px] font-semibold">
+                            {m.author === 'arlequin' ? '🎭 Arlequín' : '👑 Superadmin'}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-[10px] font-semibold">
+                            Tipo: {m.type}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-[10px] font-semibold">
+                            Destino: {grupoNombre}
+                          </span>
+
+                          {m.priority === 'destacada' && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[10px] font-black">
+                              ⭐ Destacado
+                            </span>
+                          )}
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              m.status === 'activo'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400'
+                                : m.status === 'pausado'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-400'
+                                : 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                            }`}
+                          >
+                            {m.status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <button
+                            onClick={() => handleToggleEstadoBoardMensaje(m)}
+                            className={`p-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition flex items-center gap-1 ${
+                              m.status === 'activo'
+                                ? 'border-yellow-200 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-800 dark:text-yellow-400'
+                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400'
+                            }`}
+                            title={m.status === 'activo' ? 'Pausar mensaje' : 'Activar mensaje'}
+                          >
+                            {m.status === 'activo' ? (
+                              <>
+                                <Pause className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Pausar</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Activar</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() => handleAbrirEditarBoardMensaje(m)}
+                            className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition flex items-center gap-1"
+                            title="Editar mensaje"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Editar</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleEliminarBoardMensaje(m.id)}
+                            className="p-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 cursor-pointer transition flex items-center gap-1"
+                            title="Eliminar mensaje"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Eliminar</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Detalles de programación / expiración */}
+                      {(m.scheduled_at || m.expires_at) && (
+                        <div className="text-[10px] text-gray-400 flex items-center gap-3 pt-1 border-t border-gray-100 dark:border-gray-800">
+                          {m.scheduled_at && (
+                            <span>Programado: {new Date(m.scheduled_at).toLocaleString('es-AR')}</span>
+                          )}
+                          {m.expires_at && (
+                            <span>Vence: {new Date(m.expires_at).toLocaleString('es-AR')}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            PESTAÑA DIAGNÓSTICO Y MANTENIMIENTO (13 Flujos, Auto-reparación y PDF)
            ========================================================================= */}
         {tabActivo === 'diagnostico' && (
           <div className="space-y-4">
@@ -963,7 +1446,7 @@ export default function SuperadminPage() {
                 <div>
                   <h2 className="text-base font-black">Centro de Diagnóstico y Mantenimiento</h2>
                   <p className="text-xs text-purple-100">
-                    Inspección integral de los 12 módulos del sistema con auto-reparación y reporte en PDF
+                    Inspección integral de los 13 módulos del sistema con auto-reparación y reporte en PDF
                   </p>
                 </div>
               </div>
@@ -1400,6 +1883,126 @@ export default function SuperadminPage() {
         </div>
       )}
 
+      {/* Modal Modificar Grupo / Familia */}
+      {mostrarModalEditarGrupo && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-[#FF7043]" />
+                Modificar Familia
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMostrarModalEditarGrupo(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarEditarGrupo} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Nombre de la Familia o Grupo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editNombreGrupo}
+                  onChange={(e) => setEditNombreGrupo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Código de Familia para Ingreso *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editCodigoFamilia}
+                  onChange={(e) => setEditCodigoFamilia(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-mono font-bold tracking-wider uppercase bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Este es el código que los integrantes ingresan para sumarse
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Emoji</label>
+                  <input
+                    type="text"
+                    value={editEmojiGrupo}
+                    onChange={(e) => setEditEmojiGrupo(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white text-center"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Hora límite</label>
+                  <input
+                    type="time"
+                    value={editHoraLimiteGrupo}
+                    onChange={(e) => setEditHoraLimiteGrupo(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Admin Nombre</label>
+                  <input
+                    type="text"
+                    value={editAdminNombre}
+                    onChange={(e) => setEditAdminNombre(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Admin Email</label>
+                  <input
+                    type="email"
+                    value={editAdminEmail}
+                    onChange={(e) => setEditAdminEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                <input
+                  type="text"
+                  value={editDescGrupo}
+                  onChange={(e) => setEditDescGrupo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalEditarGrupo(false)}
+                  className="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-[#FF7043] hover:bg-[#F4511E] text-white text-xs font-bold cursor-pointer transition"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal Nueva Persona */}
       {mostrarModalPersona && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1468,6 +2071,128 @@ export default function SuperadminPage() {
                   className="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold cursor-pointer"
                 >
                   Crear Persona
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modificar Persona / Integrante */}
+      {mostrarModalEditarPersona && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-indigo-500" />
+                Modificar Integrante
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMostrarModalEditarPersona(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarEditarPersona} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Nombre completo *</label>
+                <input
+                  type="text"
+                  required
+                  value={editPersonaNombre}
+                  onChange={(e) => setEditPersonaNombre(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Apodo</label>
+                  <input
+                    type="text"
+                    value={editPersonaApodo}
+                    onChange={(e) => setEditPersonaApodo(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Rol</label>
+                  <select
+                    value={editPersonaRol}
+                    onChange={(e: any) => setEditPersonaRol(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  >
+                    <option value="miembro">Miembro</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={editPersonaEmail}
+                  onChange={(e) => setEditPersonaEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">WhatsApp / Teléfono</label>
+                  <input
+                    type="tel"
+                    value={editPersonaTelefono}
+                    onChange={(e) => setEditPersonaTelefono(e.target.value)}
+                    placeholder="ej: +54911..."
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Nacimiento</label>
+                  <input
+                    type="date"
+                    value={editPersonaFechaNacimiento}
+                    onChange={(e) => setEditPersonaFechaNacimiento(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Nueva Contraseña (opcional)
+                </label>
+                <input
+                  type="password"
+                  value={editPersonaPassword}
+                  onChange={(e) => setEditPersonaPassword(e.target.value)}
+                  placeholder="Dejar vacío para conservar la actual"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Ingresá una clave si deseás cambiar o restablecer el acceso del integrante
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalEditarPersona(false)}
+                  className="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition"
+                >
+                  Guardar Cambios
                 </button>
               </div>
             </form>
@@ -1622,6 +2347,216 @@ export default function SuperadminPage() {
                   className="flex-1 py-2 rounded-xl bg-[#FF7043] text-white text-xs font-bold cursor-pointer hover:bg-[#F4511E] transition"
                 >
                   {adEditandoId ? 'Guardar Cambios' : 'Crear Publicidad'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Crear / Editar Mensaje Pizarra LED */}
+      {mostrarModalBoard && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl max-w-lg w-full shadow-2xl space-y-4 my-8 border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <Tv className="w-5 h-5 text-[#FF7043]" />
+                {boardEditandoId ? 'Editar Mensaje LED' : 'Nuevo Mensaje para el Cartel LED'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMostrarModalBoard(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarBoardMensaje} className="space-y-3.5">
+              {/* Mensaje de texto (máx. 120 caracteres) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                    Texto del Mensaje LED *
+                  </label>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      boardTexto.length > 110
+                        ? 'text-rose-500'
+                        : boardTexto.length > 90
+                        ? 'text-amber-500'
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    {120 - boardTexto.length} car. restantes ({boardTexto.length}/120)
+                  </span>
+                </div>
+                <textarea
+                  required
+                  maxLength={120}
+                  rows={2}
+                  placeholder="Escribí un mensaje lúdico, aviso familiar o felicitación (máx. 120 car.)..."
+                  value={boardTexto}
+                  onChange={(e) => setBoardTexto(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white resize-none"
+                />
+              </div>
+
+              {/* Selector de Color LED */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  Color del Diodo LED
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(
+                    [
+                      { id: 'rojo', label: 'Rojo', hex: '#FF3333', bg: 'bg-red-500' },
+                      { id: 'verde', label: 'Verde', hex: '#00FF66', bg: 'bg-emerald-500' },
+                      { id: 'ambar', label: 'Ámbar', hex: '#FFB300', bg: 'bg-amber-500' },
+                      { id: 'celeste', label: 'Celeste', hex: '#00E5FF', bg: 'bg-cyan-500' },
+                      { id: 'magenta', label: 'Magenta', hex: '#FF007F', bg: 'bg-pink-500' },
+                    ] as const
+                  ).map((col) => {
+                    const esActivo = boardColor === col.id;
+                    return (
+                      <button
+                        key={col.id}
+                        type="button"
+                        onClick={() => setBoardColor(col.id)}
+                        className={`p-2 rounded-xl border text-center transition flex flex-col items-center gap-1 cursor-pointer ${
+                          esActivo
+                            ? 'border-gray-900 dark:border-white ring-2 ring-[#FF7043] bg-orange-50/40 dark:bg-orange-950/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full ${col.bg} shadow-sm inline-block`}
+                          style={{
+                            boxShadow: esActivo ? `0 0 8px ${col.hex}` : undefined,
+                          }}
+                        />
+                        <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300">
+                          {col.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Vista previa LED en tiempo real */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-500 mb-1">
+                  Vista Previa en Cartel LED
+                </label>
+                <div className="bg-[#050505] p-3 rounded-xl border border-gray-800 overflow-hidden text-center">
+                  <span
+                    className="font-mono text-xs md:text-sm uppercase tracking-wider select-none inline-block break-words"
+                    style={{
+                      color:
+                        boardColor === 'rojo'
+                          ? '#FF3333'
+                          : boardColor === 'verde'
+                          ? '#00FF66'
+                          : boardColor === 'celeste'
+                          ? '#00E5FF'
+                          : boardColor === 'magenta'
+                          ? '#FF007F'
+                          : '#FFB300',
+                      textShadow:
+                        boardColor === 'rojo'
+                          ? '0 0 6px rgba(255,51,51,0.85)'
+                          : boardColor === 'verde'
+                          ? '0 0 6px rgba(0,255,102,0.85)'
+                          : boardColor === 'celeste'
+                          ? '0 0 6px rgba(0,229,255,0.85)'
+                          : boardColor === 'magenta'
+                          ? '0 0 6px rgba(255,0,127,0.85)'
+                          : '0 0 6px rgba(255,179,0,0.85)',
+                    }}
+                  >
+                    {boardTexto.trim() || 'VISTA PREVIA DEL CARTEL LED'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Destino y Prioridad */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Destino (Audiencia)
+                  </label>
+                  <select
+                    value={boardGrupoId}
+                    onChange={(e) => setBoardGrupoId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  >
+                    <option value="all">🌐 Todas las Familias (Global)</option>
+                    {grupos.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        👨‍👩‍👧‍👦 {g.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Prioridad de Emisión
+                  </label>
+                  <select
+                    value={boardPrioridad}
+                    onChange={(e) => setBoardPrioridad(e.target.value as PrioridadMensajePizarra)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  >
+                    <option value="normal">Normal (Rotación estándar)</option>
+                    <option value="destacada">⭐ Destacada (Mayor visibilidad)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Programación y Vencimiento */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Programar inicio (Opcional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={boardProgramado}
+                    onChange={(e) => setBoardProgramado(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Vencimiento automático (Opcional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={boardVencimiento}
+                    onChange={(e) => setBoardVencimiento(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs bg-gray-50 dark:bg-[#25202D] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalBoard(false)}
+                  className="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-200 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-[#FF7043] text-white text-xs font-bold cursor-pointer hover:bg-[#F4511E] transition flex items-center justify-center gap-1.5"
+                >
+                  <Tv className="w-4 h-4" />
+                  <span>{boardEditandoId ? 'Guardar Cambios' : 'Transmitir al Cartel LED'}</span>
                 </button>
               </div>
             </form>
