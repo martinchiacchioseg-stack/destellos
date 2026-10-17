@@ -131,25 +131,37 @@ export default function FeedCentralView({ onAbrirJuego }: { onAbrirJuego?: (secc
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-8">
-      {/* Banner de bienvenida interactivo */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 p-6 border border-white/10 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-fuchsia-500/20 rounded-full blur-2xl" />
+      {/* Banner de bienvenida interactivo con estética SINCERICIDIO */}
+      <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-6 border-2 border-fuchsia-500/40 shadow-[0_0_25px_rgba(255,0,127,0.2)]">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-screen pointer-events-none"
+          style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+        />
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-40 h-40 bg-fuchsia-500/25 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-40 h-40 bg-cyan-400/20 rounded-full blur-3xl pointer-events-none" />
+
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
-                COMUNIDAD ACTIVA
-              </span>
-              <span className="text-xs text-white/50">Muro en vivo</span>
+          <div className="flex items-center gap-4">
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-fuchsia-400 bg-slate-900 shadow-[0_0_15px_rgba(255,0,127,0.6)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logos/sincericidio-logo.jpg" alt="Logo" className="h-full w-full object-cover" />
             </div>
-            <h2 className="text-2xl font-black text-white tracking-wide">
-              Muro de El Club Tarambana
-            </h2>
-            <p className="text-sm text-slate-300 mt-1">
-              Las locuras, victorias de trivia, fotos diarias y tarareos de toda la banda reunidos en un solo lugar.
-            </p>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                  COMUNIDAD ACTIVA
+                </span>
+                <span className="text-xs text-white/50">Muro en vivo</span>
+              </div>
+              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-300 to-cyan-300 drop-shadow-[0_0_10px_rgba(255,0,127,0.5)] tracking-wide">
+                SINCERICIDIO
+              </h2>
+              <p className="text-xs text-slate-300 font-medium">
+                El Club de los Tarambanas: anécdotas, fotos, tarareos y trazos de toda la banda.
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-center">
             <span className="flex h-3 w-3 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>

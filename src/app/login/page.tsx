@@ -106,15 +106,27 @@ export default function Login() {
   );
 
   return (
-    <main className="mx-auto flex min-h-[80dvh] w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <div className="text-center">
-        <Image src="/logos/rolf.jpg" alt="Rolφ" width={84} height={84} className="mx-auto rounded-2xl" priority />
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">Destellos</h1>
-        <p className="text-suave">Un clic familiar 🎭</p>
+    <main className="relative mx-auto flex min-h-[85dvh] w-full max-w-md flex-col justify-center gap-6 px-4 py-10 overflow-hidden">
+      {/* Fondo neón SINCERICIDIO */}
+      <div
+        className="fixed inset-0 bg-cover bg-center opacity-20 mix-blend-screen pointer-events-none z-0"
+        style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+      />
+      <div className="fixed top-1/4 -left-20 w-72 h-72 bg-fuchsia-600/20 rounded-full blur-[100px] pointer-events-none z-0" />
+      <div className="fixed bottom-1/4 -right-20 w-72 h-72 bg-cyan-400/20 rounded-full blur-[100px] pointer-events-none z-0" />
+
+      <div className="relative z-10 text-center">
+        <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-3xl border-2 border-fuchsia-400 shadow-[0_0_25px_rgba(255,0,127,0.5),0_0_40px_rgba(0,245,212,0.3)]">
+          <Image src="/logos/sincericidio-logo.jpg" alt="SINCERICIDIO" width={96} height={96} className="h-full w-full object-cover" priority />
+        </div>
+        <h1 className="mt-4 text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-300 to-cyan-300 drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]">
+          SINCERICIDIO
+        </h1>
+        <p className="text-sm font-semibold text-cyan-300">El Club de los Tarambanas 🎭</p>
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div key={vista} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="tarjeta space-y-4 p-6">
+        <motion.div key={vista} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="relative z-10 tarjeta space-y-4 p-6 border border-fuchsia-500/20 shadow-2xl backdrop-blur-md bg-slate-950/80">
           {vista === "codigo" && (
             <form onSubmit={validarCodigo} className="space-y-4">
               <label className="block text-sm font-medium text-suave">Código de familia</label>

@@ -129,28 +129,43 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
     <>
       <LedBoard mensajes={d.pizarra ?? []} />
 
-      {/* Acceso a la suite El Club Tarambana */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-fuchsia-950 via-purple-900 to-indigo-950 p-5 border border-fuchsia-500/40 shadow-2xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-fuchsia-500 text-white animate-pulse">
-                NUEVA EXPERIENCIA
-              </span>
-              <span className="text-xs text-fuchsia-200 font-bold">5 Juegos en Tiempo Real</span>
+      {/* Acceso a la suite SINCERICIDIO - El Club de los Tarambanas */}
+      <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-6 border-2 border-fuchsia-500/50 shadow-[0_0_30px_rgba(255,0,127,0.25)]">
+        {/* Imagen de fondo sutil con overlay de neón */}
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-screen pointer-events-none"
+          style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+        />
+        <div className="absolute -top-12 -left-12 w-48 h-48 bg-fuchsia-600/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-400/30 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-fuchsia-400 bg-slate-900 shadow-[0_0_20px_rgba(255,0,127,0.6)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logos/sincericidio-logo.jpg" alt="Sincericidio Logo" className="h-full w-full object-cover" />
             </div>
-            <h2 className="text-lg font-black text-white flex items-center gap-2">
-              <span>🎉</span> ¡Entrá a El Club Tarambana!
-            </h2>
-            <p className="text-xs text-purple-200">
-              Flash Grupal con IA, Ronda de Tarareos con voz de ardilla, Trivia 3D y Pizarra Trazo Loco.
-            </p>
+            <div className="space-y-1 text-left">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-pink-500 to-cyan-400 text-black uppercase tracking-wider animate-pulse">
+                  NUEVO JUEGO
+                </span>
+                <span className="text-xs text-cyan-300 font-bold">Sala Oficial</span>
+              </div>
+              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-cyan-200 drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]">
+                SINCERICIDIO
+              </h2>
+              <p className="text-xs text-fuchsia-200 font-medium">
+                El Club de los Tarambanas: Flash IA, Tarareo Ardilla, Trivia 3D y Trazo Loco.
+              </p>
+            </div>
           </div>
+
           <a
             href="/tarambana"
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-sm tracking-wide shadow-lg shadow-fuchsia-600/30 hover:scale-105 active:scale-95 transition whitespace-nowrap self-stretch sm:self-auto text-center"
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-sm tracking-wider shadow-[0_0_20px_rgba(255,0,127,0.5)] hover:shadow-[0_0_30px_rgba(0,245,212,0.6)] hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
           >
-            Jugar en el Club 🚀
+            ENTRAR AL CLUB 🚀
           </a>
         </div>
       </div>

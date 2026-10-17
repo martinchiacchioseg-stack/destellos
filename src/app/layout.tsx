@@ -3,9 +3,13 @@ import "./globals.css";
 import { PieRolf } from "@/components/PieRolf";
 
 export const metadata: Metadata = {
-  title: "Destellos — Un clic familiar",
-  description: "Una foto por día, un juego y mucho cariño. Destellos, by Rolφ.",
-  icons: { icon: "/logos/rolf.jpg" },
+  title: "SINCERICIDIO — El Club de los Tarambanas",
+  description: "Juego social privado: Flash Grupal con IA, Ronda de Tarareos, Trivia 3D y Trazo Loco.",
+  icons: {
+    icon: "/logos/sincericidio-logo.jpg",
+    apple: "/logos/sincericidio-logo.jpg",
+    shortcut: "/logos/sincericidio-logo.jpg",
+  },
   robots: { index: false, follow: false },
 };
 

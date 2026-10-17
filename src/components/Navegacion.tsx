@@ -37,9 +37,13 @@ export function Navegacion() {
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-[#070b16]/80 backdrop-blur">
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
-        <Link href="/" className="flex items-center gap-2 font-extrabold">
-          <Image src="/logos/rolf.jpg" alt="" width={30} height={30} className="rounded-md" />
-          <span className="hidden sm:inline">{yo?.emoji} {yo?.familia ?? "Destellos"}</span>
+        <Link href="/" className="flex items-center gap-2 font-extrabold group">
+          <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-fuchsia-500/60 shadow-[0_0_8px_rgba(255,0,127,0.4)]">
+            <Image src="/logos/sincericidio-logo.jpg" alt="Sincericidio" width={32} height={32} className="h-full w-full object-cover" priority />
+          </div>
+          <span className="hidden sm:inline font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-300">
+            SINCERICIDIO
+          </span>
         </Link>
         <nav className="ml-auto flex items-center gap-1">
           {items.map(({ href, icono: I, texto, destacado }) => (

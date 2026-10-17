@@ -59,12 +59,23 @@ export default function TarambanaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b16] text-white flex flex-col justify-between selection:bg-[#FF007F] selection:text-white pb-24">
-      {/* Header Global Persistente con puntajes en tiempo real */}
-      <GlobalTarambanaHeader
-        score={puntos}
-        clubName={nombreGrupo}
+    <div className="relative min-h-screen bg-[#070b16] text-white flex flex-col justify-between selection:bg-[#FF007F] selection:text-white pb-24 overflow-x-hidden">
+      {/* Fondo inmersivo SINCERICIDIO con overlay cósmico de neón */}
+      <div
+        className="fixed inset-0 bg-cover bg-center opacity-25 mix-blend-screen pointer-events-none z-0"
+        style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
       />
+      {/* Luces volumétricas de neón rosa y cian */}
+      <div className="fixed top-1/4 -left-32 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="fixed bottom-1/3 -right-32 w-96 h-96 bg-cyan-400/20 rounded-full blur-[120px] pointer-events-none z-0" />
+
+      {/* Header Global Persistente con puntajes en tiempo real */}
+      <div className="relative z-20">
+        <GlobalTarambanaHeader
+          score={puntos}
+          clubName={nombreGrupo}
+        />
+      </div>
 
       {/* Notificación flotante de puntos */}
       {notificacionPuntos && (
@@ -86,7 +97,7 @@ export default function TarambanaPage() {
       )}
 
       {/* Contenido Principal según el módulo activo */}
-      <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-6">
+      <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto px-4 py-6">
         {seccionActiva === 'feed' && (
           <FeedCentralView onAbrirJuego={(seccion) => setSeccionActiva(seccion as TarambanaTab)} />
         )}
