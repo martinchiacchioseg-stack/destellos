@@ -1,602 +1,263 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import Navbar from '@/components/Navbar';
-import UploadModal from '@/components/UploadModal';
-import LedBoard from '@/components/LedBoard';
-import { dispararConfeti } from '@/components/ConfettiCelebration';
-import {
-  Sparkles,
-  Camera,
-  RefreshCw,
-  Clock,
-  Users,
-  Heart,
-  Crown,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Download,
-  Share2,
-  ArrowRight,
-  Flame,
-  Shield,
-} from 'lucide-react';
-import { SesionUsuario, Destello, FeedPost } from '@/lib/types';
-import { formatFechaBonita, getFechaArgentina } from '@/lib/date-utils';
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import confetti from "canvas-confetti";
+import { motion } from "framer-motion";
+import { Camera, Crown, MessageSquare, Bell, Send } from "lucide-react";
+import { llamar, ErrorApi } from "@/lib/cliente";
+import { Navegacion } from "@/components/Navegacion";
+import { LedBoard, type MsgLed } from "@/components/LedBoard";
+import { ChatArlequin } from "@/components/ChatArlequin";
 
-export default function HomePage() {
+interface Pub { id: string; nombre: string; apodo: string | null; foto_url: string | null }
+interface Comentario { id: string; texto: string; creado_en: string; autor: Pub | null }
+interface Destello {
+  id: string; fecha: string; autor: Pub | null; foto_url: string | null; descripcion: string | null; ganador: boolean;
+  reacciones: Record<string, number>; mi_reaccion: string | null; comentarios: Comentario[];
+}
+interface Anuncio { id: string; titulo: string; texto: string | null; enlace: string | null; imagen_url: string | null }
+interface Home {
+  bloqueado?: boolean;
+  licencia: { estado: string; vence_en: string; dias: number };
+  grupo: { nombre: string; emoji: string; hora_limite?: string };
+  yo?: Pub & { esAdmin: boolean; esSuper: boolean };
+  hoy?: string; cerrado?: boolean; subiHoy?: boolean;
+  faltan?: { id: string; nombre: string }[]; totalMiembros?: number;
+  pizarra?: MsgLed[]; muro?: Destello[];
+  veredictos?: Record<string, { texto: string; destello_id: string | null }>;
+  notificacionesSinLeer?: number; triviaJugada?: boolean; anuncios?: Anuncio[];
+}
+
+const EMOJIS = ["❤️", "😂", "😍", "👏", "🔥", "🥹"];
+const nom = (p: Pub | null) => p?.apodo || p?.nombre || "Alguien";
+
+function Avatar({ p }: { p: Pub | null }) {
+  if (p?.foto_url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={p.foto_url} alt="" className="h-9 w-9 rounded-full object-cover" />;
+  }
+  return <span className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-xs font-bold">{nom(p)[0]?.toUpperCase()}</span>;
+}
+
+export default function Inicio() {
   const router = useRouter();
-  const [usuario, setUsuario] = useState<SesionUsuario | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [d, setD] = useState<Home | null>(null);
+  const [error, setError] = useState("");
 
-  // Estado del día
-  const [estadoDia, setEstadoDia] = useState<any>(null);
-  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
-  const [bannerArlequin, setBannerArlequin] = useState<string | null>(null);
-  const [apurandoId, setApurandoId] = useState<string | null>(null);
-
-  // Estados de subida y modales
-  const [modalUploadAbierto, setModalUploadAbierto] = useState(false);
-  const [adivinando, setAdivinando] = useState(false);
-  const [asignaciones, setAsignaciones] = useState<Record<string, string>>({}); // destelloId -> userId
-  const [resultadoAdivina, setResultadoAdivina] = useState<any | null>(null);
-  const [errorAdivina, setErrorAdivina] = useState<string | null>(null);
-
-  const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('destellos_token') : null;
-    const h: Record<string, string> = {};
-    if (token) h['Authorization'] = `Bearer ${token}`;
-    return h;
-  };
-
-  const cargarDatos = async () => {
+  const cargar = useCallback(async () => {
     try {
-      const authH = getAuthHeaders();
-      const meRes = await fetch('/api/auth/me', { headers: authH });
-      const meData = await meRes.json();
-      if (!meData.authenticated) {
-        router.push('/login');
-        return;
-      }
-      setUsuario(meData.usuario);
-
-      const [hoyRes, feedRes, banRes] = await Promise.all([
-        fetch('/api/destellos/hoy', { headers: authH }),
-        fetch('/api/feed', { headers: authH }),
-        fetch('/api/arlequin/banner', { headers: authH }).catch(() => null),
-      ]);
-
-      if (hoyRes.ok) {
-        const dataHoy = await hoyRes.json();
-        setEstadoDia(dataHoy);
-      }
-
-      if (feedRes.ok) {
-        const dataFeed = await feedRes.json();
-        setFeedPosts(dataFeed.feed || []);
-      }
-
-      if (banRes && banRes.ok) {
-        const dataBan = await banRes.json();
-        setBannerArlequin(dataBan.banner || null);
-      }
-    } catch (err) {
-      console.error('Error cargando hoy:', err);
-    } finally {
-      setCargando(false);
+      setD(await llamar<Home>("/api/home"));
+      setError("");
+    } catch (e) {
+      if (e instanceof ErrorApi && e.status === 401) router.replace("/login");
+      else setError(e instanceof Error ? e.message : "No pudimos cargar.");
     }
-  };
-
-  const handleApurarWhatsApp = async (faltante: any) => {
-    setApurandoId(faltante.id);
-    try {
-      const res = await fetch('/api/arlequin/recordatorio-whatsapp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          usuarioFaltanteId: faltante.id,
-          nombreFaltante: faltante.apodo || faltante.nombre,
-          telefono: faltante.whatsapp || faltante.telefono,
-        }),
-      });
-      const data = await res.json();
-      if (data.whatsappUrl) {
-        window.open(data.whatsappUrl, '_blank');
-      } else {
-        const msg = encodeURIComponent(`¡Che, ${faltante.apodo || faltante.nombre}! 🎭 Te habla Arlequín. ¡Falta tu destello de hoy en la familia! 📸⏰`);
-        window.open(`https://wa.me/?text=${msg}`, '_blank');
-      }
-    } catch {
-      const msg = encodeURIComponent(`¡Che, ${faltante.apodo || faltante.nombre}! 🎭 Te habla Arlequín. ¡Falta tu destello de hoy en la familia! 📸⏰`);
-      window.open(`https://wa.me/?text=${msg}`, '_blank');
-    } finally {
-      setApurandoId(null);
-    }
-  };
+  }, [router]);
 
   useEffect(() => {
-    cargarDatos();
-    const interval = setInterval(() => cargarDatos(), 8000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleEnviarAdivinanzas = async () => {
-    setErrorAdivina(null);
-    const destellos = estadoDia?.destellosParaAdivinar || [];
-    const asignados = Object.values(asignaciones);
-
-    if (asignados.length < destellos.length) {
-      setErrorAdivina('Debés asignar un nombre a cada una de las fotos.');
-      return;
-    }
-
-    const setNombres = new Set(asignados);
-    if (setNombres.size !== asignados.length) {
-      setErrorAdivina('No podés asignar la misma persona a más de una foto.');
-      return;
-    }
-
-    setAdivinando(true);
-    try {
-      const res = await fetch('/api/juegos/adivina', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fecha: estadoDia.fechaHoy,
-          asignaciones,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorAdivina(data.error || 'Error al enviar adivinanzas.');
-      } else {
-        setResultadoAdivina(data);
-        dispararConfeti();
-        cargarDatos();
-      }
-    } catch {
-      setErrorAdivina('Error de conexión.');
-    } finally {
-      setAdivinando(false);
-    }
-  };
-
-  const handleReaccionar = async (feedPostId: string, emoji: string) => {
-    try {
-      const res = await fetch('/api/feed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feedPostId, emoji }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setFeedPosts((prev) =>
-          prev.map((p) => (p.id === feedPostId ? { ...p, reacciones: data.post.reacciones } : p))
-        );
-      }
-    } catch {}
-  };
-
-  if (cargando) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-6 text-sm text-gray-400">
-        Cargando Destellos... ✨
-      </div>
-    );
-  }
-
-  const fase = estadoDia?.fase || 'subida';
-  const grupo = estadoDia?.grupo || { nombre: 'Mi Grupo', emoji_or_logo: '✨' };
-  const subieron = estadoDia?.subieron || [];
-  const faltan = estadoDia?.faltan || [];
-  const miDestello = estadoDia?.mi_destello;
-  const destellosParaAdivinar = estadoDia?.destellosParaAdivinar || [];
-  const candidatos = estadoDia?.candidatosParaAdivinar || [];
-  const yaAdivino = estadoDia?.yaAdivino;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargar();
+    const t = setInterval(cargar, 45_000);
+    return () => clearInterval(t);
+  }, [cargar]);
 
   return (
-    <div className="flex-1 flex flex-col pb-24 max-w-md mx-auto w-full min-h-screen bg-gray-50 dark:bg-[#121014]">
-      <Header usuario={usuario} puntosTotales={10} />
+    <>
+      <Navegacion />
+      <main className="mx-auto max-w-3xl space-y-4 px-4 py-4">
+        {error && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
+        {!d && !error && <p className="py-20 text-center text-suave">Cargando destellos…</p>}
+        {d?.bloqueado && <Licencia d={d} />}
+        {d && !d.bloqueado && <Contenido d={d} recargar={cargar} />}
+      </main>
+      {d && !d.bloqueado && <ChatArlequin />}
+    </>
+  );
+}
 
-      {/* Cartel LED de Pizarra General (Desplazamiento Continuo) */}
-      <LedBoard grupoId={usuario?.grupo_id || undefined} />
+function Licencia({ d }: { d: Home }) {
+  return (
+    <div className="tarjeta space-y-2 p-8 text-center">
+      <p className="text-4xl">🎭</p>
+      <h1 className="text-xl font-bold">{d.grupo.emoji} Familia {d.grupo.nombre}</h1>
+      <p className="text-suave">
+        {d.licencia.estado === "pausada"
+          ? "El espacio de la familia está en pausa por ahora."
+          : "La licencia de la familia venció, por eso las fotos están resguardadas."}
+        {" "}Hablá con el administrador para reactivarlo y volver a brillar juntos.
+      </p>
+    </div>
+  );
+}
 
-      <main className="p-4 space-y-4">
-        {/* Acceso directo para Superadmin */}
-        {usuario?.rol === 'superadmin' && (
-          <div className="bg-gradient-to-r from-purple-700 to-indigo-700 p-3.5 rounded-2xl text-white shadow-md flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-purple-200" />
-              <div>
-                <p className="text-xs font-black">Panel Superadministrador</p>
-                <p className="text-[10px] text-purple-200">Gestioná grupos, familias y usuarios</p>
-              </div>
-            </div>
-            <button
-              onClick={() => { window.location.href = '/superadmin'; }}
-              className="px-3 py-1.5 bg-white text-purple-800 text-xs font-black rounded-xl shadow-xs hover:bg-purple-50 cursor-pointer active:scale-95 transition-transform"
-            >
-              Abrir Panel →
-            </button>
+function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
+  const [subiendo, setSubiendo] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const hoy = d.hoy!;
+  const veredictoHoy = d.veredictos?.[hoy];
+  const faltan = (d.faltan ?? []).filter((f) => f.id !== d.yo?.id);
+
+  async function subir(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setSubiendo(true);
+    setAviso("");
+    try {
+      await llamar("/api/destellos", { body: fd });
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
+      await recargar();
+    } catch (err) {
+      setAviso(err instanceof Error ? err.message : "No se pudo subir.");
+    } finally {
+      setSubiendo(false);
+    }
+  }
+
+  async function recordar(id: string) {
+    try {
+      const r = await llamar<{ url: string; tieneWhatsapp: boolean; texto: string }>("/api/arlequin/recordatorio", { body: { usuarioId: id } });
+      if (r.tieneWhatsapp) window.open(r.url, "_blank", "noopener");
+      else await navigator.clipboard?.writeText(r.texto);
+      setAviso(r.tieneWhatsapp ? "" : "No tiene WhatsApp cargado: copié el mensaje para que lo mandes por otro medio.");
+    } catch (err) {
+      setAviso(err instanceof Error ? err.message : "No se pudo armar el recordatorio.");
+    }
+  }
+
+  return (
+    <>
+      <LedBoard mensajes={d.pizarra ?? []} />
+
+      {d.licencia.estado === "por_vencer" && (
+        <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
+      )}
+
+      <section className="tarjeta space-y-3 p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-3xl">🎭</span>
+          <div className="flex-1">
+            <p className="font-semibold">
+              {d.cerrado
+                ? "¡Cerró el escenario de hoy!"
+                : d.subiHoy
+                  ? "¡Tu destello ya brilla en el muro!"
+                  : `Hola ${d.yo?.apodo || d.yo?.nombre.split(" ")[0]}, ¿ya subiste tu destello?`}
+            </p>
+            <p className="text-sm text-suave">
+              {d.cerrado
+                ? "Mañana empieza otro día para brillar."
+                : faltan.length
+                  ? `Faltan ${faltan.length + (d.subiHoy ? 0 : 1)} de ${d.totalMiembros} antes de las ${d.grupo.hora_limite} hs.`
+                  : `¡Subió toda la familia! Cierre a las ${d.grupo.hora_limite} hs.`}
+            </p>
           </div>
-        )}
-
-        {/* Banner Superior del Grupo */}
-        <div className="bg-gradient-to-br from-[#FF7043] via-[#F4511E] to-[#E64A19] p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider mb-2">
-            <span className="bg-black/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-white">
-              {formatFechaBonita(getFechaArgentina())}
-            </span>
-            <span className="bg-white/20 backdrop-blur-xs px-2.5 py-1 rounded-full text-white flex items-center gap-1">
-              <span>{grupo.emoji_or_logo || '✨'}</span>
-              <span>{grupo.nombre}</span>
-            </span>
-          </div>
-
-          <h2 className="text-xl font-black text-white">
-            ¡Hola, {usuario?.apodo || usuario?.nombre?.split(' ')[0]}! ✨
-          </h2>
-          <p className="text-xs text-orange-100 mt-0.5">
-            {fase === 'subida' && 'Fase 1: Subí tu momento del día antes del cierre.'}
-            {fase === 'adivinanza' && 'Fase 2: ¡Todos subieron! Adiviná de quién es cada foto.'}
-            {fase === 'cerrado' && 'Fase 3: ¡El veredicto de la IA ya está listo!'}
-          </p>
-
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-white/90 bg-black/25 px-3 py-1 rounded-full w-fit">
-            <Clock className="w-3.5 h-3.5 text-amber-300" />
-            <span>Cierre a las {grupo.hora_limite || '22:00'} hs</span>
-          </div>
+          {d.yo?.esAdmin && (
+            <a href="/admin" className="relative rounded-lg p-2 text-suave hover:text-white" aria-label="Avisos">
+              <Bell size={20} />
+              {!!d.notificacionesSinLeer && <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{d.notificacionesSinLeer}</span>}
+            </a>
+          )}
         </div>
 
-        {/* Banner Diario de Arlequín */}
-        {bannerArlequin && (
-          <div className="bg-gradient-to-r from-orange-50 via-amber-50 to-orange-100/60 dark:from-orange-950/30 dark:via-amber-950/20 dark:to-orange-900/20 p-4 rounded-3xl border border-orange-200/80 dark:border-orange-900/50 shadow-xs flex items-start gap-3 animate-in fade-in">
-            <div className="w-10 h-10 rounded-2xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-2xl shrink-0 shadow-inner">
-              🎭
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-[#FF7043]">Mensaje de Arlequín</span>
-                <span className="text-[10px] text-gray-400">Hoy</span>
-              </div>
-              <p className="text-xs text-gray-800 dark:text-gray-200 mt-1 font-medium leading-relaxed">
-                {bannerArlequin}
-              </p>
-            </div>
-          </div>
+        {!d.cerrado && !d.subiHoy && (
+          <form onSubmit={subir} className="space-y-2">
+            <input name="foto" type="file" accept="image/*" required className="input text-sm" />
+            <input name="descripcion" className="input" placeholder="Contá algo de tu destello (opcional)" maxLength={200} />
+            <button className="btn btn-primario w-full" disabled={subiendo}><Camera size={18} />{subiendo ? "Subiendo…" : "Subir mi destello"}</button>
+          </form>
         )}
 
-        {/* ------------------------------------------------------------------- */}
-        {/* FASE 1: SUBIDA DE DESTELLOS */}
-        {/* ------------------------------------------------------------------- */}
-        {fase === 'subida' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Estado de participación comunitaria (quién subió y quién falta, sin fotos) */}
-            <div className="bg-white dark:bg-[#1C1822] p-4 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-[#FF7043]" />
-                  Participación del Grupo
-                </span>
-                <span className="text-[11px] font-bold text-[#FF7043] bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-full">
-                  {subieron.length} de {subieron.length + faltan.length} subieron
-                </span>
-              </div>
-
-              {/* Miembros que ya subieron */}
-              <div>
-                <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">
-                  ✓ Ya subieron su destello:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {subieron.length === 0 ? (
-                    <span className="text-xs text-gray-400 italic">Todavía nadie subió hoy. ¡Sé el primero!</span>
-                  ) : (
-                    subieron.map((s: any) => (
-                      <span
-                        key={s.id}
-                        className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1"
-                      >
-                        <span>✓</span>
-                        <span>{s.apodo || s.nombre}</span>
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Miembros que faltan */}
-              {faltan.length > 0 && (
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                      ⏳ Esperando su momento:
-                    </p>
-                    <span className="text-[10px] text-gray-400 italic">Recordatorios por WhatsApp</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {faltan.map((f: any) => (
-                      <div
-                        key={f.id}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 text-xs font-bold border border-amber-200 dark:border-amber-800 shadow-xs"
-                      >
-                        <span>{f.apodo || f.nombre}</span>
-                        <button
-                          onClick={() => handleApurarWhatsApp(f)}
-                          disabled={apurandoId === f.id}
-                          className="px-2 py-0.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold flex items-center gap-0.5 transition cursor-pointer active:scale-95 disabled:opacity-50"
-                          title="Enviar recordatorio gracioso con Arlequín por WhatsApp"
-                        >
-                          <span>💬</span>
-                          <span>{apurandoId === f.id ? '...' : 'Apurar'}</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {!d.cerrado && faltan.length > 0 && (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-suave">Recordar a los demorados por WhatsApp</summary>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {faltan.map((f) => (
+                <button key={f.id} className="btn px-3 py-1.5 text-sm" onClick={() => recordar(f.id)}><Send size={14} />{f.nombre}</button>
+              ))}
             </div>
-
-            {/* Tarjeta de Subida del Usuario */}
-            <div className="bg-white dark:bg-[#1C1822] p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm text-center space-y-4">
-              {miDestello ? (
-                <div className="space-y-3">
-                  <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md border-2 border-[#FF7043]/30">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={miDestello.media_url}
-                      alt="Tu destello"
-                      className="w-full h-full object-cover"
-                    />
-                    <span className="absolute top-2.5 left-2.5 bg-[#FF7043] text-white text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-sm">
-                      Tu destello de hoy (+10 pts)
-                    </span>
-                  </div>
-
-                  {miDestello.pie_de_foto && (
-                    <p className="text-xs text-gray-600 dark:text-gray-300 italic">
-                      &ldquo;{miDestello.pie_de_foto}&rdquo;
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() => setModalUploadAbierto(true)}
-                    className="py-2.5 px-4 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Reemplazar foto antes del cierre</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="py-6 space-y-3">
-                  <div className="w-16 h-16 rounded-3xl bg-orange-100 dark:bg-orange-950/60 text-[#FF7043] flex items-center justify-center mx-auto shadow-inner">
-                    <Camera className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-gray-900 dark:text-white">
-                      Todavía no subiste tu foto de hoy
-                    </h3>
-                    <p className="text-xs text-gray-500 max-w-xs mx-auto mt-0.5">
-                      Sacá una foto espontánea o elegila de tu galería para no perder la racha.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setModalUploadAbierto(true)}
-                    className="py-3 px-6 rounded-2xl bg-[#FF7043] hover:bg-[#F4511E] text-white font-black text-xs shadow-lg shadow-[#FF7043]/30 flex items-center justify-center gap-2 mx-auto active:scale-95 transition-transform cursor-pointer"
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>Subir mi destello ahora</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          </details>
         )}
+        {aviso && <p className="text-sm text-amber-200">{aviso}</p>}
+      </section>
 
-        {/* ------------------------------------------------------------------- */}
-        {/* FASE 2: ADIVINANZA (¿Quién sacó cada foto?) */}
-        {/* ------------------------------------------------------------------- */}
-        {fase === 'adivinanza' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 rounded-3xl text-white shadow-md space-y-1">
-              <h3 className="text-sm font-black flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4" />
-                Fase de Adivinanza Activa 🎯
-              </h3>
-              <p className="text-xs text-purple-100">
-                Adiviná quién sacó cada una de estas fotos. ¡Sumás +5 puntos por cada acierto!
-              </p>
-            </div>
-
-            {yaAdivino || resultadoAdivina ? (
-              <div className="bg-white dark:bg-[#1C1822] p-6 rounded-3xl border border-gray-200 dark:border-gray-800 text-center space-y-2">
-                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-                <h4 className="text-base font-black text-gray-900 dark:text-white">
-                  ¡Adivinanzas enviadas!
-                </h4>
-                <p className="text-xs text-gray-500">
-                  Esperando que los demás completen sus votos o llegue la hora de cierre para conocer al ganador de la IA.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {errorAdivina && (
-                  <div className="p-3 bg-red-50 text-red-700 text-xs font-bold rounded-2xl border border-red-200">
-                    {errorAdivina}
-                  </div>
-                )}
-
-                {destellosParaAdivinar.map((d: any, idx: number) => (
-                  <div
-                    key={d.id}
-                    className="bg-white dark:bg-[#1C1822] p-4 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3"
-                  >
-                    <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={d.media_url} alt="Foto" className="w-full h-full object-cover" />
-                    </div>
-
-                    {d.pie_de_foto && (
-                      <p className="text-xs text-gray-600 dark:text-gray-300 italic text-center">
-                        &ldquo;{d.pie_de_foto}&rdquo;
-                      </p>
-                    )}
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-500 mb-1">
-                        ¿Quién sacó esta foto? (Foto #{idx + 1})
-                      </label>
-                      <select
-                        value={asignaciones[d.id] || ''}
-                        onChange={(e) =>
-                          setAsignaciones((prev) => ({ ...prev, [d.id]: e.target.value }))
-                        }
-                        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#25202D] text-xs font-bold text-gray-800 dark:text-white"
-                      >
-                        <option value="">Seleccionar familiar...</option>
-                        {candidatos.map((c: any) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nombre} {c.apodo ? `("${c.apodo}")` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
-
-                <button
-                  onClick={handleEnviarAdivinanzas}
-                  disabled={adivinando}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {adivinando ? 'Calculando aciertos...' : 'Confirmar mis adivinanzas'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------------- */}
-        {/* FASE 3 / CERRADO: VEREDICTO DE LA IA Y FEED */}
-        {/* ------------------------------------------------------------------- */}
-        {fase === 'cerrado' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Foto ganadora con Diploma Oficial */}
-            {estadoDia?.destelloGanador && (
-              <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 p-4 rounded-3xl border-2 border-amber-300 shadow-md space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                    <Crown className="w-4 h-4 fill-amber-500" />
-                    Destello del Día (Elegido por IA +20 pts)
-                  </span>
-                </div>
-
-                <div className="relative aspect-square rounded-2xl overflow-hidden shadow-lg border border-amber-200">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={estadoDia.destelloGanador.diploma_url || estadoDia.destelloGanador.media_url}
-                    alt="Destello Ganador con Diploma"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                <div className="text-center">
-                  <p className="text-sm font-black text-gray-900 dark:text-white">
-                    ¡Felicitaciones a {estadoDia.destelloGanador.autor_nombre}!
-                  </p>
-                  {estadoDia.destelloGanador.pie_de_foto && (
-                    <p className="text-xs text-gray-500 italic mt-0.5">
-                      &ldquo;{estadoDia.destelloGanador.pie_de_foto}&rdquo;
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Feed del Grupo */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-black text-gray-800 dark:text-gray-200">
-                Feed de Destellos Ganadores
-              </h3>
-
-              {feedPosts.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-6 bg-white dark:bg-[#1C1822] rounded-3xl border border-gray-100 dark:border-gray-800">
-                  Aún no hay publicaciones anteriores en el feed.
-                </p>
-              ) : (
-                feedPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="bg-white dark:bg-[#1C1822] p-4 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-black text-gray-900 dark:text-white">
-                        🏆 {post.nombre_ganador}
-                      </span>
-                      <span className="text-gray-400 text-[11px]">{post.fecha}</span>
-                    </div>
-
-                    <div className="aspect-square rounded-2xl overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={post.diploma_url} alt="Diploma" className="w-full h-full object-cover" />
-                    </div>
-
-                    {post.pie_de_foto && (
-                      <p className="text-xs text-gray-600 dark:text-gray-300 italic">
-                        &ldquo;{post.pie_de_foto}&rdquo;
-                      </p>
-                    )}
-
-                    {/* Barra de Reacciones y Descarga */}
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-800">
-                      <div className="flex items-center gap-1.5">
-                        {['❤️', '👏', '😂', '🔥'].map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => handleReaccionar(post.id, emoji)}
-                            className="px-2 py-1 rounded-xl bg-gray-50 dark:bg-[#25202D] hover:bg-gray-100 text-xs flex items-center gap-1 cursor-pointer transition-transform active:scale-90"
-                          >
-                            <span>{emoji}</span>
-                            <span className="text-[10px] font-bold text-gray-500">
-                              {post.reacciones?.[emoji] || 0}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-
-                      <a
-                        href={post.diploma_url}
-                        download={`destello-${post.fecha}.jpg`}
-                        className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-                        title="Descargar foto con diploma"
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      <Navbar />
-
-      {/* Modal de Subida de Imagen */}
-      {modalUploadAbierto && (
-        <UploadModal
-          onClose={() => setModalUploadAbierto(false)}
-          onUploadSuccess={() => {
-            setModalUploadAbierto(false);
-            cargarDatos();
-          }}
-        />
+      {veredictoHoy && (
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tarjeta border-amber-300/40 bg-amber-300/5 p-4">
+          <p className="flex items-center gap-2 font-semibold text-amber-200"><Crown size={18} /> Veredicto de Arlequín</p>
+          <p className="mt-1">{veredictoHoy.texto}</p>
+        </motion.section>
       )}
+
+      {!d.triviaJugada && (
+        <a href="/trivia" className="tarjeta flex items-center gap-3 p-4 hover:bg-white/10">
+          <span className="text-2xl">🧠</span>
+          <span className="flex-1"><strong>Trivia de Arlequín</strong><br /><span className="text-sm text-suave">Tu turno de hoy te espera. ¡Sumá puntos!</span></span>
+        </a>
+      )}
+
+      {(d.anuncios ?? []).map((a) => <Anuncio key={a.id} a={a} />)}
+
+      <section className="space-y-4">
+        {(d.muro ?? []).length === 0 && <p className="py-10 text-center text-suave">Todavía no hay destellos. ¡Sé el primero! ✨</p>}
+        {(d.muro ?? []).map((x) => <Tarjeta key={x.id} x={x} hoy={hoy} recargar={recargar} />)}
+      </section>
+    </>
+  );
+}
+
+function Anuncio({ a }: { a: Anuncio }) {
+  const cuerpo = (
+    <div className="tarjeta flex items-center gap-3 p-3">
+      {a.imagen_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={a.imagen_url} alt="" className="h-14 w-14 rounded-lg object-cover" />
+      )}
+      <div className="flex-1"><p className="text-[10px] uppercase tracking-wider text-suave">Publicidad</p><p className="font-semibold">{a.titulo}</p>{a.texto && <p className="text-sm text-suave">{a.texto}</p>}</div>
     </div>
+  );
+  return a.enlace ? <a href={a.enlace} target="_blank" rel="noopener noreferrer sponsored">{cuerpo}</a> : cuerpo;
+}
+
+function Tarjeta({ x, hoy, recargar }: { x: Destello; hoy: string; recargar: () => void }) {
+  const [txt, setTxt] = useState("");
+
+  async function reaccionar(emoji: string) {
+    await llamar(`/api/destellos/${x.id}/interaccion`, { body: { emoji: x.mi_reaccion === emoji ? null : emoji } });
+    recargar();
+  }
+  async function comentar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!txt.trim()) return;
+    await llamar(`/api/destellos/${x.id}/interaccion`, { body: { comentario: txt } });
+    setTxt("");
+    recargar();
+  }
+
+  return (
+    <article className={`tarjeta overflow-hidden ${x.ganador ? "border-amber-300/60 shadow-[0_0_30px_rgba(251,191,36,0.15)]" : ""}`}>
+      <div className="flex items-center gap-3 p-3">
+        <Avatar p={x.autor} />
+        <div className="flex-1"><p className="font-semibold">{nom(x.autor)} {x.ganador && "🏆"}</p><p className="text-xs text-suave">{x.fecha === hoy ? "Hoy" : x.fecha}</p></div>
+      </div>
+      {x.foto_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={x.foto_url} alt={`Destello de ${nom(x.autor)}`} className="max-h-[32rem] w-full object-cover" loading="lazy" />
+      )}
+      {x.descripcion && <p className="px-3 pt-3 text-sm">{x.descripcion}</p>}
+      <div className="flex flex-wrap gap-1.5 p-3">
+        {EMOJIS.map((e) => (
+          <button key={e} onClick={() => reaccionar(e)} className={`rounded-full border px-2.5 py-1 text-sm ${x.mi_reaccion === e ? "border-cyan-300 bg-cyan-300/20" : "border-white/10 bg-white/5"}`}>
+            {e} {x.reacciones[e] ? <span className="text-xs text-suave">{x.reacciones[e]}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div className="space-y-1.5 px-3 pb-3">
+        {x.comentarios.map((c) => <p key={c.id} className="text-sm"><strong>{nom(c.autor)}</strong> {c.texto}</p>)}
+        <form onSubmit={comentar} className="flex items-center gap-2 pt-1">
+          <MessageSquare size={16} className="text-suave" />
+          <input className="input py-2 text-sm" placeholder="Dejá un comentario con cariño…" value={txt} onChange={(e) => setTxt(e.target.value)} maxLength={300} />
+        </form>
+      </div>
+    </article>
   );
 }

@@ -1,85 +1,149 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --bg-page: #FAF6F0;
-    --bg-card: #FFFFFF;
-    --text-main: #2D2727;
-    --text-muted: #7E7474;
-    --primary: #FF7043;
-    --primary-hover: #F4511E;
-    --accent: #FFA726;
-    --accent-soft: #FFF3E0;
-    --border-soft: #EFE7DE;
-  }
+:root {
+  --fondo: #070b16;
+  --fondo-2: #0e1530;
+  --tarjeta: rgba(255, 255, 255, 0.06);
+  --borde: rgba(255, 255, 255, 0.12);
+  --texto: #eef2ff;
+  --suave: #9aa6c7;
+  --acento: #22d3ee;
+  --calido: #fbbf24;
+}
 
-  .dark {
-    --bg-page: #151318;
-    --bg-card: #201D24;
-    --text-main: #F5F1EB;
-    --text-muted: #A39BA8;
-    --primary: #FF7043;
-    --primary-hover: #FF8A65;
-    --accent: #FFB74D;
-    --accent-soft: #2D2420;
-    --border-soft: #2F2A36;
-  }
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-acento: var(--acento);
+  --color-calido: var(--calido);
+  --color-suave: var(--suave);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background-color: var(--bg-page);
-  color: var(--text-main);
-  font-family: var(--font-nunito), system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
+  min-height: 100dvh;
+  color: var(--texto);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(34, 211, 238, 0.14), transparent 60%),
+    radial-gradient(700px 500px at -10% 10%, rgba(251, 191, 36, 0.1), transparent 60%),
+    linear-gradient(180deg, var(--fondo-2), var(--fondo));
+  background-attachment: fixed;
 }
 
-/* Sombras suaves y cálidas para tarjetas familiares */
-.shadow-soft {
-  box-shadow: 0 4px 20px -2px rgba(230, 120, 80, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+.tarjeta {
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(10px);
 }
 
-.shadow-card {
-  box-shadow: 0 8px 30px rgba(70, 40, 20, 0.06);
+.input {
+  width: 100%;
+  border-radius: 0.85rem;
+  border: 1px solid var(--borde);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.7rem 0.9rem;
+  color: var(--texto);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input::placeholder {
+  color: #6c7898;
+}
+.input:focus {
+  border-color: var(--acento);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.2);
 }
 
-.shadow-glow {
-  box-shadow: 0 0 25px rgba(255, 112, 67, 0.35);
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.85rem;
+  padding: 0.7rem 1.1rem;
+  font-weight: 600;
+  border: 1px solid var(--borde);
+  background: rgba(255, 255, 255, 0.07);
+  transition: transform 0.1s, background 0.15s, opacity 0.15s;
+}
+.btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primario {
+  color: #04202a;
+  border-color: transparent;
+  background: linear-gradient(135deg, #67e8f9, #22d3ee 55%, #38bdf8);
+}
+.btn-primario:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a5f3fc, #22d3ee 55%, #38bdf8);
+}
+.btn-peligro {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.12);
 }
 
-/* Efecto de marco fotográfico / Polaroid */
-.polaroid-frame {
-  background: #FFFFFF;
-  padding: 12px 12px 18px 12px;
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* ---------- Cartel LED vintage (Dot Matrix) ---------- */
+.led {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: #05070d;
+  border: 2px solid #1b2236;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
-
-.dark .polaroid-frame {
-  background: #201D24;
-  border: 1px solid #332E3A;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-/* Cinta adhesiva decorativa para fotos */
-.washi-tape {
+.led::after {
+  content: "";
   position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%) rotate(-1.5deg);
-  width: 90px;
-  height: 22px;
-  background: rgba(255, 230, 200, 0.75);
-  backdrop-filter: blur(2px);
-  border-left: 2px dashed rgba(220, 160, 120, 0.5);
-  border-right: 2px dashed rgba(220, 160, 120, 0.5);
-  z-index: 10;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.75) 1.2px, transparent 1.6px);
+  background-size: 4px 4px;
 }
+.led-pista {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: led-scroll var(--dur, 30s) linear infinite;
+}
+.led:hover .led-pista,
+.led:active .led-pista,
+.led:focus-within .led-pista {
+  animation-play-state: paused;
+}
+@keyframes led-scroll {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+.led-texto {
+  font-family: "Courier New", ui-monospace, monospace;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+  padding: 0.55rem 3rem;
+}
+.led-ambar { color: #ffb020; text-shadow: 0 0 6px #ff9d00, 0 0 14px rgba(255, 157, 0, 0.7); }
+.led-verde { color: #4ade80; text-shadow: 0 0 6px #22c55e, 0 0 14px rgba(34, 197, 94, 0.7); }
+.led-rojo { color: #ff5a5a; text-shadow: 0 0 6px #ef4444, 0 0 14px rgba(239, 68, 68, 0.7); }
+.led-celeste { color: #5ee7ff; text-shadow: 0 0 6px #22d3ee, 0 0 14px rgba(34, 211, 238, 0.7); }
+.led-magenta { color: #ff6ee7; text-shadow: 0 0 6px #e83ec8, 0 0 14px rgba(232, 62, 200, 0.7); }
 
-/* Safe area padding para móviles con notch y barra de navegación */
-.safe-bottom {
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+@media (prefers-reduced-motion: reduce) {
+  .led-pista { animation-duration: 90s; }
 }

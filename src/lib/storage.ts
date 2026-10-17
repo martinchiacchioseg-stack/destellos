@@ -1,66 +1,54 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { randomUUID } from 'crypto';
+import "server-only";
+import sharp from "sharp";
+import { randomUUID } from "crypto";
+import { db, BUCKET } from "./db";
+import { ApiError } from "./env";
 
-const isVercel = process.env.VERCEL === '1' || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
-const UPLOADS_DIR = isVercel
-  ? path.join(os.tmpdir(), 'destellos-uploads')
-  : path.join(process.cwd(), 'public', 'uploads');
+const MAX_BYTES = 12 * 1024 * 1024;
+const TIPOS = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 
-export function asegurarDirectorioUploads() {
+/** Valida, comprime con Sharp (máx 1600px, JPEG) y sube al bucket privado. Devuelve el path. */
+export async function subirImagen(file: File, carpeta: "fotos" | "avatars" | "ads", maxPx = 1600): Promise<string> {
+  if (!TIPOS.has(file.type)) throw new ApiError(400, "Formato de imagen no soportado. Usá JPG, PNG o WebP.");
+  if (file.size > MAX_BYTES) throw new ApiError(400, "La imagen pesa demasiado (máximo 12 MB).");
+  const entrada = Buffer.from(await file.arrayBuffer());
+  let salida: Buffer;
   try {
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-  } catch (err) {
-    // Silencioso en entornos read-only
+    salida = await sharp(entrada)
+      .rotate()
+      .resize({ width: maxPx, height: maxPx, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+  } catch {
+    throw new ApiError(400, "No pude leer esa imagen. Probá con otra.");
   }
+  const path = `${carpeta}/${randomUUID()}.jpg`;
+  await subirBuffer(path, salida, "image/jpeg");
+  return path;
 }
 
-/**
- * Recibe una URL o un string Base64 (data:image/... o data:video/...).
- * Si es Base64, decodifica y guarda el archivo en public/uploads/ y devuelve "/uploads/nombre.ext".
- * Si ya es una URL web (/uploads/... o https://...), lo devuelve intacto.
- */
-export function procesarYGuardarMedia(dataUrlOrUrl: string, prefijo = 'media'): string {
-  if (!dataUrlOrUrl || typeof dataUrlOrUrl !== 'string') return dataUrlOrUrl;
+export async function subirBuffer(path: string, buf: Buffer, contentType: string) {
+  const { error } = await db().storage.from(BUCKET).upload(path, buf, { contentType, upsert: true });
+  if (error) throw new Error(`Storage: ${error.message}`);
+}
 
-  // Si no es un Data URL base64, ya es una URL estática o remota
-  if (!dataUrlOrUrl.startsWith('data:')) {
-    return dataUrlOrUrl;
-  }
+export async function descargar(path: string): Promise<Buffer> {
+  const { data, error } = await db().storage.from(BUCKET).download(path);
+  if (error || !data) throw new Error(`Storage: ${error?.message ?? "sin datos"}`);
+  return Buffer.from(await data.arrayBuffer());
+}
 
-  try {
-    asegurarDirectorioUploads();
+export async function borrarArchivos(paths: (string | null | undefined)[]) {
+  const limpios = paths.filter((p): p is string => !!p);
+  if (limpios.length) await db().storage.from(BUCKET).remove(limpios);
+}
 
-    const matches = dataUrlOrUrl.match(/^data:([A-Za-z0-9\-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      return dataUrlOrUrl;
-    }
-
-    const mimeType = matches[1].toLowerCase();
-    const base64Data = matches[2];
-
-    let ext = 'jpg';
-    if (mimeType.includes('png')) ext = 'png';
-    else if (mimeType.includes('webp')) ext = 'webp';
-    else if (mimeType.includes('gif')) ext = 'gif';
-    else if (mimeType.includes('mp4')) ext = 'mp4';
-    else if (mimeType.includes('quicktime')) ext = 'mov';
-    else if (mimeType.includes('webm')) ext = 'webm';
-    else if (mimeType.includes('svg')) ext = 'svg';
-
-    const cleanPrefijo = prefijo.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20);
-    const filename = `${cleanPrefijo}-${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`;
-    const filePath = path.join(UPLOADS_DIR, filename);
-
-    const buffer = Buffer.from(base64Data, 'base64');
-    fs.writeFileSync(filePath, buffer);
-
-    return `/uploads/${filename}`;
-  } catch (err) {
-    console.error('Error procesando y guardando media en disco:', err);
-    return dataUrlOrUrl;
-  }
+/** URLs firmadas (1 h) para un lote de paths. Devuelve un mapa path → url. */
+export async function firmar(paths: (string | null | undefined)[]): Promise<Record<string, string>> {
+  const unicos = [...new Set(paths.filter((p): p is string => !!p))];
+  if (!unicos.length) return {};
+  const { data } = await db().storage.from(BUCKET).createSignedUrls(unicos, 3600);
+  const mapa: Record<string, string> = {};
+  for (const d of data ?? []) if (d.path && d.signedUrl) mapa[d.path] = d.signedUrl;
+  return mapa;
 }

@@ -1,63 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentSession } from '@/lib/auth';
-import { listarPublicidades, guardarPublicidad, eliminarPublicidad } from '@/lib/db';
+import { z } from "zod";
+import { api, json } from "@/lib/http";
+import { db, must } from "@/lib/db";
+import { requerirSuperadmin } from "@/lib/auth";
+import { subirImagen, firmar, borrarArchivos } from "@/lib/storage";
+import { ApiError } from "@/lib/env";
 
-export async function GET() {
-  const publicidades = await listarPublicidades();
-  return NextResponse.json({ publicidades });
-}
+export const GET = api(async () => {
+  await requerirSuperadmin();
+  const rows = (must(await db().from("publicidades").select("*").order("creado_en", { ascending: false })) ?? []) as { imagen_path: string | null }[];
+  const urls = await firmar(rows.map((r) => r.imagen_path));
+  return { publicidades: rows.map((r) => ({ ...r, imagen_url: r.imagen_path ? urls[r.imagen_path] ?? null : null })) };
+});
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await getCurrentSession();
-    if (!session || session.rol !== 'superadmin') {
-      return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
-    }
+const enlaceOk = z.string().trim().url("El enlace debe empezar con https://").refine((u) => /^https?:\/\//i.test(u), "Solo enlaces http(s).");
 
-    const body = await req.json();
-    const { titulo, texto, imagen_url, link_url, ubicacion, id, activa } = body;
+export const POST = api(async (req: Request) => {
+  await requerirSuperadmin();
+  const fd = await req.formData();
+  const g = (k: string) => (typeof fd.get(k) === "string" ? ((fd.get(k) as string).trim() || undefined) : undefined);
+  const b = z
+    .object({
+      titulo: z.string().min(1, "Falta el título.").max(80),
+      texto: z.string().max(200).optional(),
+      enlace: enlaceOk.optional(),
+      ubicacion: z.enum(["home", "login", "trivia"]).default("home"),
+    })
+    .parse({ titulo: g("titulo"), texto: g("texto"), enlace: g("enlace"), ubicacion: g("ubicacion") });
+  const img = fd.get("imagen");
+  const imagen_path = img instanceof File && img.size > 0 ? await subirImagen(img, "ads", 1000) : null;
+  must(await db().from("publicidades").insert({ ...b, imagen_path }));
+  return { ok: true };
+});
 
-    if (!titulo || !texto || !ubicacion) {
-      return NextResponse.json(
-        { error: 'Completá título, texto y ubicación de la publicidad.' },
-        { status: 400 }
-      );
-    }
+export const PATCH = api(async (req: Request) => {
+  await requerirSuperadmin();
+  const { id, activa } = await json(req, z.object({ id: z.string().uuid(), activa: z.boolean() }));
+  must(await db().from("publicidades").update({ activa }).eq("id", id).select("id"));
+  return { ok: true };
+});
 
-    const pub = await guardarPublicidad({
-      id,
-      titulo,
-      texto,
-      imagen_url,
-      link_url,
-      ubicacion,
-      activa: activa !== undefined ? Boolean(activa) : true,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      mensaje: 'Publicidad guardada con éxito.',
-      publicidad: pub,
-    });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Error al guardar publicidad.' }, { status: 500 });
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const session = await getCurrentSession();
-    if (!session || session.rol !== 'superadmin') {
-      return NextResponse.json({ error: 'Acceso no autorizado.' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'ID requerido.' }, { status: 400 });
-
-    await eliminarPublicidad(id);
-    return NextResponse.json({ ok: true, mensaje: 'Publicidad eliminada.' });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Error al eliminar publicidad.' }, { status: 500 });
-  }
-}
+export const DELETE = api(async (req: Request) => {
+  await requerirSuperadmin();
+  const { id } = await json(req, z.object({ id: z.string().uuid() }));
+  const fila = must(await db().from("publicidades").delete().eq("id", id).select("imagen_path"));
+  if (!fila.length) throw new ApiError(404, "No existe esa publicidad.");
+  await borrarArchivos(fila.map((f: { imagen_path: string | null }) => f.imagen_path));
+  return { ok: true };
+});

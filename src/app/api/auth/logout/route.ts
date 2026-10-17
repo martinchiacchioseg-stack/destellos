@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-import { clearSessionCookie } from '@/lib/auth';
+import { api } from "@/lib/http";
+import { cerrarSesion } from "@/lib/session";
 
-export async function POST() {
-  await clearSessionCookie();
-  return NextResponse.json({ ok: true, mensaje: 'Sesión cerrada correctamente.' });
-}
+export const POST = api(async () => {
+  await cerrarSesion();
+  return { ok: true };
+});

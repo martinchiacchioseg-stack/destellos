@@ -1,12 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/crons/generar-reto",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/crons/cerrar-dia",
-      "schedule": "59 2 * * *"
-    }
-  ]
+  "crons": [{ "path": "/api/cron/cierre", "schedule": "30 3 * * *" }]
 }

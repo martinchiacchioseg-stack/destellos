@@ -1,30 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentSession } from '@/lib/auth';
-import { obtenerRankingGrupo, listarGrupos } from '@/lib/db';
+import { api } from "@/lib/http";
+import { db, must } from "@/lib/db";
+import { requerirUsuario } from "@/lib/auth";
+import { miembrosDelGrupo, publicos } from "@/lib/usuarios";
+import { hoyAR, sumarDias } from "@/lib/fecha";
 
-export async function GET(req: NextRequest) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+/** Ranking familiar (total y últimos 7 días). Suma fotos, victorias y trivia. */
+export const GET = api(async () => {
+  const { grupo } = await requerirUsuario();
+  const [miembros, filas] = await Promise.all([
+    miembrosDelGrupo(grupo.id),
+    db().from("puntos").select("usuario_id,fecha,puntos").eq("grupo_id", grupo.id),
+  ]);
+  const semana = sumarDias(hoyAR(), -6);
+  const total = new Map<string, number>();
+  const sem = new Map<string, number>();
+  for (const p of (must(filas) ?? []) as { usuario_id: string; fecha: string; puntos: number }[]) {
+    total.set(p.usuario_id, (total.get(p.usuario_id) ?? 0) + p.puntos);
+    if (p.fecha >= semana) sem.set(p.usuario_id, (sem.get(p.usuario_id) ?? 0) + p.puntos);
   }
-
-  let grupoId = session.grupo_id;
-  if (!grupoId) {
-    const grupos = await listarGrupos();
-    if (grupos.length > 0) grupoId = grupos[0].id;
-  }
-  if (!grupoId) {
-    return NextResponse.json({ ranking: [], periodo: 'total' });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const periodo = (searchParams.get('periodo') || 'total') as 'semanal' | 'mensual' | 'total';
-
-  const ranking = await obtenerRankingGrupo(grupoId, periodo, session.id);
-
-  return NextResponse.json({
-    periodo,
-    ranking,
-    miUsuarioId: session.id,
-  });
-}
+  const pubs = await publicos(miembros);
+  const lista = pubs
+    .map((u) => ({ ...u, total: total.get(u.id) ?? 0, semana: sem.get(u.id) ?? 0 }))
+    .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre));
+  return { ranking: lista };
+});

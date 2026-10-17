@@ -1,264 +1,164 @@
--- ==============================================================================
--- DESTELLOS ("un clic familiar")
--- Esquema de Base de Datos para Supabase (PostgreSQL)
--- Zona Horaria de referencia: America/Argentina/Buenos_Aires
--- ==============================================================================
+-- ============================================================================
+-- DESTELLOS — Esquema permanente (Supabase PostgreSQL)
+-- Ejecutar UNA vez en Supabase > SQL Editor. Es idempotente.
+-- Arranca LIMPIO: no inserta ninguna familia ni usuario de ejemplo.
+-- El acceso se hace solo desde el servidor con la service_role key;
+-- RLS queda activado sin políticas, por lo que anon/authenticated no leen nada.
+-- ============================================================================
 
--- Habilitar extensión UUID si no está activa
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create extension if not exists pgcrypto;
 
--- 1. TABLA: grupos
-CREATE TABLE IF NOT EXISTS public.grupos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    nombre VARCHAR(120) NOT NULL,
-    codigo_invitacion VARCHAR(20) UNIQUE NOT NULL,
-    descripcion TEXT,
-    activo BOOLEAN DEFAULT TRUE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+create table if not exists grupos (
+  id            uuid primary key default gen_random_uuid(),
+  nombre        text not null,
+  emoji         text not null default '✨',
+  codigo        text not null,
+  codigo_norm   text not null unique,           -- MAYÚSCULAS sin guiones/espacios
+  hora_limite   text not null default '22:00',  -- HH:MM hora Argentina
+  admin_nombre  text,
+  admin_email   text,
+  vence_en      date not null,
+  activo        boolean not null default true,  -- false = pausada
+  creado_en     timestamptz not null default now()
 );
 
--- 2. TABLA: usuarios
-CREATE TABLE IF NOT EXISTS public.usuarios (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    nombre VARCHAR(120) NOT NULL,
-    apodo VARCHAR(60),
-    avatar_url TEXT,
-    rol VARCHAR(20) NOT NULL CHECK (rol IN ('superadmin', 'admin', 'miembro')),
-    grupo_id UUID REFERENCES public.grupos(id) ON DELETE SET NULL,
-    debe_cambiar_password BOOLEAN DEFAULT TRUE,
-    intentos_fallidos INTEGER DEFAULT 0,
-    bloqueado_hasta TIMESTAMP WITH TIME ZONE,
-    activo BOOLEAN DEFAULT TRUE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+create table if not exists usuarios (
+  id                 uuid primary key default gen_random_uuid(),
+  grupo_id           uuid not null references grupos(id) on delete cascade,
+  nombre             text not null,
+  apodo              text,
+  email              text,
+  whatsapp           text,
+  nacimiento         date,
+  foto_path          text,
+  rol                text not null default 'miembro' check (rol in ('miembro','admin')),
+  password_hash      text not null,
+  intentos_fallidos  int not null default 0,
+  bloqueado_hasta    timestamptz,
+  creado_en          timestamptz not null default now()
+);
+create index if not exists usuarios_grupo_idx on usuarios(grupo_id);
+create unique index if not exists usuarios_email_grupo_uq on usuarios(grupo_id, lower(email)) where email is not null;
+
+create table if not exists destellos (
+  id          uuid primary key default gen_random_uuid(),
+  grupo_id    uuid not null references grupos(id) on delete cascade,
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  fecha       date not null,
+  foto_path   text not null,
+  descripcion text,
+  creado_en   timestamptz not null default now(),
+  unique (usuario_id, fecha)                    -- una foto por día por integrante
+);
+create index if not exists destellos_grupo_fecha_idx on destellos(grupo_id, fecha desc);
+
+create table if not exists reacciones (
+  destello_id uuid not null references destellos(id) on delete cascade,
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  emoji       text not null,
+  primary key (destello_id, usuario_id)
 );
 
--- 3. TABLA: retos_diarios
-CREATE TABLE IF NOT EXISTS public.retos_diarios (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID REFERENCES public.grupos(id) ON DELETE CASCADE,
-    fecha DATE NOT NULL,
-    tema VARCHAR(200) NOT NULL,
-    descripcion TEXT,
-    generado_por_ia BOOLEAN DEFAULT TRUE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    CONSTRAINT uq_reto_grupo_fecha UNIQUE (grupo_id, fecha)
+create table if not exists comentarios (
+  id          uuid primary key default gen_random_uuid(),
+  destello_id uuid not null references destellos(id) on delete cascade,
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  texto       text not null,
+  creado_en   timestamptz not null default now()
 );
 
--- 4. TABLA: destellos (subidas diarias: 1 por miembro por día)
-CREATE TABLE IF NOT EXISTS public.destellos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    fecha DATE NOT NULL,
-    media_url TEXT NOT NULL,
-    thumbnail_url TEXT,
-    tipo_media VARCHAR(10) NOT NULL CHECK (tipo_media IN ('foto', 'video')),
-    pie_de_foto TEXT,
-    cumple_reto BOOLEAN DEFAULT FALSE,
-    reto_verificacion_detalle TEXT,
-    es_destello_del_dia BOOLEAN DEFAULT FALSE,
-    votos_comunidad INTEGER DEFAULT 0,
-    es_favorito_comunidad BOOLEAN DEFAULT FALSE,
-    moderado BOOLEAN DEFAULT FALSE,
-    motivo_moderacion TEXT,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    CONSTRAINT uq_destello_usuario_fecha UNIQUE (grupo_id, usuario_id, fecha)
+create table if not exists veredictos (
+  grupo_id     uuid not null references grupos(id) on delete cascade,
+  fecha        date not null,
+  destello_id  uuid references destellos(id) on delete set null,
+  texto        text not null,
+  diploma_path text,
+  creado_en    timestamptz not null default now(),
+  primary key (grupo_id, fecha)
 );
 
--- 5. TABLA: evaluaciones_diarias (cierre del día con Gemini)
-CREATE TABLE IF NOT EXISTS public.evaluaciones_diarias (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    fecha DATE NOT NULL,
-    destello_ganador_id UUID REFERENCES public.destellos(id) ON DELETE SET NULL,
-    destello_favorito_id UUID REFERENCES public.destellos(id) ON DELETE SET NULL,
-    total_participantes INTEGER DEFAULT 0,
-    cerrado BOOLEAN DEFAULT FALSE,
-    cerrado_en TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT uq_evaluacion_grupo_fecha UNIQUE (grupo_id, fecha)
+create table if not exists puntos (
+  id          uuid primary key default gen_random_uuid(),
+  grupo_id    uuid not null references grupos(id) on delete cascade,
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  fecha       date not null,
+  motivo      text not null,                    -- 'foto' | 'ganador' | 'trivia'
+  puntos      int not null,
+  creado_en   timestamptz not null default now(),
+  unique (usuario_id, fecha, motivo)
+);
+create index if not exists puntos_grupo_idx on puntos(grupo_id);
+
+create table if not exists trivia_intentos (
+  id          uuid primary key default gen_random_uuid(),
+  grupo_id    uuid not null references grupos(id) on delete cascade,
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  fecha       date not null,
+  nivel       text not null check (nivel in ('facil','medio','experto')),
+  pregunta    jsonb not null,                   -- incluye la correcta; nunca sale al cliente antes de responder
+  iniciada_en timestamptz not null default now(),
+  respondida  boolean not null default false,
+  elegida     int,
+  acerto      boolean,
+  puntos      int not null default 0,
+  evaluacion  text,
+  unique (usuario_id, fecha)                    -- un único intento diario
 );
 
--- 6. TABLA: puntos_eventos (tabla genérica y centralizada de puntos)
-CREATE TABLE IF NOT EXISTS public.puntos_eventos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    fecha DATE NOT NULL,
-    tipo_evento VARCHAR(50) NOT NULL,
-    puntos INTEGER NOT NULL,
-    descripcion VARCHAR(255) NOT NULL,
-    referencia_id UUID,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
+create table if not exists pizarra (
+  id         uuid primary key default gen_random_uuid(),
+  grupo_id   uuid references grupos(id) on delete cascade,  -- null = mensaje global
+  texto      text not null,
+  color      text not null default 'ambar' check (color in ('ambar','verde','rojo','celeste','magenta')),
+  origen     text not null default 'arlequin' check (origen in ('arlequin','superadmin')),
+  destacado  boolean not null default false,
+  vence_en   timestamptz,
+  creado_en  timestamptz not null default now()
+);
+create index if not exists pizarra_grupo_idx on pizarra(grupo_id, creado_en desc);
+
+create table if not exists publicidades (
+  id         uuid primary key default gen_random_uuid(),
+  titulo     text not null,
+  texto      text,
+  imagen_path text,
+  enlace     text,
+  ubicacion  text not null default 'home' check (ubicacion in ('home','login','trivia')),
+  activa     boolean not null default true,
+  creado_en  timestamptz not null default now()
 );
 
--- 7. TABLA: juego_adivina_intentos (Mini-juego 2: Adiviná quién la sacó)
-CREATE TABLE IF NOT EXISTS public.juego_adivina_intentos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    fecha DATE NOT NULL,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    destello_id UUID NOT NULL REFERENCES public.destellos(id) ON DELETE CASCADE,
-    autor_adivinado_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    es_correcto BOOLEAN NOT NULL,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    CONSTRAINT uq_adivina_usuario_destello UNIQUE (usuario_id, destello_id)
+create table if not exists notificaciones (
+  id        uuid primary key default gen_random_uuid(),
+  grupo_id  uuid not null references grupos(id) on delete cascade,
+  texto     text not null,
+  leida     boolean not null default false,
+  creado_en timestamptz not null default now()
+);
+create index if not exists notif_grupo_idx on notificaciones(grupo_id, leida);
+
+create table if not exists reset_codigos (
+  id          uuid primary key default gen_random_uuid(),
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  codigo_hash text not null,
+  vence_en    timestamptz not null,
+  usado       boolean not null default false,
+  intentos    int not null default 0,
+  creado_en   timestamptz not null default now()
 );
 
--- 8. TABLA: juego_votos_cruzados (Mini-juego 4: Votación comunitaria del día)
-CREATE TABLE IF NOT EXISTS public.juego_votos_cruzados (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    fecha DATE NOT NULL,
-    votante_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    destello_id UUID NOT NULL REFERENCES public.destellos(id) ON DELETE CASCADE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    CONSTRAINT uq_voto_votante_fecha UNIQUE (grupo_id, fecha, votante_id)
-);
+-- RLS activado sin políticas: solo la service_role (servidor) puede operar.
+do $$
+declare t text;
+begin
+  foreach t in array array['grupos','usuarios','destellos','reacciones','comentarios','veredictos',
+    'puntos','trivia_intentos','pizarra','publicidades','notificaciones','reset_codigos']
+  loop
+    execute format('alter table %I enable row level security', t);
+  end loop;
+end $$;
 
--- 9. TABLA: juego_foto_pasado (Mini-juego 3: Foto del Pasado)
-CREATE TABLE IF NOT EXISTS public.juego_foto_pasado (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    semana VARCHAR(10) NOT NULL, -- Ej: '2026-W42'
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    media_url TEXT NOT NULL,
-    anio_real INTEGER NOT NULL,
-    lugar_real VARCHAR(200) NOT NULL,
-    pista TEXT,
-    cerrada BOOLEAN DEFAULT FALSE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    CONSTRAINT uq_foto_pasado_semana_usuario UNIQUE (grupo_id, semana, usuario_id)
-);
-
--- 10. TABLA: juego_foto_pasado_adivinanzas (Respuestas a Foto del Pasado)
-CREATE TABLE IF NOT EXISTS public.juego_foto_pasado_adivinanzas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    foto_pasado_id UUID NOT NULL REFERENCES public.juego_foto_pasado(id) ON DELETE CASCADE,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    anio_adivinado INTEGER NOT NULL,
-    lugar_adivinado VARCHAR(200),
-    puntos_obtenidos INTEGER DEFAULT 0,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW()),
-    CONSTRAINT uq_adivinanza_foto_usuario UNIQUE (foto_pasado_id, usuario_id)
-);
-
--- 11. TABLA: juego_ruleta_rusa (Mini-juego: Ruleta Rusa)
-CREATE TABLE IF NOT EXISTS public.juego_ruleta_rusa (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    nivel_maximo VARCHAR(20) DEFAULT 'picante' CHECK (nivel_maximo IN ('suave', 'picante', 'extra_picante')),
-    estado VARCHAR(20) DEFAULT 'preguntas' CHECK (estado IN ('preguntas', 'ruleta', 'respuestas', 'finalizada')),
-    cerrada BOOLEAN DEFAULT FALSE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
-);
-
-CREATE TABLE IF NOT EXISTS public.juego_ruleta_preguntas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ronda_id UUID NOT NULL REFERENCES public.juego_ruleta_rusa(id) ON DELETE CASCADE,
-    autor_usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    texto_pregunta TEXT NOT NULL,
-    nivel VARCHAR(20) NOT NULL CHECK (nivel IN ('suave', 'picante', 'extra_picante')),
-    aprobada_ia BOOLEAN DEFAULT TRUE,
-    asignada_a_usuario_id UUID REFERENCES public.usuarios(id) ON DELETE SET NULL,
-    es_bala BOOLEAN DEFAULT FALSE, -- Si es bala, debe responder con foto o video
-    respuesta_texto TEXT,
-    respuesta_media_url TEXT,
-    respondida BOOLEAN DEFAULT FALSE,
-    paso_utilizado BOOLEAN DEFAULT FALSE,
-    reacciones_risa INTEGER DEFAULT 0,
-    reacciones_fuego INTEGER DEFAULT 0,
-    reacciones_amor INTEGER DEFAULT 0,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
-);
-
--- 12. TABLA: juego_prode_fechas (Mini-juego: Prode del Fin de Semana)
-CREATE TABLE IF NOT EXISTS public.juego_prode_fechas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID NOT NULL REFERENCES public.grupos(id) ON DELETE CASCADE,
-    torneo_nombre VARCHAR(120) NOT NULL DEFAULT 'Liga Profesional Argentina',
-    numero_fecha INTEGER NOT NULL,
-    fecha_inicio TIMESTAMP WITH TIME ZONE NOT NULL,
-    fecha_fin TIMESTAMP WITH TIME ZONE NOT NULL,
-    cerrada BOOLEAN DEFAULT FALSE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
-);
-
-CREATE TABLE IF NOT EXISTS public.juego_prode_partidos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    fecha_prode_id UUID NOT NULL REFERENCES public.juego_prode_fechas(id) ON DELETE CASCADE,
-    equipo_local VARCHAR(100) NOT NULL,
-    escudo_local TEXT,
-    equipo_visitante VARCHAR(100) NOT NULL,
-    escudo_visitante TEXT,
-    fecha_hora_partido TIMESTAMP WITH TIME ZONE NOT NULL,
-    goles_local INTEGER,
-    goles_visitante INTEGER,
-    estado_partido VARCHAR(20) DEFAULT 'programado' CHECK (estado_partido IN ('programado', 'en_vivo', 'finalizado', 'suspendido')),
-    resultado_final VARCHAR(5) CHECK (resultado_final IN ('L', 'E', 'V', NULL)),
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
-);
-
-CREATE TABLE IF NOT EXISTS public.juego_prode_pronosticos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    partido_id UUID NOT NULL REFERENCES public.juego_prode_partidos(id) ON DELETE CASCADE,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    pronostico VARCHAR(5) NOT NULL CHECK (pronostico IN ('L', 'E', 'V')),
-    goles_local_pronostico INTEGER,
-    goles_visitante_pronostico INTEGER,
-    corregido BOOLEAN DEFAULT FALSE,
-    acerto BOOLEAN DEFAULT FALSE,
-    puntos_sumados INTEGER DEFAULT 0,
-    CONSTRAINT uq_prode_usuario_partido UNIQUE (partido_id, usuario_id)
-);
-
--- 13. TABLA: publicidades (Gestión de Publicidad por Superadmin)
-CREATE TABLE IF NOT EXISTS public.publicidades (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    titulo VARCHAR(150) NOT NULL,
-    texto TEXT NOT NULL,
-    imagen_url TEXT,
-    link_url TEXT,
-    ubicacion VARCHAR(30) NOT NULL CHECK (ubicacion IN ('foto_ganadora', 'prode', 'post_subida')),
-    activa BOOLEAN DEFAULT TRUE,
-    creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
-);
-
--- 14. TABLA: reglas_config (Ajuste de reglas por Superadmin / Admin)
-CREATE TABLE IF NOT EXISTS public.reglas_config (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    grupo_id UUID REFERENCES public.grupos(id) ON DELETE CASCADE,
-    solo_mostrar_si_todos_subieron BOOLEAN DEFAULT TRUE,
-    racha_activa BOOLEAN DEFAULT TRUE,
-    apurar_whatsapp_activo BOOLEAN DEFAULT TRUE,
-    nivel_ruleta_maximo VARCHAR(20) DEFAULT 'picante',
-    puntos_destello_ganador INTEGER DEFAULT 10,
-    puntos_participacion INTEGER DEFAULT 1,
-    actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('America/Argentina/Buenos_Aires', NOW())
-);
-
--- Índices de alto rendimiento para consultas móviles
-CREATE INDEX IF NOT EXISTS idx_destellos_grupo_fecha ON public.destellos(grupo_id, fecha);
-CREATE INDEX IF NOT EXISTS idx_destellos_usuario ON public.destellos(usuario_id);
-CREATE INDEX IF NOT EXISTS idx_puntos_grupo_usuario ON public.puntos_eventos(grupo_id, usuario_id);
-CREATE INDEX IF NOT EXISTS idx_puntos_fecha ON public.puntos_eventos(fecha);
-CREATE INDEX IF NOT EXISTS idx_retos_grupo_fecha ON public.retos_diarios(grupo_id, fecha);
-CREATE INDEX IF NOT EXISTS idx_evaluaciones_grupo_fecha ON public.evaluaciones_diarias(grupo_id, fecha);
-
--- Habilitar RLS (Row Level Security)
-ALTER TABLE public.grupos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.destellos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.retos_diarios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.puntos_eventos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.evaluaciones_diarias ENABLE ROW LEVEL SECURITY;
-
--- Políticas permisivas para Service Role (API de Next.js) y lectura pública para miembros autenticados
-CREATE POLICY "Permitir todo al service_role" ON public.grupos FOR ALL USING (true);
-CREATE POLICY "Permitir todo al service_role" ON public.usuarios FOR ALL USING (true);
-CREATE POLICY "Permitir todo al service_role" ON public.destellos FOR ALL USING (true);
-CREATE POLICY "Permitir todo al service_role" ON public.retos_diarios FOR ALL USING (true);
-CREATE POLICY "Permitir todo al service_role" ON public.puntos_eventos FOR ALL USING (true);
-CREATE POLICY "Permitir todo al service_role" ON public.evaluaciones_diarias FOR ALL USING (true);
+-- Bucket PRIVADO para fotos, avatares y diplomas (se entregan con URLs firmadas).
+insert into storage.buckets (id, name, public)
+values ('destellos', 'destellos', false)
+on conflict (id) do nothing;
