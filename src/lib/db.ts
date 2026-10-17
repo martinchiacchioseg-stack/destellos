@@ -37,7 +37,7 @@ import {
 } from './types';
 import { hashPassword } from './auth';
 import { getFechaArgentina, getAyerFechaArgentina } from './date-utils';
-import { elegirDestelloDelDia, generarTriviaDiaria, generarMensajePizarraArlequin } from './gemini';
+import { elegirDestelloDelDia, generarTriviaDiaria, generarMensajePizarraArlequin, evaluarRespuestaTriviaArlequin } from './gemini';
 import { estamparDiploma } from './image-processor';
 import {
   dbUpsert,
@@ -1197,16 +1197,29 @@ export async function obtenerTriviaDelDia(
     (p) => (p.grupo_id === grupoId || !p.grupo_id) && p.fecha === fecha && p.difficulty === dificultad
   );
 
-  if (existente) return existente;
+  if (existente) {
+    // Asegurar compatibilidad de nombres de propiedades
+    const cIdx = existente.correct_index ?? existente.correct_answer_index ?? 0;
+    return {
+      ...existente,
+      correct_index: cIdx,
+      correct_answer_index: cIdx,
+      time_limit_seconds: existente.time_limit_seconds || (dificultad === 'facil' ? 15 : dificultad === 'medio' ? 20 : 25),
+      points_win: existente.points_win || (dificultad === 'facil' ? 1 : dificultad === 'medio' ? 3 : 5),
+    };
+  }
 
   const usadas = preguntas.map((p) => p.question);
   const generada = await generarTriviaDiaria(dificultad, usadas);
 
+  const cIdx = generada.correct_index ?? generada.correct_answer_index ?? 0;
   const nuevaPregunta: TriviaPregunta = {
     id: uuidv4(),
     grupo_id: grupoId,
     fecha,
     ...generada,
+    correct_index: cIdx,
+    correct_answer_index: cIdx,
     creado_en: new Date().toISOString(),
   };
 
@@ -1219,8 +1232,16 @@ export async function responderTrivia(
   usuarioId: string,
   grupoId: string,
   fecha: string,
-  selectedIndex: number
-): Promise<{ acerto: boolean; puntos: number; pregunta: TriviaPregunta }> {
+  selectedIndex: number,
+  tiempoAgotado: boolean = false,
+  usuarioNombre: string = 'Familiar'
+): Promise<{
+  acerto: boolean;
+  puntos: number;
+  pregunta: TriviaPregunta;
+  intento: TriviaIntento;
+  evaluacion: string;
+}> {
   await ensureInitialized();
 
   const intentos = dbGetAll<TriviaIntento>('triviaIntentos');
@@ -1234,8 +1255,26 @@ export async function responderTrivia(
   const pregunta = dbGet<TriviaPregunta>('triviaPreguntas', preguntaId);
   if (!pregunta) throw new Error('Pregunta no encontrada.');
 
-  const acerto = selectedIndex === pregunta.correct_index;
-  const puntos = acerto ? pregunta.points_win : pregunta.points_penalty;
+  const correctIndex = pregunta.correct_index ?? pregunta.correct_answer_index ?? 0;
+  const esCorrecta = !tiempoAgotado && selectedIndex >= 0 && selectedIndex === correctIndex;
+  const puntos = esCorrecta ? (pregunta.points_win || 1) : 0;
+
+  // Evaluación con la personalidad de Arlequín
+  const respuestaElegidaTexto = selectedIndex >= 0 && pregunta.options[selectedIndex]
+    ? pregunta.options[selectedIndex]
+    : undefined;
+  const respuestaCorrectaTexto = pregunta.options[correctIndex] || 'Opción correcta';
+
+  const evaluacion = await evaluarRespuestaTriviaArlequin({
+    acerto: esCorrecta,
+    tiempoAgotado: Boolean(tiempoAgotado || selectedIndex < 0),
+    dificultad: pregunta.difficulty,
+    pregunta: pregunta.question,
+    respuestaElegidaTexto,
+    respuestaCorrectaTexto,
+    usuarioNombre,
+    puntos,
+  });
 
   const intento: TriviaIntento = {
     id: uuidv4(),
@@ -1244,25 +1283,53 @@ export async function responderTrivia(
     grupo_id: grupoId,
     fecha,
     selected_index: selectedIndex,
-    acerto,
+    respuesta_elegida_index: selectedIndex,
+    tiempo_agotado: Boolean(tiempoAgotado || selectedIndex < 0),
+    difficulty: pregunta.difficulty,
+    acerto: esCorrecta,
     puntos_obtenidos: puntos,
+    evaluacion_arlequin: evaluacion,
     creado_en: new Date().toISOString(),
   };
 
   dbUpsert('triviaIntentos', intento);
 
-  if (puntos !== 0) {
+  if (puntos > 0) {
     await otorgarPuntos(
       grupoId,
       usuarioId,
       fecha,
-      acerto ? 'trivia_acierto' : 'trivia_error',
+      'trivia_acierto',
       puntos,
-      acerto ? '🧠 ¡Acierto en la Trivia Diaria!' : '❌ Error en la Trivia Diaria'
+      `🧠 Trivia (${pregunta.difficulty}): ¡Acierto de ${usuarioNombre}! (+${puntos} pts)`
     );
   }
 
-  return { acerto, puntos, pregunta };
+  const preguntaNormalizada: TriviaPregunta = {
+    ...pregunta,
+    correct_index: correctIndex,
+    correct_answer_index: correctIndex,
+    time_limit_seconds: pregunta.time_limit_seconds || (pregunta.difficulty === 'facil' ? 15 : pregunta.difficulty === 'medio' ? 20 : 25),
+  };
+
+  return {
+    acerto: esCorrecta,
+    puntos,
+    pregunta: preguntaNormalizada,
+    intento,
+    evaluacion,
+  };
+}
+
+export async function reiniciarTriviaUsuario(usuarioId: string, fecha: string): Promise<boolean> {
+  await ensureInitialized();
+  const intentos = dbGetAll<TriviaIntento>('triviaIntentos');
+  const intento = intentos.find((i) => i.usuario_id === usuarioId && i.fecha === fecha);
+  if (intento) {
+    dbDelete('triviaIntentos', intento.id);
+    return true;
+  }
+  return false;
 }
 
 // ==============================================================================

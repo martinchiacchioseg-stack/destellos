@@ -242,6 +242,7 @@ export interface TriviaPregunta {
   fun_fact?: string;
   points_win: number;
   points_penalty: number;
+  comentario_arlequin?: string;
   es_manual?: boolean;
   creado_en?: string;
 }
@@ -258,6 +259,7 @@ export interface TriviaIntento {
   difficulty?: DificultadTrivia;
   acerto: boolean;
   puntos_obtenidos: number;
+  evaluacion_arlequin?: string;
   creado_en: string;
 }
 

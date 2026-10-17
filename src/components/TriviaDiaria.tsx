@@ -102,6 +102,7 @@ export default function TriviaDiaria({
     puntos: number;
     intento: TriviaIntento;
     pregunta: TriviaPregunta;
+    evaluacionArlequin?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -204,6 +205,7 @@ export default function TriviaDiaria({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           preguntaId: preguntaActiva.id,
+          selectedIndex: indice,
           respuestaIndex: indice,
           tiempoAgotado,
         }),
@@ -273,9 +275,15 @@ export default function TriviaDiaria({
 
   if (yaJugo && intentoMostrar && preguntaMostrar) {
     const acerto = intentoMostrar.acerto;
-    const tiempoAgotado = intentoMostrar.tiempo_agotado;
+    const tiempoAgotado = Boolean(intentoMostrar.tiempo_agotado || (intentoMostrar.selected_index !== undefined && intentoMostrar.selected_index < 0));
     const puntos = intentoMostrar.puntos_obtenidos;
-    const reglaDif = OPCIONES_DIFICULTAD.find((d) => d.id === intentoMostrar.difficulty);
+    const reglaDif =
+      OPCIONES_DIFICULTAD.find(
+        (d) => d.id === (intentoMostrar.difficulty || preguntaMostrar.difficulty)
+      ) || OPCIONES_DIFICULTAD[1];
+
+    const correctIndex = preguntaMostrar.correct_answer_index ?? preguntaMostrar.correct_index ?? 0;
+    const selectedIndex = intentoMostrar.respuesta_elegida_index ?? intentoMostrar.selected_index ?? -1;
 
     return (
       <div className="space-y-4">
@@ -306,21 +314,31 @@ export default function TriviaDiaria({
               className={`px-3 py-1.5 rounded-full font-black text-xs ${
                 puntos > 0
                   ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
-                  : puntos < 0
-                  ? 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300'
                   : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
               }`}
             >
-              {puntos > 0 ? `+${puntos} pts` : `${puntos} pts`}
+              {puntos > 0 ? `+${puntos} pts` : `0 pts`}
             </div>
           </div>
+
+          {/* Devolución con voz / personalidad de Arlequín */}
+          {(resultadoFinal?.evaluacionArlequin || intentoMostrar.evaluacion_arlequin) && (
+            <div className="p-3.5 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-pink-500/10 rounded-2xl border border-purple-200 dark:border-purple-800 text-xs text-purple-900 dark:text-purple-200 space-y-1">
+              <span className="font-black flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+                <span>🎭</span> Devolución de Arlequín:
+              </span>
+              <p className="text-[12px] font-medium leading-relaxed italic">
+                "{resultadoFinal?.evaluacionArlequin || intentoMostrar.evaluacion_arlequin}"
+              </p>
+            </div>
+          )}
 
           {/* Pregunta y Opciones reveladas */}
           <div className="space-y-3">
             <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-wider">
               <span>Categoría: {preguntaMostrar.category}</span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" /> {preguntaMostrar.time_limit_seconds}s
+                <Clock className="w-3.5 h-3.5" /> {preguntaMostrar.time_limit_seconds || 20}s
               </span>
             </div>
 
@@ -330,8 +348,8 @@ export default function TriviaDiaria({
 
             <div className="space-y-2 pt-1">
               {preguntaMostrar.options.map((opcion, idx) => {
-                const esLaCorrecta = idx === preguntaMostrar.correct_answer_index;
-                const esLaElegida = idx === intentoMostrar.respuesta_elegida_index;
+                const esLaCorrecta = idx === correctIndex;
+                const esLaElegida = idx === selectedIndex;
 
                 let estilo =
                   'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400';
@@ -398,6 +416,25 @@ export default function TriviaDiaria({
             <Share2 className="w-4 h-4" />
             Compartir resultado en el grupo de WhatsApp 📲
           </button>
+
+          {/* Botón de reinicio para Superadmin */}
+          {usuario?.rol === 'superadmin' && (
+            <button
+              onClick={async () => {
+                await fetch('/api/juegos/trivia?reset=1');
+                setYaJugo(false);
+                setResultadoFinal(null);
+                setIntentoPrevio(null);
+                setPreguntaJugada(null);
+                setJugando(false);
+                setDificultadSeleccionada(null);
+                setPreguntaActiva(null);
+              }}
+              className="w-full py-2.5 text-xs font-bold text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-300 border border-dashed border-gray-300 dark:border-gray-700 rounded-2xl transition-all flex items-center justify-center gap-2 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+            >
+              🛠️ [Superadmin] Reiniciar turno para volver a probar
+            </button>
+          )}
 
           <p className="text-[11px] text-center text-gray-400">
             ⏰ Ya jugaste tu turno del día. Mañana a las 00:00 hs se renueva la Trivia Diaria.

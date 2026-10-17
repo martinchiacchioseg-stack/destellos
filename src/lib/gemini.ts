@@ -175,23 +175,26 @@ export async function generarTriviaDiaria(
   dificultad: DificultadTrivia = 'medio',
   preguntasYaUsadas: string[] = []
 ): Promise<Omit<TriviaPregunta, 'id' | 'grupo_id' | 'fecha' | 'creado_en'>> {
-  const puntosWin = dificultad === 'facil' ? 10 : dificultad === 'medio' ? 25 : 50;
-  const puntosPenalty = dificultad === 'facil' ? 0 : dificultad === 'medio' ? -5 : -15;
+  const puntosWin = dificultad === 'facil' ? 1 : dificultad === 'medio' ? 3 : 5;
+  const puntosPenalty = 0;
+  const timeLimit = dificultad === 'facil' ? 15 : dificultad === 'medio' ? 20 : 25;
 
   if (ai) {
     try {
       const prompt = `
 Generá 1 pregunta de trivia en español rioplatense (Argentina/Uruguay), apta y divertida para compartir en familia o con amigos.
 Nivel de dificultad: ${dificultad.toUpperCase()}.
-Temas: cultura general, cine, comidas típicas, geografía, costumbres, ciencia cotidiana, música o historia curiosa.
+- Nivel facil (+1 pt): cultura popular, películas conocidas, comida o música muy accesible.
+- Nivel medio (+3 pts): historia, cine, ciencia cotidiana, deportes o curiosidades generales.
+- Nivel dificil (+5 pts): récords mundiales, datos insólitos o historia curiosa que haga pensar.
 
 Preguntas ya realizadas recientemente (NO REPETIR NINGUNA DE ESTAS):
 ${JSON.stringify(preguntasYaUsadas.slice(-20))}
 
 ESTRUCTURA JSON REQUERIDA (devolver ÚNICAMENTE JSON):
 {
-  "category": "Categoría (ej: Cine y Series, Costumbres Argentinas, Comida, etc.)",
-  "question": "Texto claro de la pregunta",
+  "category": "Categoría (ej: Cine y Series, Costumbres Argentinas, Música, Comida, etc.)",
+  "question": "Texto claro y entretenido de la pregunta",
   "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
   "correct_index": 0, // índice de la opción correcta (entre 0 y 3)
   "explanation": "Explicación breve y amena de por qué esa es la respuesta correcta",
@@ -215,12 +218,15 @@ ESTRUCTURA JSON REQUERIDA (devolver ÚNICAMENTE JSON):
         parsed.options.length === 4 &&
         typeof parsed.correct_index === 'number'
       ) {
+        const cIdx = Math.max(0, Math.min(3, Math.floor(parsed.correct_index)));
         return {
           difficulty: dificultad,
           category: parsed.category || 'Cultura General',
           question: parsed.question,
           options: parsed.options,
-          correct_index: parsed.correct_index,
+          correct_index: cIdx,
+          correct_answer_index: cIdx,
+          time_limit_seconds: timeLimit,
           explanation: parsed.explanation || '',
           fun_fact: parsed.fun_fact || '',
           points_win: puntosWin,
@@ -232,15 +238,53 @@ ESTRUCTURA JSON REQUERIDA (devolver ÚNICAMENTE JSON):
     }
   }
 
-  // Pregunta de reserva de calidad garantizada
+  // Preguntas de reserva de calidad garantizada según dificultad
+  const backupsPorDificultad: Record<DificultadTrivia, {
+    category: string;
+    question: string;
+    options: string[];
+    correct_index: number;
+    explanation: string;
+    fun_fact: string;
+  }> = {
+    facil: {
+      category: 'Costumbres y Tradiciones',
+      question: '¿En qué año se declaró oficialmente al Mate como infusión nacional en la República Argentina?',
+      options: ['2013', '1995', '2001', '1983'],
+      correct_index: 0,
+      explanation: 'La Ley 26.871 sancionada en 2013 declaró al mate como infusión nacional y a la Argentina como país de origen de esta tradición.',
+      fun_fact: 'En promedio, cada habitante en Argentina consume cerca de 6,4 kilos de yerba mate por año.',
+    },
+    medio: {
+      category: 'Cine y Series',
+      question: '¿Qué película argentina ganó el Premio Oscar a Mejor Película Extranjera en el año 2010?',
+      options: ['El secreto de sus ojos', 'Relatos salvajes', 'La historia oficial', 'Nueve reinas'],
+      correct_index: 0,
+      explanation: 'Dirigida por Juan José Campanella y protagonizada por Ricardo Darín y Soledad Villamil, ganó el segundo Oscar de la historia del cine argentino.',
+      fun_fact: 'La famosa escena del estadio de Huracán fue grabada con una innovadora toma continua de casi 5 minutos.',
+    },
+    dificil: {
+      category: 'Ciencia e Historia Curiosa',
+      question: '¿Cuál fue el primer largometraje animado sonoro de la historia del cine mundial, producido en Argentina en 1917?',
+      options: ['El Apóstol', 'Blancanieves', 'Peludópolis', 'Las aventuras de Hijitus'],
+      correct_index: 0,
+      explanation: 'Creado por Quirino Cristiani en 1917, "El Apóstol" fue el primer largometraje animado del mundo, superando por dos décadas a las producciones de Disney.',
+      fun_fact: 'Las copias originales de la película se perdieron en un incendio en 1926.',
+    },
+  };
+
+  const backup = backupsPorDificultad[dificultad] || backupsPorDificultad.facil;
+
   return {
     difficulty: dificultad,
-    category: 'Costumbres y Curiosidades',
-    question: '¿En qué año se declaró oficialmente al Mate como infusión nacional en la República Argentina?',
-    options: ['2013', '1995', '2001', '1983'],
-    correct_index: 0,
-    explanation: 'La Ley 26.871 sancionada en 2013 declaró al mate como infusión nacional y a la Argentina como país de origen de esta tradición.',
-    fun_fact: 'En promedio, cada habitante en Argentina consume cerca de 6,4 kilos de yerba mate por año.',
+    category: backup.category,
+    question: backup.question,
+    options: backup.options,
+    correct_index: backup.correct_index,
+    correct_answer_index: backup.correct_index,
+    time_limit_seconds: timeLimit,
+    explanation: backup.explanation,
+    fun_fact: backup.fun_fact,
     points_win: puntosWin,
     points_penalty: puntosPenalty,
   };
@@ -596,6 +640,86 @@ Devolvé ÚNICAMENTE un JSON:
     puntos,
     comentarioArlequin: '🎭 ¡Arlequín te desafía con un clásico de la billetera!',
   };
+}
+
+/**
+ * Evaluación personalizada de Arlequín tras responder una trivia
+ */
+export async function evaluarRespuestaTriviaArlequin(params: {
+  acerto: boolean;
+  tiempoAgotado: boolean;
+  dificultad: DificultadTrivia;
+  pregunta: string;
+  respuestaElegidaTexto?: string;
+  respuestaCorrectaTexto: string;
+  usuarioNombre: string;
+  puntos: number;
+}): Promise<string> {
+  const {
+    acerto,
+    tiempoAgotado,
+    dificultad,
+    pregunta,
+    respuestaElegidaTexto,
+    respuestaCorrectaTexto,
+    usuarioNombre,
+    puntos,
+  } = params;
+
+  const difNombre = dificultad === 'facil' ? 'Fácil' : dificultad === 'medio' ? 'Medio' : 'Experto';
+
+  const fallbacksAcerto = [
+    `🎭 ¡Golazo de ${usuarioNombre}! Clavaste la respuesta en el ángulo en nivel ${difNombre}. ¡Sumás +${puntos} puntos directos para la tabla familiar!`,
+    `🎭 ¡Qué lucidez, ${usuarioNombre}! Arlequín se saca la galera. ¡Respuesta impecable y +${puntos} puntos al bolsillo!`,
+    `🎭 ¡Aplausos para ${usuarioNombre}! El saber no ocupa lugar... ¡pero sí suma +${puntos} puntos en Destellos!`,
+  ];
+
+  const fallbacksTiempo = [
+    `🎭 ¡Upa, ${usuarioNombre}! Se te escurrió el reloj entre los dedos. En nivel ${difNombre} hay que pestañear rápido. ¡Mañana nos desquitamos!`,
+    `🎭 ¡Tic, tac, boom! El tiempo voló, ${usuarioNombre}. Arlequín te tiene toda la fe para la trivia de mañana.`,
+  ];
+
+  const fallbacksError = [
+    `🎭 ¡Por un pelito, ${usuarioNombre}! Te jugaste por "${respuestaElegidaTexto || 'esa opción'}", pero la correcta era "${respuestaCorrectaTexto}". ¡Mañana hay revancha en la familia!`,
+    `🎭 ¡Uyyy casi casi, ${usuarioNombre}! Arlequín te banca el intento. La posta era "${respuestaCorrectaTexto}". ¡A no aflojarle al ranking!`,
+  ];
+
+  const fallback = acerto
+    ? fallbacksAcerto[Math.floor(Math.random() * fallbacksAcerto.length)]
+    : tiempoAgotado
+    ? fallbacksTiempo[Math.floor(Math.random() * fallbacksTiempo.length)]
+    : fallbacksError[Math.floor(Math.random() * fallbacksError.length)];
+
+  if (!ai) return fallback;
+
+  try {
+    const prompt = `
+Sos "Arlequín", el anfitrión pícaro, cariñoso, lúdico y divertido de la Trivia familiar en la app "Destellos" (tu esencia secreta es Rolφ).
+El jugador "${usuarioNombre}" acaba de responder una trivia:
+- Nivel: ${difNombre}
+- Pregunta: "${pregunta}"
+- ¿Acertó?: ${acerto ? 'SÍ' : 'NO'}
+- ¿Tiempo agotado?: ${tiempoAgotado ? 'SÍ' : 'NO'}
+- Respuesta elegida: "${respuestaElegidaTexto || 'Ninguna'}"
+- Respuesta correcta: "${respuestaCorrectaTexto}"
+- Puntos ganados: ${puntos}
+
+Generá una devolución brevísima (1 o 2 oraciones, máx 25 palabras) evaluando con humor y calidez rioplatense su desempeño:
+- Si acertó: felicitalo con entusiasmo pícaro y mencioná los puntos ganados.
+- Si falló por tiempo: hacé un chiste simpático sobre el reloj.
+- Si falló por opción: confortalo con gracia y mencioná la respuesta correcta sin juzgar.
+- Empezá siempre con el emoji 🎭.
+- Respondé ÚNICAMENTE el texto de la devolución, sin comillas ni títulos.
+`;
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { temperature: 0.8 },
+    });
+    return res.text?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export async function generarRecordatorioHumorWhatsApp(
