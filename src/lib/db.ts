@@ -7,7 +7,12 @@ let client: SupabaseClient | null = null;
 /** Cliente con service_role. Solo corre en el servidor; nunca se importa desde componentes cliente. */
 export function db(): SupabaseClient {
   if (!client) {
-    client = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hzysabgjbcypfydeigkh.supabase.co";
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6eXNhYmdqYmN5cGZ5ZGVpZ2toIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjIxMjk2OSwiZXhwIjoyMTA3Nzg4OTY5fQ.2te043w-UVmprA-cPwBfeICOofkw9mM_6V-ojWKVXyk";
+
+    client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }

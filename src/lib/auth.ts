@@ -13,12 +13,20 @@ export type Contexto =
   | { tipo: "superadmin" }
   | { tipo: "usuario"; usuario: Usuario; grupo: Grupo; esSuper: boolean };
 
-/** Valida credenciales del superadmin SOLO contra variables de entorno (sin fila en DB). */
+/** Valida credenciales del superadmin contra variables de entorno (o fallback canónico para Chiachio@1938). */
 export async function verificarSuperadmin(email: string, password: string): Promise<boolean> {
-  const esperadoEmail = env("SUPERADMIN_EMAIL").toLowerCase();
-  const hash = env("SUPERADMIN_PASSWORD_HASH");
-  // Se compara siempre el hash para no filtrar por tiempo si el email existe.
-  const claveOk = await bcrypt.compare(password, hash);
+  const esperadoEmail = (process.env.SUPERADMIN_EMAIL || "martinchiacchio.seg@gmail.com").trim().toLowerCase();
+  const hash =
+    process.env.SUPERADMIN_PASSWORD_HASH ||
+    "$2b$12$G2GVsC2HYY6umAydBLQHZ.dfdUMaMEJeVu.j1.iOwOax5WQVsOrpO"; // Corresponde a Chiachio@1938
+
+  let claveOk = false;
+  if (process.env.SUPERADMIN_INITIAL_PASSWORD && password === process.env.SUPERADMIN_INITIAL_PASSWORD) {
+    claveOk = true;
+  } else {
+    claveOk = await bcrypt.compare(password, hash);
+  }
+
   return claveOk && email.trim().toLowerCase() === esperadoEmail;
 }
 
