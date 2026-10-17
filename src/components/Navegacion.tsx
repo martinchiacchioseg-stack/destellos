@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Camera, Trophy, Brain, Shield, LogOut } from "lucide-react";
+import { Camera, Trophy, Brain, Shield, LogOut, Sparkles } from "lucide-react";
 import { llamar } from "@/lib/cliente";
 
 interface Yo { tipo: string; nombre?: string; esAdmin?: boolean; esSuper?: boolean; familia?: string; emoji?: string }
@@ -28,6 +28,7 @@ export function Navegacion() {
 
   const items = [
     { href: "/", icono: Camera, texto: "Destellos" },
+    { href: "/tarambana", icono: Sparkles, texto: "Club Tarambana", destacado: true },
     { href: "/trivia", icono: Brain, texto: "Trivia" },
     { href: "/ranking", icono: Trophy, texto: "Ranking" },
     ...(yo?.esAdmin ? [{ href: "/admin", icono: Shield, texto: "Mi familia" }] : []),
@@ -41,9 +42,19 @@ export function Navegacion() {
           <span className="hidden sm:inline">{yo?.emoji} {yo?.familia ?? "Destellos"}</span>
         </Link>
         <nav className="ml-auto flex items-center gap-1">
-          {items.map(({ href, icono: I, texto }) => (
-            <Link key={href} href={href} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm ${path === href ? "bg-white/15 text-white" : "text-suave hover:text-white"}`}>
-              <I size={16} />
+          {items.map(({ href, icono: I, texto, destacado }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition ${
+                path === href
+                  ? "bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/20"
+                  : destacado
+                  ? "bg-gradient-to-r from-fuchsia-600/30 to-pink-600/30 text-fuchsia-300 border border-fuchsia-500/30 hover:border-fuchsia-400 hover:text-white"
+                  : "text-suave hover:text-white"
+              }`}
+            >
+              <I size={16} className={destacado ? "text-fuchsia-400 animate-pulse" : ""} />
               <span className="hidden sm:inline">{texto}</span>
             </Link>
           ))}

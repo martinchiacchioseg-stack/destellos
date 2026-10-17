@@ -129,6 +129,32 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
     <>
       <LedBoard mensajes={d.pizarra ?? []} />
 
+      {/* Acceso a la suite El Club Tarambana */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-fuchsia-950 via-purple-900 to-indigo-950 p-5 border border-fuchsia-500/40 shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-fuchsia-500 text-white animate-pulse">
+                NUEVA EXPERIENCIA
+              </span>
+              <span className="text-xs text-fuchsia-200 font-bold">5 Juegos en Tiempo Real</span>
+            </div>
+            <h2 className="text-lg font-black text-white flex items-center gap-2">
+              <span>🎉</span> ¡Entrá a El Club Tarambana!
+            </h2>
+            <p className="text-xs text-purple-200">
+              Flash Grupal con IA, Ronda de Tarareos con voz de ardilla, Trivia 3D y Pizarra Trazo Loco.
+            </p>
+          </div>
+          <a
+            href="/tarambana"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-sm tracking-wide shadow-lg shadow-fuchsia-600/30 hover:scale-105 active:scale-95 transition whitespace-nowrap self-stretch sm:self-auto text-center"
+          >
+            Jugar en el Club 🚀
+          </a>
+        </div>
+      </div>
+
       {d.licencia.estado === "por_vencer" && (
         <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
       )}
