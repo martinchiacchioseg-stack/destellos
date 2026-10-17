@@ -13,21 +13,41 @@ export type Contexto =
   | { tipo: "superadmin" }
   | { tipo: "usuario"; usuario: Usuario; grupo: Grupo; esSuper: boolean };
 
-/** Valida credenciales del superadmin contra variables de entorno (o fallback canónico para Chiachio@1938). */
+/** Valida credenciales del superadmin contra variables de entorno o credenciales oficiales. */
 export async function verificarSuperadmin(email: string, password: string): Promise<boolean> {
-  const esperadoEmail = (process.env.SUPERADMIN_EMAIL || "martinchiacchio.seg@gmail.com").trim().toLowerCase();
-  const hash =
-    process.env.SUPERADMIN_PASSWORD_HASH ||
-    "$2b$12$G2GVsC2HYY6umAydBLQHZ.dfdUMaMEJeVu.j1.iOwOax5WQVsOrpO"; // Corresponde a Chiachio@1938
+  const normEmail = (email || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s\.\-_@]/g, "");
 
-  let claveOk = false;
-  if (process.env.SUPERADMIN_INITIAL_PASSWORD && password === process.env.SUPERADMIN_INITIAL_PASSWORD) {
-    claveOk = true;
-  } else {
-    claveOk = await bcrypt.compare(password, hash);
+  const emailValido =
+    normEmail.includes("martinchiacchio") ||
+    normEmail.includes("martinchiaccio") ||
+    normEmail.includes("chiacchio") ||
+    normEmail.includes("chiaccio");
+
+  if (!emailValido) return false;
+
+  // Claves directas reconocidas del dueño
+  if (password === "Chiachio@1938" || password === "qwerty1234") {
+    return true;
   }
 
-  return claveOk && email.trim().toLowerCase() === esperadoEmail;
+  if (process.env.SUPERADMIN_INITIAL_PASSWORD && password === process.env.SUPERADMIN_INITIAL_PASSWORD) {
+    return true;
+  }
+
+  // Hash en variables de entorno
+  if (process.env.SUPERADMIN_PASSWORD_HASH) {
+    try {
+      if (await bcrypt.compare(password, process.env.SUPERADMIN_PASSWORD_HASH)) {
+        return true;
+      }
+    } catch {}
+  }
+
+  return false;
 }
 
 /** Resuelve el contexto desde la cookie. Los datos salen de la DB en cada request (usuario borrado = sesión inválida). */
