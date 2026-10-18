@@ -390,14 +390,10 @@ export function LosTarambanaView({ onAddScore, usuarioId }: TarambanaProps) {
             </p>
           </div>
 
-          <button
-            onClick={realizarSorteoArlequin}
-            disabled={sorteando}
-            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-xs tracking-wider shadow-[0_0_20px_rgba(255,0,127,0.5)] hover:scale-105 active:scale-95 disabled:opacity-50 transition flex items-center gap-2 shrink-0"
-          >
-            <Dices size={18} className={sorteando ? 'animate-spin' : ''} />
-            <span>{sorteando ? 'SORTEANDO ROLES…' : '🎲 SORTEAR QUIÉNES CANTAN'}</span>
-          </button>
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-fuchsia-950/80 border border-fuchsia-400/40 text-xs font-bold text-fuchsia-200 shrink-0">
+            <span className="text-base animate-pulse">🎭</span>
+            <span>Sorteo oficial emitido por Arlequín</span>
+          </div>
         </div>
 
         {/* 2. AVISO DIRECTO DE ARLEQUÍN A LOS SORTEADOS */}

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Share2, RotateCcw } from "lucide-react";
 import { llamar } from "@/lib/cliente";
 import { Navegacion } from "@/components/Navegacion";
+import { MarquesinaArlequin } from "@/components/MarquesinaArlequin";
 import { NIVELES, type NivelTrivia } from "@/lib/types";
 
 interface Vista {
@@ -98,6 +99,7 @@ export default function Trivia() {
     <>
       <Navegacion />
       <main className="mx-auto max-w-xl space-y-4 px-4 py-6">
+        <MarquesinaArlequin />
         <h1 className="text-center text-2xl font-extrabold">🧠 Trivia de Arlequín</h1>
         {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
 

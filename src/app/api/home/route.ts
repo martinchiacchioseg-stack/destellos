@@ -36,12 +36,16 @@ export const GET = api(async () => {
   ]);
   const destellos = (must(filas) ?? []) as (FilaDestello & { titulo_arlequin?: string | null; devolucion_arlequin?: string | null })[];
 
-  // Veredictos de hoy (pasada la hora límite) y de ayer, calculados una sola vez.
+  const subieronHoy = new Set(destellos.filter((d) => d.fecha === hoy).map((d) => d.usuario_id));
+  const faltan = miembros.filter((m) => !subieronHoy.has(m.id)).map((m) => ({ id: m.id, nombre: nombreCorto(m) }));
+  const todosSubieron = miembros.length > 0 && faltan.length === 0;
+
+  // Veredictos de hoy (si ya subieron todos o si pasó la hora límite) y de ayer.
   const cerrado = pasoHoraLimite(grupo.hora_limite);
   const fechasConFotos = new Set(destellos.map((d) => d.fecha));
   const vered: Record<string, { texto: string; destello_id: string | null; diploma_path: string | null }> = {};
   for (const f of [hoy, ayerAR()]) {
-    if (f === hoy && !cerrado) continue;
+    if (f === hoy && !cerrado && !todosSubieron) continue;
     if (!fechasConFotos.has(f) && f === hoy) continue;
     if (!fechasConFotos.has(f) && f !== hoy) continue;
     vered[f] = await asegurarVeredicto(grupo, f);
@@ -86,8 +90,6 @@ export const GET = api(async () => {
     };
   });
 
-  const subieronHoy = new Set(destellos.filter((d) => d.fecha === hoy).map((d) => d.usuario_id));
-  const faltan = miembros.filter((m) => !subieronHoy.has(m.id)).map((m) => ({ id: m.id, nombre: nombreCorto(m) }));
 
   const [ads, notif, triviaHoy] = await Promise.all([
     db().from("publicidades").select("id,titulo,texto,imagen_path,enlace").eq("ubicacion", "home").eq("activa", true).limit(3),

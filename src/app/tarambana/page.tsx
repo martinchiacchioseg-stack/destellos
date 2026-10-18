@@ -10,6 +10,7 @@ import { FlashGrupalView } from '@/components/tarambana/FlashGrupalView';
 import { LosTarambanaView } from '@/components/tarambana/LosTarambanaView';
 import { CerebroEnFugaView } from '@/components/tarambana/CerebroEnFugaView';
 import { TrazoLocoView } from '@/components/tarambana/TrazoLocoView';
+import { MarquesinaArlequin } from '@/components/MarquesinaArlequin';
 
 export default function TarambanaPage() {
   const [seccionActiva, setSeccionActiva] = useState<TarambanaTab>('feed');
@@ -92,6 +93,9 @@ export default function TarambanaPage() {
           score={puntos}
           clubName={nombreGrupo}
         />
+        <div className="max-w-4xl mx-auto px-4 pt-2">
+          <MarquesinaArlequin />
+        </div>
       </div>
 
       {/* Notificación flotante de puntos */}

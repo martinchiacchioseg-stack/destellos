@@ -201,14 +201,10 @@ export function TrazoLocoView({ onAddScore }: TrazoProps) {
             </p>
           </div>
 
-          <button
-            onClick={realizarSorteo}
-            disabled={sorteando}
-            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-lime-400 via-emerald-500 to-cyan-400 text-black font-black text-xs tracking-wider shadow-[0_0_20px_rgba(112,224,0,0.4)] hover:scale-105 active:scale-95 disabled:opacity-50 transition flex items-center gap-2 shrink-0"
-          >
-            <Dices size={18} className={sorteando ? 'animate-spin' : ''} />
-            <span>{sorteando ? 'SORTEANDO…' : '🎨 NUEVO SORTEO DE ARLEQUÍN'}</span>
-          </button>
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-lime-950/80 border border-lime-400/40 text-xs font-bold text-lime-200 shrink-0">
+            <span className="text-base animate-pulse">🎨</span>
+            <span>Consigna asignada por Arlequín</span>
+          </div>
         </div>
 
         {/* Mensaje de Arlequín */}

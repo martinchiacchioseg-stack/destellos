@@ -7,7 +7,8 @@ import { motion } from "framer-motion";
 import { Camera, Crown, MessageSquare, Bell, Send } from "lucide-react";
 import { llamar, ErrorApi } from "@/lib/cliente";
 import { Navegacion } from "@/components/Navegacion";
-import { LedBoard, type MsgLed } from "@/components/LedBoard";
+import { MarquesinaArlequin } from "@/components/MarquesinaArlequin";
+import { type MsgLed } from "@/components/LedBoard";
 import { ChatArlequin } from "@/components/ChatArlequin";
 
 interface Pub { id: string; nombre: string; apodo: string | null; foto_url: string | null }
@@ -128,12 +129,28 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
   }
 
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
+  const [mostrarSubirExtra, setMostrarSubirExtra] = useState(false);
 
   return (
     <>
-      <LedBoard mensajes={d.pizarra ?? []} />
+      <MarquesinaArlequin mensajesIniciales={d.pizarra ?? []} />
 
-      {/* SECCIÓN PROTAGONISTA: EL DESTELLO DEL DÍA (FOTOS) */}
+      {/* 1. FOTO GANADORA / VEREDICTO DE ARLEQUÍN (SI YA FUE ELEGIDA HOY O AYER) */}
+      {veredictoHoy && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-3xl border-2 border-amber-300/80 bg-gradient-to-br from-amber-950/60 via-slate-900 to-amber-950/30 p-5 shadow-[0_0_35px_rgba(251,191,36,0.3)] space-y-2"
+        >
+          <div className="flex items-center gap-2 font-black text-amber-300 text-sm">
+            <Crown size={22} className="text-amber-400 animate-bounce" />
+            <span className="tracking-wider uppercase">👑 FOTO DEL DÍA ELEGIDA POR ARLEQUÍN</span>
+          </div>
+          <p className="text-sm font-semibold text-amber-100 leading-relaxed">{veredictoHoy.texto}</p>
+        </motion.section>
+      )}
+
+      {/* 2. TU DESTELLO DEL DÍA / SUBIR FOTO */}
       <section className="relative overflow-hidden rounded-3xl bg-slate-900/95 border-2 border-amber-300/40 p-5 shadow-[0_0_35px_rgba(251,191,36,0.15)] space-y-4">
         <div className="flex items-start gap-3.5">
           <div className="h-12 w-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-2xl shrink-0">
@@ -158,7 +175,7 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
                 ? "Mañana empieza otro día para brillar juntos."
                 : faltan.length
                   ? `Faltan subir foto ${faltan.length + (d.subiHoy ? 0 : 1)} de ${d.totalMiembros} integrantes antes de las ${d.grupo.hora_limite} hs.`
-                  : `¡Toda la familia subió su destello! Cierre a las ${d.grupo.hora_limite} hs.`}
+                  : `¡Toda la familia subió su destello! Arlequín ya tiene todas las fotos en el muro.`}
             </p>
           </div>
           {d.yo?.esAdmin && (
@@ -169,7 +186,24 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
           )}
         </div>
 
-        {!d.cerrado && !d.subiHoy && (
+        {/* Si ya subió hoy, mostrar botón para agregar fotos extra en cualquier momento */}
+        {d.subiHoy && !mostrarSubirExtra && (
+          <div className="pt-1 flex items-center justify-between border-t border-white/10">
+            <span className="text-xs text-emerald-300 font-semibold">
+              ✨ Ya cumpliste con la foto del día.
+            </span>
+            <button
+              onClick={() => setMostrarSubirExtra(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-bold transition flex items-center gap-1.5"
+            >
+              <Camera size={14} />
+              <span>+ Subir otra foto para que Arlequín la titule</span>
+            </button>
+          </div>
+        )}
+
+        {/* Formulario de subida (si no subió hoy o si quiere subir una extra) */}
+        {(!d.cerrado && (!d.subiHoy || mostrarSubirExtra)) && (
           <form onSubmit={subir} className="space-y-3 pt-2">
             <div className="relative">
               <label className="flex flex-col items-center justify-center border-2 border-dashed border-amber-400/50 hover:border-amber-300 rounded-2xl p-4 bg-slate-950/60 cursor-pointer transition group">
@@ -184,8 +218,8 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
                 ) : (
                   <div className="text-center py-4 space-y-2">
                     <Camera size={36} className="mx-auto text-amber-400 group-hover:scale-110 transition animate-bounce" />
-                    <p className="text-sm font-black text-white">Elegir o sacar foto del día 📷</p>
-                    <p className="text-xs text-slate-400">Una foto por día por cada integrante</p>
+                    <p className="text-sm font-black text-white">Elegir o sacar foto 📷</p>
+                    <p className="text-xs text-slate-400">Arlequín le estampará un título impreso en el muro</p>
                   </div>
                 )}
                 <input
@@ -205,10 +239,21 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
             </div>
 
             <input name="descripcion" className="input text-sm" placeholder="Contá algo lindo sobre tu foto (opcional)" maxLength={200} />
-            <button className="btn btn-primario w-full font-black text-sm tracking-wide py-3 shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:scale-[1.01] transition" disabled={subiendo}>
-              <Camera size={20} />
-              {subiendo ? "Brillando en el muro…" : "¡SUBIR MI DESTELLO! 🌟"}
-            </button>
+            <div className="flex gap-2">
+              <button className="btn btn-primario flex-1 font-black text-sm tracking-wide py-3 shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:scale-[1.01] transition" disabled={subiendo}>
+                <Camera size={20} />
+                {subiendo ? "Brillando en el muro…" : "¡SUBIR DESTELLO AL MURO! 🌟"}
+              </button>
+              {mostrarSubirExtra && (
+                <button
+                  type="button"
+                  onClick={() => { setMostrarSubirExtra(false); setPreviewFoto(null); }}
+                  className="btn px-4 bg-slate-800 text-xs font-bold"
+                >
+                  Cancelar
+                </button>
+              )}
+            </div>
           </form>
         )}
 
@@ -229,8 +274,40 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
         {aviso && <p className="text-sm text-amber-200 font-bold">{aviso}</p>}
       </section>
 
-      {/* JUEGOS Y ENTRETENIMIENTO FAMILIAR */}
-      <div className="space-y-3">
+      {/* 3. FEED CENTRAL: EL MURO DE FOTOS (EN EL COMIENZO MISMO) */}
+      <section className="space-y-4 pt-1">
+        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">✨</span>
+            <h3 className="text-sm font-black uppercase tracking-wider text-amber-300">
+              Muro de Destellos Familiares
+            </h3>
+          </div>
+          <span className="text-xs text-slate-400 font-bold">{(d.muro ?? []).length} fotos compartidas</span>
+        </div>
+
+        {(d.muro ?? []).length === 0 && (
+          <div className="py-12 text-center space-y-3 tarjeta">
+            <p className="text-3xl">📷</p>
+            <p className="font-bold text-white">Todavía no hay fotos en el muro.</p>
+            <p className="text-xs text-suave">¡Sé el primero en subir tu foto de hoy!</p>
+          </div>
+        )}
+
+        {(d.muro ?? []).map((x) => (
+          <Tarjeta key={x.id} x={x} hoy={hoy} recargar={recargar} />
+        ))}
+      </section>
+
+      {/* 4. SALA DE JUEGOS Y ENTRETENIMIENTO FAMILIAR (DESBLOQUEADOS) */}
+      <div className="space-y-3 pt-4 border-t border-white/10">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm">🎮</span>
+          <h4 className="text-xs font-black uppercase tracking-wider text-fuchsia-400">
+            Juegos Familiares del Club
+          </h4>
+        </div>
+
         {/* Acceso a la suite SINCERICIDIO - El Club de los Tarambanas */}
         <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-5 border-2 border-fuchsia-500/50 shadow-[0_0_30px_rgba(255,0,127,0.25)]">
           <div
@@ -327,13 +404,6 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
         <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
       )}
 
-      {veredictoHoy && (
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tarjeta border-amber-300/40 bg-amber-300/5 p-4">
-          <p className="flex items-center gap-2 font-semibold text-amber-200"><Crown size={18} /> Veredicto de Arlequín</p>
-          <p className="mt-1">{veredictoHoy.texto}</p>
-        </motion.section>
-      )}
-
       {!d.triviaJugada && (
         <a href="/trivia" className="tarjeta flex items-center gap-3 p-4 hover:bg-white/10">
           <span className="text-2xl">🧠</span>
@@ -342,11 +412,6 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
       )}
 
       {(d.anuncios ?? []).map((a) => <Anuncio key={a.id} a={a} />)}
-
-      <section className="space-y-4">
-        {(d.muro ?? []).length === 0 && <p className="py-10 text-center text-suave">Todavía no hay destellos. ¡Sé el primero! ✨</p>}
-        {(d.muro ?? []).map((x) => <Tarjeta key={x.id} x={x} hoy={hoy} recargar={recargar} />)}
-      </section>
     </>
   );
 }

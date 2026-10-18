@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Clock, CheckCircle2, ChevronRight, Award, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Navegacion } from '@/components/Navegacion';
+import { MarquesinaArlequin } from '@/components/MarquesinaArlequin';
 
 interface Partido {
   id: string;
@@ -242,6 +243,8 @@ export default function ProdePage() {
       </div>
 
       <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <MarquesinaArlequin />
+
         {/* Cabecera del Prode */}
         <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border-2 border-fuchsia-500/40 p-6 shadow-[0_0_30px_rgba(255,0,127,0.2)]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
