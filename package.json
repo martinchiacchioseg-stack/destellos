@@ -14,6 +14,7 @@
   "dependencies": {
     "@google/genai": "^2.30.0",
     "@supabase/supabase-js": "^2.117.3",
+    "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
@@ -22,6 +23,7 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^1.57.0",
     "next": "16.4.1",
+    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",

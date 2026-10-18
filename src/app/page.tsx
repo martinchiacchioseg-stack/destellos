@@ -170,6 +170,33 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
         </div>
       </div>
 
+      {/* Acceso al Prode del Fin de Semana */}
+      <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
+                  FECHA EN JUEGO
+                </span>
+                <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
+              </div>
+              <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
+              <p className="text-xs text-slate-300">
+                Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/prode"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+          >
+            JUGAR EL PRODE ⚽
+          </a>
+        </div>
+      </div>
+
       {d.licencia.estado === "por_vencer" && (
         <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
       )}

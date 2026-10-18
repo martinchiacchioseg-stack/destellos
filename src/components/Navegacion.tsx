@@ -29,6 +29,7 @@ export function Navegacion() {
   const items = [
     { href: "/", icono: Camera, texto: "Destellos" },
     { href: "/tarambana", icono: Sparkles, texto: "Club Tarambana", destacado: true },
+    { href: "/prode", icono: Trophy, texto: "Prode" },
     { href: "/trivia", icono: Brain, texto: "Trivia" },
     { href: "/ranking", icono: Trophy, texto: "Ranking" },
     ...(yo?.esAdmin ? [{ href: "/admin", icono: Shield, texto: "Mi familia" }] : []),
