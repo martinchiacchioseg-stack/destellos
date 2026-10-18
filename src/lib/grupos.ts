@@ -47,6 +47,16 @@ export async function generarCodigoUnico(nombre: string): Promise<string> {
 export async function grupoPorCodigo(codigo: string): Promise<Grupo | null> {
   const norm = normalizarCodigo(codigo);
   if (!norm) return null;
+  
+  // 1. Coincidencia exacta de código normalizado (ej. CHIA1938)
   const rows = must(await db().from("grupos").select("*").eq("codigo_norm", norm).limit(1));
-  return (rows?.[0] as Grupo) ?? null;
+  if (rows && rows.length > 0) return rows[0] as Grupo;
+
+  // 2. Si ingresó solo el número (ej. 1938 o 7130), buscar coincidencia por terminación
+  if (/^\d{3,6}$/.test(norm)) {
+    const porNumero = must(await db().from("grupos").select("*").ilike("codigo_norm", `%${norm}`).limit(1));
+    if (porNumero && porNumero.length > 0) return porNumero[0] as Grupo;
+  }
+
+  return null;
 }

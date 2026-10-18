@@ -125,129 +125,181 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
     }
   }
 
+  const [previewFoto, setPreviewFoto] = useState<string | null>(null);
+
   return (
     <>
       <LedBoard mensajes={d.pizarra ?? []} />
 
-      {/* Acceso a la suite SINCERICIDIO - El Club de los Tarambanas */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-6 border-2 border-fuchsia-500/50 shadow-[0_0_30px_rgba(255,0,127,0.25)]">
-        {/* Imagen de fondo sutil con overlay de neón */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-screen pointer-events-none"
-          style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
-        />
-        <div className="absolute -top-12 -left-12 w-48 h-48 bg-fuchsia-600/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-400/30 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-fuchsia-400 bg-slate-900 shadow-[0_0_20px_rgba(255,0,127,0.6)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logos/sincericidio-logo.jpg" alt="Sincericidio Logo" className="h-full w-full object-cover" />
-            </div>
-            <div className="space-y-1 text-left">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-pink-500 to-cyan-400 text-black uppercase tracking-wider animate-pulse">
-                  NUEVO JUEGO
-                </span>
-                <span className="text-xs text-cyan-300 font-bold">Sala Oficial</span>
-              </div>
-              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-cyan-200 drop-shadow-[0_0_12px_rgba(255,0,127,0.4)]">
-                SINCERICIDIO
-              </h2>
-              <p className="text-xs text-fuchsia-200 font-medium">
-                El Club de los Tarambanas: Flash IA, Tarareo Ardilla, Trivia 3D y Trazo Loco.
-              </p>
-            </div>
+      {/* SECCIÓN PROTAGONISTA: EL DESTELLO DEL DÍA (FOTOS) */}
+      <section className="relative overflow-hidden rounded-3xl bg-slate-900/95 border-2 border-amber-300/40 p-5 shadow-[0_0_35px_rgba(251,191,36,0.15)] space-y-4">
+        <div className="flex items-start gap-3.5">
+          <div className="h-12 w-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-2xl shrink-0">
+            📸
           </div>
-
-          <a
-            href="/tarambana"
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-sm tracking-wider shadow-[0_0_20px_rgba(255,0,127,0.5)] hover:shadow-[0_0_30px_rgba(0,245,212,0.6)] hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
-          >
-            ENTRAR AL CLUB 🚀
-          </a>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-black uppercase tracking-wider">
+                EL JUEGO PRINCIPAL
+              </span>
+              <span className="text-xs text-amber-300 font-bold">Un clic familiar</span>
+            </div>
+            <h2 className="text-xl font-black text-white">
+              {d.cerrado
+                ? "¡Cerró el escenario de hoy!"
+                : d.subiHoy
+                  ? "¡Tu destello ya brilla en el muro! ✨"
+                  : `Hola ${d.yo?.apodo || d.yo?.nombre.split(" ")[0]}, ¿cuál es tu foto de hoy?`}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 mt-0.5">
+              {d.cerrado
+                ? "Mañana empieza otro día para brillar juntos."
+                : faltan.length
+                  ? `Faltan subir foto ${faltan.length + (d.subiHoy ? 0 : 1)} de ${d.totalMiembros} integrantes antes de las ${d.grupo.hora_limite} hs.`
+                  : `¡Toda la familia subió su destello! Cierre a las ${d.grupo.hora_limite} hs.`}
+            </p>
+          </div>
+          {d.yo?.esAdmin && (
+            <a href="/admin" className="relative rounded-xl p-2.5 bg-slate-800 border border-white/10 text-suave hover:text-white" aria-label="Avisos">
+              <Bell size={20} />
+              {!!d.notificacionesSinLeer && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{d.notificacionesSinLeer}</span>}
+            </a>
+          )}
         </div>
-      </div>
 
-      {/* Acceso al Prode del Fin de Semana */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
-                  FECHA EN JUEGO
-                </span>
-                <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
-              </div>
-              <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
-              <p className="text-xs text-slate-300">
-                Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
-              </p>
+        {!d.cerrado && !d.subiHoy && (
+          <form onSubmit={subir} className="space-y-3 pt-2">
+            <div className="relative">
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-amber-400/50 hover:border-amber-300 rounded-2xl p-4 bg-slate-950/60 cursor-pointer transition group">
+                {previewFoto ? (
+                  <div className="relative w-full max-h-56 overflow-hidden rounded-xl border border-white/20">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={previewFoto} alt="Previsualización" className="w-full h-full object-cover max-h-56 mx-auto" />
+                    <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/80 text-[11px] font-bold text-amber-300">
+                      Tocar para cambiar foto ↺
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 space-y-2">
+                    <Camera size={36} className="mx-auto text-amber-400 group-hover:scale-110 transition animate-bounce" />
+                    <p className="text-sm font-black text-white">Elegir o sacar foto del día 📷</p>
+                    <p className="text-xs text-slate-400">Una foto por día por cada integrante</p>
+                  </div>
+                )}
+                <input
+                  name="foto"
+                  type="file"
+                  accept="image/*"
+                  required
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setPreviewFoto(URL.createObjectURL(f));
+                    }
+                  }}
+                />
+              </label>
             </div>
+
+            <input name="descripcion" className="input text-sm" placeholder="Contá algo lindo sobre tu foto (opcional)" maxLength={200} />
+            <button className="btn btn-primario w-full font-black text-sm tracking-wide py-3 shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:scale-[1.01] transition" disabled={subiendo}>
+              <Camera size={20} />
+              {subiendo ? "Brillando en el muro…" : "¡SUBIR MI DESTELLO! 🌟"}
+            </button>
+          </form>
+        )}
+
+        {!d.cerrado && faltan.length > 0 && (
+          <details className="text-xs border-t border-white/10 pt-3">
+            <summary className="cursor-pointer text-slate-400 hover:text-white font-semibold">
+              🔔 Avisar a los que faltan subir foto por WhatsApp ({faltan.length})
+            </summary>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {faltan.map((f) => (
+                <button key={f.id} className="btn px-3 py-1.5 text-xs font-bold bg-slate-800 hover:bg-slate-700" onClick={() => recordar(f.id)}>
+                  <Send size={12} className="text-emerald-400" /> {f.nombre}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+        {aviso && <p className="text-sm text-amber-200 font-bold">{aviso}</p>}
+      </section>
+
+      {/* JUEGOS Y ENTRETENIMIENTO FAMILIAR */}
+      <div className="space-y-3">
+        {/* Acceso a la suite SINCERICIDIO - El Club de los Tarambanas */}
+        <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-5 border-2 border-fuchsia-500/50 shadow-[0_0_30px_rgba(255,0,127,0.25)]">
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-screen pointer-events-none"
+            style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+          />
+          <div className="absolute -top-12 -left-12 w-48 h-48 bg-fuchsia-600/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-400/30 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-fuchsia-400 bg-slate-900 shadow-[0_0_15px_rgba(255,0,127,0.6)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logos/sincericidio-logo.jpg" alt="Sincericidio Logo" className="h-full w-full object-cover" />
+              </div>
+              <div className="space-y-0.5 text-left">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-pink-500 to-cyan-400 text-black uppercase tracking-wider animate-pulse">
+                    SALA DE JUEGOS
+                  </span>
+                  <span className="text-xs text-cyan-300 font-bold">5 Módulos en Vivo</span>
+                </div>
+                <h3 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-cyan-200">
+                  SINCERICIDIO
+                </h3>
+                <p className="text-xs text-fuchsia-200">
+                  El Club de los Tarambanas: Tarareo Ardilla, Trivia 3D y Trazo Loco.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="/tarambana"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+            >
+              ENTRAR AL CLUB 🚀
+            </a>
           </div>
-          <a
-            href="/prode"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
-          >
-            JUGAR EL PRODE ⚽
-          </a>
+        </div>
+
+        {/* Acceso al Prode del Fin de Semana */}
+        <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
+                    FECHA EN JUEGO
+                  </span>
+                  <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
+                </div>
+                <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
+                <p className="text-xs text-slate-300">
+                  Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
+                </p>
+              </div>
+            </div>
+            <a
+              href="/prode"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+            >
+              JUGAR EL PRODE ⚽
+            </a>
+          </div>
         </div>
       </div>
 
       {d.licencia.estado === "por_vencer" && (
         <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
       )}
-
-      <section className="tarjeta space-y-3 p-4">
-        <div className="flex items-start gap-3">
-          <span className="text-3xl">🎭</span>
-          <div className="flex-1">
-            <p className="font-semibold">
-              {d.cerrado
-                ? "¡Cerró el escenario de hoy!"
-                : d.subiHoy
-                  ? "¡Tu destello ya brilla en el muro!"
-                  : `Hola ${d.yo?.apodo || d.yo?.nombre.split(" ")[0]}, ¿ya subiste tu destello?`}
-            </p>
-            <p className="text-sm text-suave">
-              {d.cerrado
-                ? "Mañana empieza otro día para brillar."
-                : faltan.length
-                  ? `Faltan ${faltan.length + (d.subiHoy ? 0 : 1)} de ${d.totalMiembros} antes de las ${d.grupo.hora_limite} hs.`
-                  : `¡Subió toda la familia! Cierre a las ${d.grupo.hora_limite} hs.`}
-            </p>
-          </div>
-          {d.yo?.esAdmin && (
-            <a href="/admin" className="relative rounded-lg p-2 text-suave hover:text-white" aria-label="Avisos">
-              <Bell size={20} />
-              {!!d.notificacionesSinLeer && <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{d.notificacionesSinLeer}</span>}
-            </a>
-          )}
-        </div>
-
-        {!d.cerrado && !d.subiHoy && (
-          <form onSubmit={subir} className="space-y-2">
-            <input name="foto" type="file" accept="image/*" required className="input text-sm" />
-            <input name="descripcion" className="input" placeholder="Contá algo de tu destello (opcional)" maxLength={200} />
-            <button className="btn btn-primario w-full" disabled={subiendo}><Camera size={18} />{subiendo ? "Subiendo…" : "Subir mi destello"}</button>
-          </form>
-        )}
-
-        {!d.cerrado && faltan.length > 0 && (
-          <details className="text-sm">
-            <summary className="cursor-pointer text-suave">Recordar a los demorados por WhatsApp</summary>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {faltan.map((f) => (
-                <button key={f.id} className="btn px-3 py-1.5 text-sm" onClick={() => recordar(f.id)}><Send size={14} />{f.nombre}</button>
-              ))}
-            </div>
-          </details>
-        )}
-        {aviso && <p className="text-sm text-amber-200">{aviso}</p>}
-      </section>
 
       {veredictoHoy && (
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="tarjeta border-amber-300/40 bg-amber-300/5 p-4">
