@@ -260,12 +260,24 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
               </div>
             </div>
 
-            <a
-              href="/tarambana"
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
-            >
-              ENTRAR AL CLUB 🚀
-            </a>
+            {d.subiHoy ? (
+              <a
+                href="/tarambana"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+              >
+                ENTRAR AL CLUB 🚀
+              </a>
+            ) : (
+              <button
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setAviso('¡Primero tu Destello del Día! 📸 Subí tu foto de hoy para desbloquear Sincericidio.');
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-400/50 text-amber-300 font-bold text-xs tracking-wider hover:bg-slate-700 transition text-center whitespace-nowrap flex items-center justify-center gap-1.5"
+              >
+                <span>🔒</span> Subí tu foto primero
+              </button>
+            )}
           </div>
         </div>
 
@@ -287,12 +299,24 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
                 </p>
               </div>
             </div>
-            <a
-              href="/prode"
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
-            >
-              JUGAR EL PRODE ⚽
-            </a>
+            {d.subiHoy ? (
+              <a
+                href="/prode"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+              >
+                JUGAR EL PRODE ⚽
+              </a>
+            ) : (
+              <button
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setAviso('¡Primero tu Destello del Día! 📸 Subí tu foto de hoy para desbloquear El Prode.');
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-400/50 text-amber-300 font-bold text-xs tracking-wider hover:bg-slate-700 transition text-center whitespace-nowrap flex items-center justify-center gap-1.5"
+              >
+                <span>🔒</span> Subí tu foto primero
+              </button>
+            )}
           </div>
         </div>
       </div>

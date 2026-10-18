@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Camera, Lock, ArrowRight, RefreshCw } from 'lucide-react';
 import { GlobalTarambanaHeader } from '@/components/tarambana/GlobalTarambanaHeader';
 import { TarambanaTabBar, type TarambanaTab } from '@/components/tarambana/TarambanaTabBar';
 import FeedCentralView from '@/components/tarambana/FeedCentralView';
@@ -12,12 +14,29 @@ import { TrazoLocoView } from '@/components/tarambana/TrazoLocoView';
 export default function TarambanaPage() {
   const [seccionActiva, setSeccionActiva] = useState<TarambanaTab>('feed');
   const [puntos, setPuntos] = useState<number>(340);
-  const [nombreGrupo] = useState<string>('El Club Tarambana');
-  const [usuarioId] = useState<string>('user-actual');
+  const [nombreGrupo, setNombreGrupo] = useState<string>('El Club de los Tarambanas');
+  const [usuarioId, setUsuarioId] = useState<string>('user-actual');
+  const [subiHoy, setSubiHoy] = useState<boolean | null>(null);
   const [notificacionPuntos, setNotificacionPuntos] = useState<{ texto: string; pts: number } | null>(null);
 
-  // Cargar puntos iniciales si existe endpoint o local
+  // Verificar si el usuario cumplió con el juego principal (subir foto hoy)
   useEffect(() => {
+    fetch('/api/yo')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.sesion) {
+          setSubiHoy(!!data.sesion.subiHoy);
+          if (data.sesion.id) setUsuarioId(data.sesion.id);
+          if (data.sesion.familia) setNombreGrupo(`Familia ${data.sesion.familia}`);
+        } else {
+          // Si no hay sesión, permitir explorar
+          setSubiHoy(true);
+        }
+      })
+      .catch(() => {
+        setSubiHoy(true);
+      });
+
     fetch('/api/tarambana/puntos?usuarioId=' + usuarioId)
       .then(res => res.json())
       .then(data => {
@@ -25,9 +44,7 @@ export default function TarambanaPage() {
           setPuntos(data.totalPuntos);
         }
       })
-      .catch(() => {
-        // En caso de offline o inicio, conservamos puntos locales iniciales
-      });
+      .catch(() => {});
   }, [usuarioId]);
 
   // Manejador centralizado para sumar o restar puntos desde cualquier juego
@@ -96,34 +113,76 @@ export default function TarambanaPage() {
         </div>
       )}
 
-      {/* Contenido Principal según el módulo activo */}
-      <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto px-4 py-6">
-        {seccionActiva === 'feed' && (
-          <FeedCentralView onAbrirJuego={(seccion) => setSeccionActiva(seccion as TarambanaTab)} />
-        )}
+      {/* CONDICIÓN FUNDAMENTAL: Debe cumplir primero con el juego principal (Fotos) */}
+      {subiHoy === null ? (
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+          <RefreshCw className="animate-spin text-cyan-400" size={28} />
+          <p className="text-sm font-bold">Verificando tu Destello del día…</p>
+        </div>
+      ) : subiHoy === false ? (
+        <main className="relative z-10 flex-1 w-full max-w-lg mx-auto px-4 py-12 flex flex-col items-center justify-center text-center space-y-6">
+          <div className="relative">
+            <div className="h-28 w-28 rounded-3xl bg-slate-900/90 border-2 border-amber-400 flex items-center justify-center text-5xl shadow-[0_0_35px_rgba(251,191,36,0.5)]">
+              📸
+            </div>
+            <span className="absolute -bottom-2 -right-2 p-2.5 rounded-2xl bg-rose-600 text-white border-2 border-slate-950 shadow-lg">
+              <Lock size={18} />
+            </span>
+          </div>
 
-        {seccionActiva === 'flash' && (
-          <FlashGrupalView onAddScore={handlePuntosGanados} />
-        )}
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full text-[10px] font-black bg-amber-400 text-black uppercase tracking-wider">
+              REGLA DE LA FAMILIA
+            </span>
+            <h2 className="text-2xl font-black text-white">
+              ¡Primero cumplí con el juego principal!
+            </h2>
+            <p className="text-sm text-slate-300">
+              Para desbloquear <strong className="text-fuchsia-400">SINCERICIDIO</strong>, la ronda de tarareos ardilla y todos los juegos, primero tenés que <strong>subir tu foto del día al muro familiar</strong>.
+            </p>
+          </div>
 
-        {seccionActiva === 'tarambana' && (
-          <LosTarambanaView onAddScore={handlePuntosGanados} />
-        )}
+          <Link
+            href="/"
+            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 text-black font-black text-sm tracking-wider shadow-[0_0_30px_rgba(251,191,36,0.4)] hover:scale-105 active:scale-95 transition flex items-center justify-center gap-2"
+          >
+            <Camera size={20} />
+            <span>SUBIR MI FOTO AHORA</span>
+            <ArrowRight size={18} />
+          </Link>
+        </main>
+      ) : (
+        /* Contenido Principal habilitado una vez subida la foto */
+        <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto px-4 py-6">
+          {seccionActiva === 'feed' && (
+            <FeedCentralView onAbrirJuego={(seccion) => setSeccionActiva(seccion as TarambanaTab)} />
+          )}
 
-        {seccionActiva === 'cerebro' && (
-          <CerebroEnFugaView onAddScore={handlePuntosGanados} />
-        )}
+          {seccionActiva === 'flash' && (
+            <FlashGrupalView onAddScore={handlePuntosGanados} />
+          )}
 
-        {seccionActiva === 'trazo' && (
-          <TrazoLocoView onAddScore={handlePuntosGanados} />
-        )}
-      </main>
+          {seccionActiva === 'tarambana' && (
+            <LosTarambanaView onAddScore={handlePuntosGanados} />
+          )}
+
+          {seccionActiva === 'cerebro' && (
+            <CerebroEnFugaView onAddScore={handlePuntosGanados} />
+          )}
+
+          {seccionActiva === 'trazo' && (
+            <TrazoLocoView onAddScore={handlePuntosGanados} />
+          )}
+        </main>
+      )}
 
       {/* Tab Bar inferior con las 5 secciones e identidades cromáticas */}
-      <TarambanaTabBar
-        activeTab={seccionActiva}
-        onSelectTab={(tab) => setSeccionActiva(tab)}
-      />
+      {subiHoy && (
+        <TarambanaTabBar
+          activeTab={seccionActiva}
+          onSelectTab={(tab) => setSeccionActiva(tab)}
+        />
+      )}
     </div>
   );
 }

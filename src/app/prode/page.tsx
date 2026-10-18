@@ -68,6 +68,7 @@ export default function ProdePage() {
   const [guardando, setGuardando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [tabVista, setTabVista] = useState<'partidos' | 'posiciones' | 'admin'>('partidos');
+  const [subiHoy, setSubiHoy] = useState<boolean | null>(null);
 
   // Estado para carga de resultado admin
   const [adminPartidoId, setAdminPartidoId] = useState<string>('');
@@ -77,6 +78,15 @@ export default function ProdePage() {
 
   const cargarDatos = useCallback(async () => {
     try {
+      // Verificar si subió el destello de hoy
+      const resYo = await fetch('/api/yo');
+      const dataYo = await resYo.json();
+      if (dataYo?.sesion) {
+        setSubiHoy(!!dataYo.sesion.subiHoy);
+      } else {
+        setSubiHoy(true);
+      }
+
       const res = await fetch('/api/prode');
       const data = await res.json();
       if (data.fecha) {
@@ -110,6 +120,7 @@ export default function ProdePage() {
       }
     } catch (err) {
       console.error('Error al cargar prode:', err);
+      setSubiHoy(true);
     } finally {
       setCargando(false);
     }
@@ -307,7 +318,28 @@ export default function ProdePage() {
           </div>
         )}
 
-        {cargando ? (
+        {subiHoy === false ? (
+          <div className="py-12 flex flex-col items-center justify-center text-center space-y-5 bg-slate-900/90 rounded-3xl border-2 border-amber-400 p-8 shadow-2xl max-w-lg mx-auto">
+            <div className="h-24 w-24 rounded-3xl bg-slate-950 border-2 border-amber-400 flex items-center justify-center text-5xl shadow-[0_0_30px_rgba(251,191,36,0.4)]">
+              📸
+            </div>
+            <div className="space-y-1.5 max-w-md">
+              <span className="px-3 py-1 rounded-full text-[10px] font-black bg-amber-400 text-black uppercase tracking-wider">
+                REGLA DE LA FAMILIA
+              </span>
+              <h2 className="text-2xl font-black text-white">¡Primero tu Destello del Día!</h2>
+              <p className="text-sm text-slate-300">
+                Para pronosticar los partidos del <strong className="text-emerald-400">Prode</strong> y sumar puntos en la tabla familiar, primero tenés que <strong>subir tu foto del día</strong>.
+              </p>
+            </div>
+            <Link
+              href="/"
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 text-black font-black text-sm tracking-wider shadow-[0_0_25px_rgba(251,191,36,0.4)] hover:scale-105 active:scale-95 transition"
+            >
+              📸 SUBIR MI FOTO AHORA
+            </Link>
+          </div>
+        ) : cargando ? (
           <div className="py-20 text-center text-slate-400 flex items-center justify-center gap-2">
             <RefreshCw className="animate-spin" size={18} />
             <span>Cargando partidos de la fecha...</span>
