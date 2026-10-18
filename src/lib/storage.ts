@@ -27,6 +27,12 @@ export async function subirImagen(file: File, carpeta: "fotos" | "avatars" | "ad
   return path;
 }
 
+export async function subirFotoProcesada(buf: Buffer): Promise<string> {
+  const path = `fotos/${randomUUID()}.jpg`;
+  await subirBuffer(path, buf, "image/jpeg");
+  return path;
+}
+
 export async function subirBuffer(path: string, buf: Buffer, contentType: string) {
   const { error } = await db().storage.from(BUCKET).upload(path, buf, { contentType, upsert: true });
   if (error) throw new Error(`Storage: ${error.message}`);

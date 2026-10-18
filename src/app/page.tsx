@@ -15,6 +15,8 @@ interface Comentario { id: string; texto: string; creado_en: string; autor: Pub 
 interface Destello {
   id: string; fecha: string; autor: Pub | null; foto_url: string | null; descripcion: string | null; ganador: boolean;
   reacciones: Record<string, number>; mi_reaccion: string | null; comentarios: Comentario[];
+  titulo_arlequin?: string | null;
+  devolucion_arlequin?: string | null;
 }
 interface Anuncio { id: string; titulo: string; texto: string | null; enlace: string | null; imagen_url: string | null }
 interface Home {
@@ -384,8 +386,25 @@ function Tarjeta({ x, hoy, recargar }: { x: Destello; hoy: string; recargar: () 
         <div className="flex-1"><p className="font-semibold">{nom(x.autor)} {x.ganador && "🏆"}</p><p className="text-xs text-suave">{x.fecha === hoy ? "Hoy" : x.fecha}</p></div>
       </div>
       {x.foto_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={x.foto_url} alt={`Destello de ${nom(x.autor)}`} className="max-h-[32rem] w-full object-cover" loading="lazy" />
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={x.foto_url} alt={`Destello de ${nom(x.autor)}`} className="max-h-[32rem] w-full object-cover" loading="lazy" />
+          {x.titulo_arlequin && (
+            <div className="absolute top-2 left-2 right-2 bg-black/85 backdrop-blur-md rounded-xl p-2.5 border border-pink-500/50 shadow-lg">
+              <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-pink-300">
+                <span>🎭</span> Arlequín:
+              </div>
+              <p className="text-xs font-black text-amber-300 leading-tight mt-0.5">
+                "{x.titulo_arlequin}"
+              </p>
+              {x.devolucion_arlequin && (
+                <p className="text-[11px] text-slate-200 mt-1 italic leading-snug">
+                  "{x.devolucion_arlequin}"
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       )}
       {x.descripcion && <p className="px-3 pt-3 text-sm">{x.descripcion}</p>}
       <div className="flex flex-wrap gap-1.5 p-3">

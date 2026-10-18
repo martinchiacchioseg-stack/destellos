@@ -20,55 +20,29 @@ interface FeedPost {
 const POSTS_INICIALES: FeedPost[] = [
   {
     id: 'post-1',
-    autor: 'Nico (Tarambana Mayor)',
-    avatar: '🎸',
-    tiempo: 'Hace 8 min',
-    juego: 'tarambana',
-    titulo: '¡Ronda de Tarareo Ardilla completada!',
-    contenido: 'Grabamos "De Música Ligera" con pitch +5 semitonos y tempo 1.25x. ¡Quedamos como ardillas galácticas!',
-    puntajeGanado: 120,
-    reacciones: { '🤣': 7, '🔥': 4, '🐿️': 6 },
-    misReacciones: ['🤣'],
-    comentariosCount: 4,
-  },
-  {
-    id: 'post-2',
-    autor: 'Sol G.',
-    avatar: '🎨',
-    tiempo: 'Hace 24 min',
-    juego: 'trazo',
-    titulo: '¡Adivinanza en Trazo Loco en tiempo récord!',
-    contenido: 'Dibujé un "Submarino Amarillo" y la IA convalidó el trazo al 98% de similitud semántica. 🚀',
-    puntajeGanado: 80,
-    reacciones: { '👏': 8, '🤯': 5 },
-    misReacciones: [],
+    autor: 'Arlequín 🎭',
+    avatar: '🎭',
+    tiempo: 'Hoy',
+    juego: 'flash',
+    titulo: 'Veredicto y Desafío Diario',
+    contenido: '¡Atención familia CHIACCHIOS! La regla número uno es subir su foto del día. Una vez que Martin, Yasmin, Claudio, Nicolás y Loli cumplan, coronamos la mejor foto y se sortea el Tarareo Ardilla y Trazo Loco.',
+    puntajeGanado: 100,
+    reacciones: { '👑': 5, '👏': 5, '🔥': 5 },
+    misReacciones: ['👑'],
     comentariosCount: 2,
   },
   {
-    id: 'post-3',
-    autor: 'Juez IA Tarambana 🤖',
-    avatar: '⚡',
-    tiempo: 'Hace 1 hora',
-    juego: 'flash',
-    titulo: 'Veredicto Flash Grupal del Día',
-    contenido: 'Veredicto emitido: "La foto de Mateo haciendo muecas con el mate se consagra como la más desopilante del día. Mención de honor para el perro durmiendo de fondo."',
-    puntajeGanado: 150,
-    reacciones: { '👑': 12, '😂': 9, '🏆': 6 },
-    misReacciones: ['👑'],
-    comentariosCount: 7,
-  },
-  {
-    id: 'post-4',
-    autor: 'Marce B.',
-    avatar: '🧠',
-    tiempo: 'Hace 2 horas',
-    juego: 'cerebro',
-    titulo: 'Cerebro en Fuga - Nivel Experto Implacable',
-    contenido: 'Superé las 3 preguntas Nivel 3 sin penalización de tiempo con 1.8 segundos restantes en el reloj 3D. 💥',
-    puntajeGanado: 100,
-    reacciones: { '🔥': 11, '⚡': 5 },
+    id: 'post-2',
+    autor: 'Martin (papa)',
+    avatar: '🎸',
+    tiempo: 'Hoy',
+    juego: 'tarambana',
+    titulo: '¡Listo para el Tarareo de Rock Argentino!',
+    contenido: 'Avisen cuando Arlequín tire el tema con drama en el sorteo. ¡El Sincericidio no perdona!',
+    puntajeGanado: 25,
+    reacciones: { '🤣': 4, '🔥': 4, '🐿️': 4 },
     misReacciones: ['🔥'],
-    comentariosCount: 3,
+    comentariosCount: 1,
   },
 ];
 
@@ -166,7 +140,7 @@ export default function FeedCentralView({ onAbrirJuego }: { onAbrirJuego?: (secc
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
             </span>
-            <span className="text-xs font-bold text-emerald-400">8 en línea</span>
+            <span className="text-xs font-bold text-emerald-400">Familia Chiacchios (5)</span>
           </div>
         </div>
 

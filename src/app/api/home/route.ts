@@ -31,10 +31,10 @@ export const GET = api(async () => {
   const desde = sumarDias(hoy, -2);
   const [miembros, filas, pizarra] = await Promise.all([
     miembrosDelGrupo(grupo.id),
-    db().from("destellos").select("id,usuario_id,fecha,foto_path,descripcion,creado_en").eq("grupo_id", grupo.id).gte("fecha", desde).order("creado_en", { ascending: false }),
+    db().from("destellos").select("id,usuario_id,fecha,foto_path,descripcion,titulo_arlequin,devolucion_arlequin,creado_en").eq("grupo_id", grupo.id).gte("fecha", desde).order("creado_en", { ascending: false }),
     mensajesVigentes(grupo.id),
   ]);
-  const destellos = (must(filas) ?? []) as FilaDestello[];
+  const destellos = (must(filas) ?? []) as (FilaDestello & { titulo_arlequin?: string | null; devolucion_arlequin?: string | null })[];
 
   // Veredictos de hoy (pasada la hora límite) y de ayer, calculados una sola vez.
   const cerrado = pasoHoraLimite(grupo.hora_limite);
@@ -77,6 +77,8 @@ export const GET = api(async () => {
       autor: porId.get(d.usuario_id) ?? null,
       foto_url: (v?.destello_id === d.id && v.diploma_path && urls[v.diploma_path]) || urls[d.foto_path] || null,
       descripcion: d.descripcion,
+      titulo_arlequin: d.titulo_arlequin ?? null,
+      devolucion_arlequin: d.devolucion_arlequin ?? null,
       ganador: v?.destello_id === d.id,
       reacciones,
       mi_reaccion: mia,
