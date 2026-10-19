@@ -66,10 +66,12 @@ export default function LoginPage() {
     try {
       const res = await llamar<{
         ok: boolean;
+        esSuperadmin?: boolean;
+        redirect?: string;
         debeCambiarClave: boolean;
         perfilCompleto: boolean;
-        usuario: { id: string; nombre: string; apodo: string | null; foto_path: string | null; rol: string };
-        tribu: { id: string; nombre: string; emoji: string };
+        usuario?: { id: string; nombre: string; apodo: string | null; foto_path: string | null; rol: string };
+        tribu?: { id: string; nombre: string; emoji: string };
       }>("/api/auth/login", {
         body: {
           usuarioId: perfilSeleccionado?.id,
@@ -77,6 +79,12 @@ export default function LoginPage() {
           password: clave,
         },
       });
+
+      if (res.redirect || res.esSuperadmin) {
+        router.push(res.redirect || "/superadmin");
+        router.refresh();
+        return;
+      }
 
       if (recordarme && res.usuario) {
         // Guardar perfil en la lista de recordados del dispositivo

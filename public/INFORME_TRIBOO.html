@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>TRIBOO — Dossier Ejecutivo y Manual de Operaciones</title>
+  <style>
+    body {
+      font-family: Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      color: #1e293b;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #f8fafc;
+    }
+    .container {
+      background: #ffffff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border: 1px solid #e2e8f0;
+    }
+    h1 {
+      color: #ea580c;
+      font-size: 28px;
+      margin-bottom: 5px;
+      border-bottom: 3px solid #ea580c;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #0f172a;
+      font-size: 20px;
+      margin-top: 30px;
+      border-left: 4px solid #00a6ff;
+      padding-left: 10px;
+    }
+    h3 {
+      color: #334155;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+    p, li {
+      font-size: 14px;
+      color: #334155;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: bold;
+    }
+    .highlight-box {
+      background-color: #fff7ed;
+      border-left: 4px solid #ea580c;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .quote-box {
+      background-color: #f0fdf4;
+      border-left: 4px solid #22c55e;
+      padding: 15px;
+      margin: 20px 0;
+      font-style: italic;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: bold;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .btn-copy {
+      background: #ea580c;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="printable">
+  <button class="btn-copy" onclick="window.print()">🖨️ Imprimir / Guardar en PDF</button>
+
+  <h1>TRIBOO — Jugá. Compartí. Tribu.</h1>
+  <p><strong>Dossier Ejecutivo de Presentación Corporativa & Manual Integral de Operaciones</strong><br>
+  <em>Versión de Plataforma: 2.4 Enterprise | Fecha: Octubre 2026</em></p>
+
+  <hr>
+
+  <h2>1. RESUMEN EJECUTIVO</h2>
+  <p><strong>TRIBOO</strong> es una plataforma digital (PWA móvil y web) de <strong>red social privada y gamificada</strong> diseñada exclusivamente para micro-comunidades de alta confianza: familias, peñas de amigos, grupos deportivos de fin de semana y clubes sociales.</p>
+
+  <div class="highlight-box">
+    <strong>El Problema que Resuelve:</strong><br>
+    Las redes sociales masivas (Instagram, TikTok) están saturadas de publicidad y sobreexposición algorítmica. Por otro lado, los grupos de WhatsApp sufren de un caos diario de mensajes: las anécdotas se pierden en la galería de fotos, organizar el fútbol de la semana es un trastorno de bajas y cobros, y no existe un incentivo lúdico continuo.
+  </div>
+
+  <p><strong>La Solución TRIBOO:</strong><br>
+  Transforma al grupo en una <em>Tribu Interactiva</em> con rituales diarios de fotos a ciegas juzgados por una Inteligencia Artificial anfitriona (<strong>Arlequín</strong>), organización automatizada del partido semanal (titulares, suplentes y pagos), pronósticos deportivos (Prode), trivias dinámicas y mini-juegos, <strong>sin costos de servidores de mensajería (costo $0 en WhatsApp)</strong>.</p>
+
+  <h2>2. PROPUESTA DE VALOR Y VENTAJAS CLAVE</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Característica</th>
+        <th>Redes Abiertas</th>
+        <th>Grupos de WhatsApp</th>
+        <th>TRIBOO</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Privacidad</strong></td>
+        <td>Pública / Expuesta</td>
+        <td>Privada pero desordenada</td>
+        <td><strong>100% Hermética y de Confianza</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Interacción</strong></td>
+        <td>Pasiva (Scroll)</td>
+        <td>Conversación plana</td>
+        <td><strong>Gamificada y con Premios Diarios</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Anfitrión Inteligente</strong></td>
+        <td>Algoritmo de anuncios</td>
+        <td>Ninguno</td>
+        <td><strong>IA "Arlequín" (Tono humorístico y cálido)</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Organización de Partidos</strong></td>
+        <td>Inexistente</td>
+        <td>Listas caóticas de texto</td>
+        <td><strong>Automatizada: 10 Titulares + Suplentes</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Costo de Alertas</strong></td>
+        <td>Alto costo publicitario</td>
+        <td>Costo elevado por API de Meta</td>
+        <td><strong>$0 (Alertas nativas P2P)</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3. SUITE DE JUEGOS Y MÓDULOS DE TRIBOO</h2>
+  <ul>
+    <li><strong>📸 Flash Grupal (Core del Sistema):</strong> Subida diaria de fotos a ciegas donde nadie ve las de los demás hasta el cierre. La IA "Arlequín" titula cada imagen, corona la foto ganadora del día y estampa un diploma digital de honor.</li>
+    <li><strong>⚽ El Picado de la Semana:</strong> Gestión completa del partido de fútbol 5, pádel o básquet. Los primeros 10 confirmados ocupan casilleros titulares; los siguientes entran a lista de suplentes. Si un titular se baja, el sistema asciende al suplente automáticamente. Incluye alias de cobranza y foto obligatoria del tercer tiempo.</li>
+    <li><strong>🏆 El Prode del Fin de Semana:</strong> Pronósticos de la fecha de fútbol local con tabla de posiciones y puntos relacionales para el ranking de la tribu.</li>
+    <li><strong>🧠 Cerebro en Fuga:</strong> Trivia interactiva diaria generada por IA con preguntas de cultura, deportes e ingenio.</li>
+    <li><strong>🎨 Trazo Loco:</strong> Juego de dibujo colaborativo por turnos (estilo Pictionary). Uno dibuja en la pizarra y los demás adivinan en tiempo real.</li>
+    <li><strong>🐿️ Tarareo Ardilla:</strong> Adivinanza musical con canciones en velocidad y pitch acelerado.</li>
+  </ul>
+
+  <h2>4. NUEVO SISTEMA DE ACCESO DIRECTO (SIN CÓDIGOS DE FAMILIA)</h2>
+  <div class="highlight-box">
+    <strong>Cero Fricción:</strong> Ya no se solicitan números ni códigos de familia complejos. El acceso se unificó para que sea directo, profesional y transparente.
+  </div>
+  <ul>
+    <li><strong>Ingreso con Email o WhatsApp:</strong> El usuario escribe su número de WhatsApp (o email) y su contraseña para ingresar directamente a su Tribu.</li>
+    <li><strong>Acceso con Foto de Perfil Recordada:</strong> Al marcar la opción <em>"Recordarme en este dispositivo"</em>, la próxima vez que el usuario abra la aplicación verá las fotos circulares de los miembros. <strong>Con solo tocar su foto e ingresar su clave accede de inmediato.</strong></li>
+    <li><strong>Cambio Obligatorio de Clave en el Primer Acceso:</strong> Cuando el Administrador da de alta a un participante, se le entrega una clave temporal única. Al ingresar por primera vez, el sistema le exige de forma obligatoria cambiarla por su contraseña personal privada antes de permitirle navegar.</li>
+  </ul>
+
+  <h2>5. MANUAL DE OPERACIONES — PASO A PASO</h2>
+
+  <h3>A. Panel de Superadministrador (Gestor del Servicio)</h3>
+  <ol>
+    <li>Ingresar al panel general en <code>/superadmin</code>.</li>
+    <li>Dar de alta una nueva Tribu indicando el nombre del grupo, tiempo de suscripción y datos del Administrador (Email y WhatsApp).</li>
+    <li>Elegir el <strong>Perfil de Juegos</strong> (Familia, Amigos, Peña de Fútbol o Personalizado).</li>
+    <li>Desde el panel colapsable <em>"Gestionar Juegos"</em>, encender o apagar interruptores según lo contratado.</li>
+    <li>Tocar el botón <strong>"Copiar datos para enviar por WhatsApp"</strong> y mandarle las credenciales al Administrador.</li>
+  </ol>
+
+  <h3>B. El Administrador de la Tribu (Gestión del Grupo)</h3>
+  <ol>
+    <li>Ingresar al link de acceso con su WhatsApp/Email y su clave provisoria.</li>
+    <li>Cambiar su clave personal en la pantalla de bienvenida obligatoria.</li>
+    <li>Ir a la sección <strong>"Mi Tribu"</strong> (pestaña superior).</li>
+    <li>Tocar <strong>"+ Cargar integrante"</strong> y completar: <strong>Nombre, Apellido y WhatsApp (Obligatorio)</strong>.</li>
+    <li>Al presionar guardar, el sistema genera una clave temporal única y muestra el botón verde: <strong>"📲 ENVIAR CLAVE Y ACCESO POR WHATSAPP"</strong>.</li>
+    <li>Con un solo clic, se abre WhatsApp con el mensaje prearmado para despachárselo al nuevo participante.</li>
+  </ol>
+
+  <div class="quote-box">
+    <strong>Mensaje tipo que recibe el participante:</strong><br>
+    "¡Hola Martín! Te sumaron a la tribu Los Amigos del Jueves en TRIBOO 🌟.<br>
+    Para ingresar por primera vez:<br>
+    1. Entrá a: https://destellos.vercel.app/login<br>
+    2. Ingresá con tu WhatsApp: 54911...<br>
+    3. Tu clave de acceso temporal es: 742918<br>
+    Al entrar, el sistema te pedirá cambiar tu clave y subir tu foto de perfil. ¡Bienvenido/a!"
+  </div>
+
+  <h3>C. El Participante / Jugador (Uso Cotidiano)</h3>
+  <ol>
+    <li><strong>Entrar al Partido:</strong> En la sección <strong>"El Picado"</strong>, tocar <strong>"👍 ¡Juego!"</strong>. Si hay cupo, queda entre los 10 titulares; si no, queda en lista de espera de suplentes.</li>
+    <li><strong>Bajas de Último Momento:</strong> Si le surge un imprevisto, toca <strong>"👎 Me bajo"</strong> y escribe un motivo breve (hasta 50 letras). El primer suplente sube automáticamente a titular.</li>
+    <li><strong>Pago de Cancha:</strong> Toca el Alias de Mercado Pago visible en pantalla para copiar y transferir. Al pagar, se marca el botón <strong>"💸 Pagado"</strong>.</li>
+    <li><strong>El Ritual del Tercer Tiempo:</strong> Al terminar el partido, <strong>cualquiera de los jugadores</strong> puede sacar y subir la foto grupal con las pizzas o en la cancha.</li>
+    <li><strong>Evaluación de Arlequín & Votación:</strong> La IA evalúa la foto con humor futbolero y abre la votación express de 30 segundos para elegir la <strong>Figura de la Cancha (MVP)</strong> y el <strong>Rústico / Pecho Frío</strong>.</li>
+  </ol>
+
+  <h2>6. SEGURIDAD, COSTOS Y PRIVACIDAD</h2>
+  <ul>
+    <li><strong>Aislamiento Multi-Tenant:</strong> Los datos de cada Tribu son herméticos. Ningún integrante de un grupo puede ver fotos, participantes ni actividades de otro.</li>
+    <li><strong>Cero Costo de APIs de Mensajería:</strong> Los disparos de WhatsApp operan mediante protocolos directos de enlace (P2P), lo que significa que el negocio no gasta un solo centavo en costos de APIs oficiales de mensajería ni servidores de envío masivo.</li>
+    <li><strong>Tecnología PWA:</strong> Funciona en cualquier teléfono Android o iPhone sin necesidad de descargas pesadas desde tiendas de aplicaciones, con tiempos de respuesta instantáneos.</li>
+  </ul>
+
+  <hr>
+  <p style="text-align: center; color: #64748b; font-size: 12px;">
+    <strong>TRIBOO — Jugá. Compartí. Tribu.</strong><br>
+    Documento confidencial para uso operativo, comercial y de presentación.
+  </p>
+</div>
+
+</body>
+</html>

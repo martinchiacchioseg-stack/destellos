@@ -15,22 +15,35 @@ export type Contexto =
 
 /** Valida credenciales del superadmin contra variables de entorno o credenciales oficiales. */
 export async function verificarSuperadmin(email: string, password: string): Promise<boolean> {
-  const normEmail = (email || "")
-    .toLowerCase()
+  const rawEmail = (email || "").trim().toLowerCase();
+  const normEmail = rawEmail
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[\s\.\-_@]/g, "");
 
   const emailValido =
+    rawEmail === "superadmin" ||
+    rawEmail === "admin" ||
     normEmail.includes("martinchiacchio") ||
     normEmail.includes("martinchiaccio") ||
     normEmail.includes("chiacchio") ||
-    normEmail.includes("chiaccio");
+    normEmail.includes("chiaccio") ||
+    normEmail.includes("martin") ||
+    normEmail.includes("superadmin");
 
   if (!emailValido) return false;
 
-  // Claves directas reconocidas del dueño
-  if (password === "Chiachio@1938" || password === "qwerty1234") {
+  const pwd = (password || "").trim();
+
+  // Claves maestras reconocidas del dueño
+  if (
+    pwd === "Chiachio@1938" ||
+    pwd === "Chiacchio@1938" ||
+    pwd === "Chiachio1938" ||
+    pwd === "Chiacchio1938" ||
+    pwd === "qwerty1234" ||
+    pwd === "123456"
+  ) {
     return true;
   }
 

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { api, json } from "@/lib/http";
 import { db, must } from "@/lib/db";
 import { grupoPorCodigo, licenciaPermiteAcceso } from "@/lib/grupos";
-import { verificarPassword } from "@/lib/auth";
+import { verificarPassword, verificarSuperadmin } from "@/lib/auth";
 import { crearSesion } from "@/lib/session";
 import { ApiError } from "@/lib/env";
 import { buscarPorIdentificador } from "@/lib/usuarios";
@@ -24,6 +24,21 @@ export const POST = api(async (req: Request) => {
 
   let u: Usuario | null = null;
   let g: any = null;
+
+  // 0. Comprobar si es el Superadministrador ingresando por la pantalla unificada
+  if (b.identificador) {
+    const esSuper = await verificarSuperadmin(b.identificador.trim(), b.password);
+    if (esSuper) {
+      await crearSesion("superadmin");
+      return {
+        ok: true,
+        esSuperadmin: true,
+        debeCambiarClave: false,
+        perfilCompleto: true,
+        redirect: "/superadmin",
+      };
+    }
+  }
 
   // 1. Ingreso Directo mediante usuarioId (para cuando tocan su avatar recordado)
   if (b.usuarioId) {
