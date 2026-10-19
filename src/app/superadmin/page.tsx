@@ -69,7 +69,8 @@ export default function Superadmin() {
 function Familias() {
   const [lista, setLista] = useState<Familia[]>([]);
   const [msg, setMsg] = useState("");
-  const [creada, setCreada] = useState<{ codigo: string; email: string; clave: string; mail: boolean } | null>(null);
+  const [creada, setCreada] = useState<{ codigo: string; email: string; clave: string; nombre: string; admin_nombre: string; mail: boolean } | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   const cargar = useCallback(() => llamar<{ familias: Familia[] }>("/api/superadmin/familias").then((r) => setLista(r.familias)).catch((e) => setMsg(e.message)), []);
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -81,14 +82,39 @@ function Familias() {
     const g = (n: string) => (f.elements.namedItem(n) as HTMLInputElement).value;
     setMsg("");
     try {
-      const r = await llamar<{ familia: Familia; admin: { email: string; clave_temporal: string; mail_enviado: boolean } }>("/api/superadmin/familias", {
-        body: { nombre: g("nombre"), emoji: g("emoji") || "✨", hora_limite: g("hora"), admin_nombre: g("admin_nombre"), admin_email: g("admin_email"), codigo: g("codigo") || undefined, meses: Number(g("meses")) },
+      const r = await llamar<{ familia: Familia; admin: { nombre?: string; email: string; clave: string; clave_temporal: string; mail_enviado: boolean } }>("/api/superadmin/familias", {
+        body: {
+          nombre: g("nombre"),
+          emoji: g("emoji") || "✨",
+          hora_limite: g("hora"),
+          admin_nombre: g("admin_nombre"),
+          admin_email: g("admin_email"),
+          admin_password: g("admin_password") || "123456",
+          codigo: g("codigo") || undefined,
+          meses: Number(g("meses")),
+        },
       });
-      setCreada({ codigo: r.familia.codigo, email: r.admin.email, clave: r.admin.clave_temporal, mail: r.admin.mail_enviado });
+      setCreada({
+        codigo: r.familia.codigo,
+        nombre: r.familia.nombre,
+        admin_nombre: r.admin.nombre || g("admin_nombre"),
+        email: r.admin.email,
+        clave: r.admin.clave || r.admin.clave_temporal,
+        mail: r.admin.mail_enviado,
+      });
       f.reset();
       cargar();
     } catch (err) { setMsg(err instanceof Error ? err.message : "Error"); }
   }
+
+  const copiarWsp = () => {
+    if (!creada) return;
+    const url = typeof window !== "undefined" ? `${window.location.origin}/login` : "https://destellos.vercel.app/login";
+    const texto = `¡Hola ${creada.admin_nombre}! Ya está creado el espacio de la familia ${creada.nombre} en Destellos 🎭.\n\nPara ingresar:\n1. Entrá a: ${url}\n2. Código de familia: ${creada.codigo}\n3. Tu usuario: ${creada.admin_nombre}\n4. Tu clave para entrar: ${creada.clave}\n\n¡Listo! Ya podés compartir tu primera foto del día 📸`;
+    navigator.clipboard.writeText(texto);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2500);
+  };
 
   return (
     <div className="space-y-4">
@@ -98,19 +124,27 @@ function Familias() {
         <input name="emoji" className="input" placeholder="Emoji (✨)" maxLength={8} />
         <input name="admin_nombre" className="input" placeholder="Nombre del administrador" required />
         <input name="admin_email" type="email" className="input" placeholder="Email del administrador" required />
+        <input name="admin_password" type="text" className="input" placeholder="Clave del admin (por defecto 123456)" defaultValue="123456" required />
         <input name="codigo" className="input" placeholder="Código (opcional, se genera solo)" />
         <input name="hora" type="time" defaultValue="22:00" className="input" required />
         <select name="meses" className="input" defaultValue="3"><option value="1">Licencia 1 mes</option><option value="3">Licencia 3 meses</option><option value="12">Licencia 1 año</option></select>
-        <button className="btn btn-primario">Crear familia</button>
+        <button className="btn btn-primario sm:col-span-2">Crear familia</button>
       </form>
       {msg && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{msg}</p>}
       {creada && (
-        <div className="tarjeta space-y-1 border-emerald-400/40 p-4 text-sm">
-          <p className="font-bold text-emerald-200">Familia creada. Guardá estos datos: la clave temporal no se vuelve a mostrar.</p>
-          <p>Código: <strong className="select-all">{creada.codigo}</strong></p>
-          <p>Administrador: <strong className="select-all">{creada.email}</strong> · Clave temporal: <strong className="select-all">{creada.clave}</strong></p>
-          <p className="text-suave">{creada.mail ? "También se la enviamos por mail." : "El mail no se envió (¿falta configurar Resend?)."}</p>
-          <button className="btn px-3 py-1 text-xs" onClick={() => setCreada(null)}>Entendido</button>
+        <div className="tarjeta space-y-2 border-emerald-400/40 p-4 text-sm bg-emerald-950/20">
+          <p className="font-bold text-emerald-200">¡Familia creada con éxito!</p>
+          <div className="p-3 bg-black/40 rounded-xl space-y-1 font-mono text-xs">
+            <p>Código de familia: <strong className="text-cyan-300 select-all text-sm">{creada.codigo}</strong></p>
+            <p>Administrador: <strong className="text-white select-all">{creada.admin_nombre}</strong> ({creada.email})</p>
+            <p>Clave de acceso: <strong className="text-emerald-300 select-all text-sm">{creada.clave}</strong></p>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button type="button" className="btn btn-primario text-xs font-bold" onClick={copiarWsp}>
+              {copiado ? "¡Mensaje copiado! ✔" : "📲 Copiar datos para enviar por WhatsApp"}
+            </button>
+            <button type="button" className="btn px-3 py-1 text-xs" onClick={() => setCreada(null)}>Cerrar aviso</button>
+          </div>
         </div>
       )}
       {lista.length === 0 && <p className="py-8 text-center text-suave">Todavía no hay familias. Creá la primera arriba.</p>}
@@ -196,6 +230,14 @@ function Integrantes({ familiaId, cambio }: { familiaId: string; cambio: () => v
     if (!confirm(`¿Eliminar PARA SIEMPRE a ${u.nombre}? Se borran también sus fotos y puntos.`)) return;
     try { await llamar(`/api/superadmin/integrantes/${u.id}`, { method: "DELETE" }); cargar(); cambio(); } catch (er) { setErr(er instanceof Error ? er.message : "Error"); }
   }
+  async function blanquearClave(u: Integrante) {
+    if (!confirm(`¿Cambiar la clave de ${u.nombre} a "123456"?`)) return;
+    try {
+      await llamar(`/api/superadmin/integrantes/${u.id}`, { method: "PATCH", body: { password: "123456", desbloquear: true } });
+      setErr(`✔ Clave de ${u.nombre} actualizada a "123456"`);
+      cargar();
+    } catch (er) { setErr(er instanceof Error ? er.message : "Error"); }
+  }
   async function accion(id: string, a: "entrar" | "reiniciar_trivia") {
     try {
       await llamar(`/api/superadmin/integrantes/${id}`, { body: { accion: a } });
@@ -229,6 +271,7 @@ function Integrantes({ familiaId, cambio }: { familiaId: string; cambio: () => v
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
               <button className="btn px-3 py-1 text-xs" onClick={() => setEditando(u.id)}>Modificar</button>
+              <button className="btn px-3 py-1 text-xs text-cyan-300 font-semibold" onClick={() => blanquearClave(u)} title="Ponerle clave 123456 de inmediato">🔑 Resetear clave (123456)</button>
               <button className="btn px-3 py-1 text-xs" onClick={() => accion(u.id, "entrar")}>Entrar como…</button>
               <button className="btn px-3 py-1 text-xs" onClick={() => accion(u.id, "reiniciar_trivia")}>Reiniciar trivia</button>
               <button className="btn btn-peligro ml-auto px-3 py-1 text-xs" onClick={() => eliminar(u)}>Eliminar permanente</button>

@@ -394,10 +394,10 @@ export default function Login() {
                     {cargando ? 'Entrando a Destellos…' : 'Entrar a mis Destellos 📸'}
                   </button>
 
-                  <div className="text-center pt-1">
+                  <div className="text-center pt-1 space-y-1.5">
                     <button
                       type="button"
-                      className="text-xs text-slate-400 hover:text-white transition"
+                      className="text-xs text-slate-400 hover:text-white transition block mx-auto"
                       onClick={() => {
                         setIdent('');
                         setVista('recuperar');
@@ -405,6 +405,9 @@ export default function Login() {
                     >
                       Olvidé mi contraseña
                     </button>
+                    <p className="text-[11px] text-slate-400/80">
+                      ¿Primer ingreso? La clave inicial es <span className="text-cyan-300 font-bold">123456</span> (o la que te indicó quien creó la familia).
+                    </p>
                   </div>
                 </form>
               )}

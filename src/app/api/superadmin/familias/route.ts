@@ -38,6 +38,7 @@ const Crear = z.object({
   hora_limite: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora límite inválida (HH:MM).").default("22:00"),
   admin_nombre: z.string().trim().min(2, "Falta el nombre del administrador.").max(80),
   admin_email: z.string().trim().email("Email del administrador inválido."),
+  admin_password: z.string().trim().min(4, "La clave debe tener al menos 4 caracteres.").max(100).optional(),
   codigo: z.string().trim().max(30).optional(),
   meses: z.union([z.literal(1), z.literal(3), z.literal(12)]).default(3),
 });
@@ -64,9 +65,13 @@ export const POST = api(async (req: Request) => {
   }
   const grupo = ins.data as Grupo;
 
-  const temporal = claveTemporal();
+  const claveAdmin = b.admin_password?.trim() || "123456";
   const adm = await db().from("usuarios").insert({
-    grupo_id: grupo.id, nombre: b.admin_nombre, email: b.admin_email.toLowerCase(), rol: "admin", password_hash: await hashPassword(temporal),
+    grupo_id: grupo.id,
+    nombre: b.admin_nombre,
+    email: b.admin_email.toLowerCase(),
+    rol: "admin",
+    password_hash: await hashPassword(claveAdmin),
   });
   if (adm.error) {
     await db().from("grupos").delete().eq("id", grupo.id);
@@ -75,7 +80,16 @@ export const POST = api(async (req: Request) => {
   const enviado = await enviarMail({
     para: b.admin_email,
     asunto: `Tu familia ${grupo.nombre} ya está en Destellos 🎭`,
-    texto: `Hola ${b.admin_nombre}. Código de familia: ${codigo}\nIngresá con tu email y esta clave temporal: ${temporal}\nPodés cambiarla desde "Olvidé mi contraseña".`,
+    texto: `Hola ${b.admin_nombre}. Código de familia: ${codigo}\nIngresá con tu email y esta clave de acceso: ${claveAdmin}\nPodés cambiarla desde "Olvidé mi contraseña".`,
   });
-  return { familia: grupo, admin: { email: b.admin_email, clave_temporal: temporal, mail_enviado: enviado } };
+  return {
+    familia: grupo,
+    admin: {
+      nombre: b.admin_nombre,
+      email: b.admin_email,
+      clave_temporal: claveAdmin,
+      clave: claveAdmin,
+      mail_enviado: enviado,
+    },
+  };
 });
