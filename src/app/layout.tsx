@@ -3,12 +3,12 @@ import "./globals.css";
 import { PieRolf } from "@/components/PieRolf";
 
 export const metadata: Metadata = {
-  title: "SINCERICIDIO — El Club de los Tarambanas",
-  description: "Juego social privado: Flash Grupal con IA, Ronda de Tarareos, Trivia 3D y Trazo Loco.",
+  title: "TRIBOO — Jugá. Compartí. Tribu.",
+  description: "Tu tribu en un solo lugar: El Picado de la semana, Prode, Flash Grupal con IA, Trivia y Juegos.",
   icons: {
-    icon: "/logos/sincericidio-logo.jpg",
-    apple: "/logos/sincericidio-logo.jpg",
-    shortcut: "/logos/sincericidio-logo.jpg",
+    icon: "/logos/triboo-logo.jpg",
+    apple: "/logos/triboo-logo.jpg",
+    shortcut: "/logos/triboo-logo.jpg",
   },
   robots: { index: false, follow: false },
 };

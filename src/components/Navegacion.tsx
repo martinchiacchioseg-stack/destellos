@@ -48,13 +48,13 @@ export function Navegacion() {
   ].filter((item) => item.visible);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#070b16]/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0a0e1a]/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
-        <Link href="/" className="flex items-center gap-2 font-extrabold group">
-          <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-fuchsia-500/60 shadow-[0_0_8px_rgba(255,0,127,0.4)]">
-            <Image src="/logos/sincericidio-logo.jpg" alt="TRIBOO" width={32} height={32} className="h-full w-full object-cover" priority />
+        <Link href="/" className="flex items-center gap-2.5 font-extrabold group">
+          <div className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-orange-400 shadow-[0_0_12px_rgba(255,119,0,0.4)]">
+            <Image src="/logos/triboo-logo.jpg" alt="TRIBOO" width={36} height={36} className="h-full w-full object-cover" priority />
           </div>
-          <span className="hidden sm:inline font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-400 to-cyan-300">
+          <span className="hidden sm:inline font-black text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-sky-400">
             TRIBOO
           </span>
         </Link>

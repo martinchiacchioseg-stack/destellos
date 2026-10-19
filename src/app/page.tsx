@@ -404,33 +404,33 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
           </h4>
         </div>
 
-        {/* Acceso a la suite SINCERICIDIO - El Club de los Tarambanas */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-5 border-2 border-fuchsia-500/50 shadow-[0_0_30px_rgba(255,0,127,0.25)]">
+        {/* Acceso a la suite TRIBOO */}
+        <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-5 border-2 border-orange-500/50 shadow-[0_0_30px_rgba(255,119,0,0.25)]">
           <div
-            className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-screen pointer-events-none"
-            style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+            className="absolute inset-0 bg-cover bg-center opacity-35 mix-blend-screen pointer-events-none"
+            style={{ backgroundImage: "url('/logos/triboo-banner.jpg')" }}
           />
-          <div className="absolute -top-12 -left-12 w-48 h-48 bg-fuchsia-600/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-12 -left-12 w-48 h-48 bg-orange-600/30 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-400/30 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-fuchsia-400 bg-slate-900 shadow-[0_0_15px_rgba(255,0,127,0.6)]">
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-orange-400 bg-slate-900 shadow-[0_0_15px_rgba(255,119,0,0.6)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logos/sincericidio-logo.jpg" alt="Sincericidio Logo" className="h-full w-full object-cover" />
+                <img src="/logos/triboo-logo.jpg" alt="TRIBOO Logo" className="h-full w-full object-cover" />
               </div>
               <div className="space-y-0.5 text-left">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-pink-500 to-cyan-400 text-black uppercase tracking-wider animate-pulse">
-                    SALA DE JUEGOS
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-orange-400 to-amber-300 text-black uppercase tracking-wider animate-pulse">
+                    TU TRIBU EN UN SOLO LUGAR
                   </span>
-                  <span className="text-xs text-cyan-300 font-bold">5 Módulos en Vivo</span>
+                  <span className="text-xs text-sky-300 font-bold">Módulos en Vivo</span>
                 </div>
-                <h3 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-cyan-200">
-                  SINCERICIDIO
+                <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-orange-100 to-sky-200">
+                  TRIBOO
                 </h3>
-                <p className="text-xs text-fuchsia-200">
-                  El Club de los Tarambanas: Tarareo Ardilla, Trivia 3D y Trazo Loco.
+                <p className="text-xs text-orange-200 font-medium">
+                  Jugá. Compartí. Tribu: El Picado de fútbol, Flash grupal, Trivias y Juegos.
                 </p>
               </div>
             </div>

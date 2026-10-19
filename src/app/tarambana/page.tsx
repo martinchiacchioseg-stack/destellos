@@ -80,15 +80,15 @@ export default function TarambanaPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#070b16] text-white flex flex-col justify-between selection:bg-[#FF007F] selection:text-white pb-24 overflow-x-hidden">
-      {/* Fondo inmersivo SINCERICIDIO con overlay cósmico de neón */}
+    <div className="relative min-h-screen bg-[#0a0e1a] text-white flex flex-col justify-between selection:bg-[#FF7700] selection:text-white pb-24 overflow-x-hidden">
+      {/* Fondo inmersivo TRIBOO con overlay cósmico */}
       <div
-        className="fixed inset-0 bg-cover bg-center opacity-25 mix-blend-screen pointer-events-none z-0"
-        style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+        className="fixed inset-0 bg-cover bg-center opacity-30 mix-blend-screen pointer-events-none z-0"
+        style={{ backgroundImage: "url('/logos/triboo-banner.jpg')" }}
       />
-      {/* Luces volumétricas de neón rosa y cian */}
-      <div className="fixed top-1/4 -left-32 w-96 h-96 bg-fuchsia-600/20 rounded-full blur-[120px] pointer-events-none z-0" />
-      <div className="fixed bottom-1/3 -right-32 w-96 h-96 bg-cyan-400/20 rounded-full blur-[120px] pointer-events-none z-0" />
+      {/* Luces volumétricas de neón naranja, verde y azul */}
+      <div className="fixed top-1/4 -left-32 w-96 h-96 bg-orange-600/20 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="fixed bottom-1/3 -right-32 w-96 h-96 bg-sky-500/20 rounded-full blur-[120px] pointer-events-none z-0" />
 
       {/* Header Global Persistente con puntajes en tiempo real */}
       <div className="relative z-20">
