@@ -3,6 +3,7 @@ import { requerirUsuario } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/env";
 import { subirImagen } from "@/lib/storage";
+import { asegurarFaseSegunHorario, obtenerConfiguracionImpostor } from "@/lib/impostor";
 
 export const POST = api(async (req: Request) => {
   const { usuario, grupo } = await requerirUsuario();
@@ -20,8 +21,11 @@ export const POST = api(async (req: Request) => {
     throw new ApiError(404, "No hay una ronda de El Impostor activa hoy.");
   }
 
-  if (partida.estado !== "fase_1_pistas") {
-    throw new ApiError(400, "La fase de envío de pistas ya cerró para esta ronda.");
+  const config = await obtenerConfiguracionImpostor(grupo.id);
+  const partidaActual = await asegurarFaseSegunHorario(partida as any, config);
+
+  if (partidaActual.estado !== "fase_1_pistas") {
+    throw new ApiError(400, "La fase de envío de pistas cerró a las 19:00 hs.");
   }
 
   // 2. Parsear FormData o JSON

@@ -1,6 +1,6 @@
 import "server-only";
 import { db, must } from "./db";
-import { hoyAR } from "./fecha";
+import { hoyAR, horaAR } from "./fecha";
 import { decir, jsonGemini } from "./gemini";
 import type {
   ImpostorConfiguracion,
@@ -277,7 +277,8 @@ export async function obtenerOIniciarRondaHoy(
     .single();
 
   if (existente) {
-    return { partida: existente as ImpostorPartida };
+    const sincronizada = await asegurarFaseSegunHorario(existente as ImpostorPartida, config);
+    return { partida: sincronizada };
   }
 
   // 4. Iniciar nueva ronda: generar palabra y sortear roles
@@ -322,7 +323,8 @@ export async function obtenerOIniciarRondaHoy(
     console.warn("[impostor] Error al enviar notificación inicial:", e);
   }
 
-  return { partida: nuevaPartida as ImpostorPartida };
+  const sincronizada = await asegurarFaseSegunHorario(nuevaPartida as ImpostorPartida, config);
+  return { partida: sincronizada };
 }
 
 // ----------------------------------------------------
@@ -423,6 +425,16 @@ export async function transicionarAFase2(partidaId: string): Promise<{
         motivo_puntos: "Penalización por no enviar pista a tiempo",
       })
       .eq("id", a.id);
+
+    try {
+      await db().from("puntos").insert({
+        grupo_id: partida.grupo_id,
+        usuario_id: a.usuario_id,
+        fecha: partida.fecha,
+        motivo: "El Impostor: penalización por no enviar pista a tiempo (-2 pts)",
+        puntos: config.penalizacion_sin_pista,
+      });
+    } catch (e) {}
   }
 
   // Destapar muro y pasar a Fase 2
@@ -486,6 +498,16 @@ export async function transicionarAFase3(partidaId: string): Promise<{
           motivo_puntos: "Penalización por no emitir voto a tiempo",
         })
         .eq("id", j.id);
+
+      try {
+        await db().from("puntos").insert({
+          grupo_id: partida.grupo_id,
+          usuario_id: j.usuario_id,
+          fecha: partida.fecha,
+          motivo: "El Impostor: penalización por no emitir voto a tiempo (-2 pts)",
+          puntos: config.penalizacion_sin_voto,
+        });
+      } catch (e) {}
     }
   }
 
@@ -582,6 +604,57 @@ export async function transicionarAFase3(partidaId: string): Promise<{
   }
 
   return { ganador: "civiles", desenmascarado: true, requiereTiroDeGracia: true };
+}
+
+// ----------------------------------------------------
+// Sincronización Automática por Horario (Avance Perezoso)
+// ----------------------------------------------------
+export async function asegurarFaseSegunHorario(
+  partida: ImpostorPartida,
+  config?: ImpostorConfiguracion
+): Promise<ImpostorPartida> {
+  const hoy = hoyAR();
+  // Solo se evalúa si es la partida de la fecha actual
+  if (partida.fecha !== hoy) return partida;
+
+  // Si ya terminó o fue cancelada, nada que hacer
+  if (partida.estado === "cancelada" || partida.estado === "fase_3_resolucion") {
+    return partida;
+  }
+
+  const conf = config || (await obtenerConfiguracionImpostor(partida.grupo_id));
+  const ahora = horaAR(); // "HH:MM" en hora argentina (ej: "20:51")
+  const horaRev = (conf.hora_revelacion || "19:00").slice(0, 5);
+  const horaCie = (conf.hora_cierre || "22:00").slice(0, 5);
+
+  let p = partida;
+
+  // 1. A las 19:00 hs: Se cierra etapa de pistas y abre la votación (o se cancela si el impostor no envió pista).
+  // Los civiles ausentes reciben penalización automática (-2 pts).
+  if (p.estado === "fase_1_pistas" && ahora >= horaRev) {
+    await transicionarAFase2(p.id);
+    const { data: r1 } = await db()
+      .from("impostor_partidas")
+      .select("*")
+      .eq("id", p.id)
+      .single();
+    if (r1) p = r1 as ImpostorPartida;
+  }
+
+  // 2. A las 22:00 hs: Se cierra la votación hasta las 00:00 hs.
+  // Quienes no votaron reciben penalización automática (-2 pts).
+  // Se desenmascara al impostor y se adjudican los puntos finales.
+  if (p.estado === "fase_2_votacion" && ahora >= horaCie) {
+    await transicionarAFase3(p.id);
+    const { data: r2 } = await db()
+      .from("impostor_partidas")
+      .select("*")
+      .eq("id", p.id)
+      .single();
+    if (r2) p = r2 as ImpostorPartida;
+  }
+
+  return p;
 }
 
 // ----------------------------------------------------

@@ -3,6 +3,7 @@ import { api, json } from "@/lib/http";
 import { requerirUsuario } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/env";
+import { asegurarFaseSegunHorario, obtenerConfiguracionImpostor } from "@/lib/impostor";
 
 const BodyComentario = z.object({
   mensaje: z.string().trim().min(1, "Escribí un mensaje.").max(280, "Máximo 280 caracteres."),
@@ -54,8 +55,11 @@ export const POST = api(async (req: Request) => {
     throw new ApiError(404, "No hay partida activa.");
   }
 
-  if (partida.estado !== "fase_2_votacion") {
-    throw new ApiError(400, "El debate solo está abierto durante la fase de votación.");
+  const config = await obtenerConfiguracionImpostor(grupo.id);
+  const partidaActual = await asegurarFaseSegunHorario(partida as any, config);
+
+  if (partidaActual.estado !== "fase_2_votacion") {
+    throw new ApiError(400, "El debate solo está abierto durante la fase de votación (19:00 a 22:00 hs).");
   }
 
   const { data: ins, error } = await db()

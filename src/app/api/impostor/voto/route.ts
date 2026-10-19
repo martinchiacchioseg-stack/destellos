@@ -3,6 +3,7 @@ import { api, json } from "@/lib/http";
 import { requerirUsuario } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/env";
+import { asegurarFaseSegunHorario, obtenerConfiguracionImpostor } from "@/lib/impostor";
 
 const BodyVoto = z.object({
   sospechosoId: z.string().uuid("ID de sospechoso inválido."),
@@ -30,8 +31,14 @@ export const POST = api(async (req: Request) => {
     throw new ApiError(404, "No hay una ronda de El Impostor activa hoy.");
   }
 
-  if (partida.estado !== "fase_2_votacion") {
-    throw new ApiError(400, "La fase de votación no está activa en este momento.");
+  const config = await obtenerConfiguracionImpostor(grupo.id);
+  const partidaActual = await asegurarFaseSegunHorario(partida as any, config);
+
+  if (partidaActual.estado !== "fase_2_votacion") {
+    if (partidaActual.estado === "fase_1_pistas") {
+      throw new ApiError(400, "La votación aún no comenzó. Abre a las 19:00 hs al destaparse las pistas.");
+    }
+    throw new ApiError(400, "La fase de votación cerró a las 22:00 hs.");
   }
 
   // 3. Verificar que el sospechoso pertenezca a la partida
