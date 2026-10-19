@@ -135,6 +135,74 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
     <>
       <MarquesinaArlequin mensajesIniciales={d.pizarra ?? []} />
 
+      {/* HUB RÁPIDO: FOTO OCULTA, TARAMBANA, CEREBRO, TRAZO Y FEED JUNTOS */}
+      <section className="rounded-3xl border-2 border-fuchsia-500/40 bg-gradient-to-r from-slate-950 via-purple-950/40 to-slate-950 p-4 shadow-[0_0_30px_rgba(255,0,127,0.18)]">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🎭</span>
+            <span className="text-xs font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-300">
+              JUEGOS FAMILIARES & ACCESO DIRECTO
+            </span>
+          </div>
+          <a href="/tarambana" className="text-[11px] font-bold text-fuchsia-300 hover:text-white transition">
+            Abrir Club completo ➔
+          </a>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-left">
+          <a
+            href="/tarambana"
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-400/40 transition group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+              📸
+            </div>
+            <div>
+              <p className="text-xs font-black text-amber-300">Foto Oculta</p>
+              <p className="text-[10px] text-slate-400">Adiviná el autor</p>
+            </div>
+          </a>
+
+          <a
+            href="/tarambana"
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-400/40 transition group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-fuchsia-400/20 text-fuchsia-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+              🔔
+            </div>
+            <div>
+              <p className="text-xs font-black text-fuchsia-300">Tarambana</p>
+              <p className="text-[10px] text-slate-400">Ronda de tarareos</p>
+            </div>
+          </a>
+
+          <a
+            href="/trivia"
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-400/40 transition group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-orange-400/20 text-orange-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+              🧠
+            </div>
+            <div>
+              <p className="text-xs font-black text-orange-300">Cerebro</p>
+              <p className="text-[10px] text-slate-400">Trivia diaria IA</p>
+            </div>
+          </a>
+
+          <a
+            href="/tarambana"
+            className="flex items-center gap-2.5 p-3 rounded-2xl bg-lime-950/50 hover:bg-lime-900/60 border border-lime-400/40 transition group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+              ✏️
+            </div>
+            <div>
+              <p className="text-xs font-black text-lime-300">Trazo</p>
+              <p className="text-[10px] text-slate-400">Pizarra en vivo</p>
+            </div>
+          </a>
+        </div>
+      </section>
+
       {/* 1. FOTO GANADORA / VEREDICTO DE ARLEQUÍN (SI YA FUE ELEGIDA HOY O AYER) */}
       {veredictoHoy && (
         <motion.section

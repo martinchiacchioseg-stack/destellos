@@ -163,7 +163,10 @@ export default function TarambanaPage() {
           )}
 
           {seccionActiva === 'flash' && (
-            <FlashGrupalView onAddScore={handlePuntosGanados} />
+            <FlashGrupalView
+              onAddScore={handlePuntosGanados}
+              onIrAlFeed={() => setSeccionActiva('feed')}
+            />
           )}
 
           {seccionActiva === 'tarambana' && (
