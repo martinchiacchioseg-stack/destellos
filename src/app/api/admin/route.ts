@@ -17,11 +17,13 @@ export const GET = api(async () => {
   const pubs = await publicos(miembros);
   return {
     grupo: {
+      id: grupo.id,
       nombre: grupo.nombre,
       emoji: grupo.emoji,
       codigo: grupo.codigo,
       hora_limite: grupo.hora_limite,
       vence_en: grupo.vence_en,
+      modulos_activos: grupo.modulos_activos,
     },
     esAdmin,
     yoId: usuario.id,
@@ -68,6 +70,22 @@ const AccionBody = z.discriminatedUnion("accion", [
   z.object({
     accion: z.literal("dar_de_baja"),
     id: z.string().uuid(),
+  }),
+  z.object({
+    accion: z.literal("toggle_modulo"),
+    modulo: z.enum([
+      "flash_grupal",
+      "prode_futbol",
+      "picado_futbol",
+      "tarareo_ardilla",
+      "trazo_loco",
+      "cerebro_fuga",
+      "el_impostor",
+    ]),
+  }),
+  z.object({
+    accion: z.literal("cambiar_tipo_grupo"),
+    tipo_grupo: z.enum(["family", "friends", "sports_club", "custom"]),
   }),
 ]);
 
@@ -210,6 +228,52 @@ export const POST = api(async (req: Request) => {
     await borrarArchivos(paths);
 
     return { ok: true };
+  }
+
+  if (b.accion === "toggle_modulo") {
+    if (b.modulo === "flash_grupal") {
+      throw new ApiError(400, "El Flash Grupal es obligatorio y no se puede desactivar.");
+    }
+    const actual = grupo.modulos_activos ?? {
+      flash_grupal: true,
+      prode_futbol: false,
+      picado_futbol: true,
+      tarareo_ardilla: true,
+      trazo_loco: true,
+      cerebro_fuga: true,
+      el_impostor: true,
+    };
+    const nuevoValor = !actual[b.modulo];
+    const nuevosModulos = {
+      ...actual,
+      [b.modulo]: nuevoValor,
+    };
+
+    await db()
+      .from("grupos")
+      .update({ modulos_activos: nuevosModulos })
+      .eq("id", grupo.id);
+
+    // Sincronizar impostor_configuracion si se tocó el impostor
+    if (b.modulo === "el_impostor") {
+      try {
+        await db().from("impostor_configuracion").upsert(
+          {
+            grupo_id: grupo.id,
+            activo: nuevoValor,
+            modo_seguro: true,
+            cantidad_impostores: 1,
+            hora_inicio: "00:00",
+            hora_revelacion: "19:00",
+            hora_cierre: "22:00",
+            dias_no_repeticion: 60,
+          },
+          { onConflict: "grupo_id" }
+        );
+      } catch {}
+    }
+
+    return { ok: true, modulos_activos: nuevosModulos };
   }
 
   throw new ApiError(400, "Acción desconocida.");

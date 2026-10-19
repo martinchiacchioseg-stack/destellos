@@ -45,6 +45,7 @@ interface AdminData {
     codigo: string;
     hora_limite: string;
     vence_en: string;
+    modulos_activos?: import("@/lib/types").ModulosActivos;
   };
   esAdmin: boolean;
   yoId: string;
@@ -510,6 +511,13 @@ export default function PanelFamilia() {
               </div>
             </section>
 
+            {/* SECCIÓN GESTIÓN DE JUEGOS Y SOLAPAS ACTIVAS DE LA TRIBU */}
+            <GestionModulosTribu
+              esAdmin={d.esAdmin}
+              modulosIniciales={d.grupo.modulos_activos}
+              onCambio={cargar}
+            />
+
             {/* CONFIGURACIÓN DE EL IMPOSTOR ASÍNCRONO */}
             <ConfiguracionImpostorAdmin esAdmin={d.esAdmin} />
 
@@ -537,6 +545,154 @@ export default function PanelFamilia() {
         )}
       </main>
     </>
+  );
+}
+
+const LISTA_JUEGOS_TRIBU: { id: keyof import("@/lib/types").ModulosActivos; nombre: string; desc: string; icon: string; locked?: boolean }[] = [
+  { id: "flash_grupal", nombre: "Flash Grupal (Fotos)", desc: "Fotos a ciegas diarias. Core obligatorio.", icon: "📸", locked: true },
+  { id: "el_impostor", nombre: "El Impostor", desc: "Deducción social, pistas a ciegas y votación.", icon: "🕵️" },
+  { id: "picado_futbol", nombre: "El Picado", desc: "Convocatoria 10 titulares, banco y 3er tiempo.", icon: "🏃‍♂️" },
+  { id: "prode_futbol", nombre: "El Prode", desc: "Pronósticos de fútbol argentino en vivo.", icon: "⚽" },
+  { id: "cerebro_fuga", nombre: "Cerebro en Fuga (Trivia)", desc: "3 preguntas diarias de ingenio con IA.", icon: "🧠" },
+  { id: "trazo_loco", nombre: "Trazo Loco (Pictionary)", desc: "Dibujar en pizarra digital y adivinar en vivo.", icon: "🎨" },
+  { id: "tarareo_ardilla", nombre: "Tarareo Ardilla", desc: "Duelo de canciones aceleradas con voz pitch.", icon: "🐿️" },
+];
+
+function GestionModulosTribu({
+  esAdmin,
+  modulosIniciales,
+  onCambio,
+}: {
+  esAdmin: boolean;
+  modulosIniciales?: import("@/lib/types").ModulosActivos;
+  onCambio: () => void;
+}) {
+  const [modulos, setModulos] = useState<import("@/lib/types").ModulosActivos>(
+    modulosIniciales ?? {
+      flash_grupal: true,
+      prode_futbol: false,
+      picado_futbol: true,
+      tarareo_ardilla: true,
+      trazo_loco: true,
+      cerebro_fuga: true,
+      el_impostor: true,
+    }
+  );
+  const [guardando, setGuardando] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (modulosIniciales) setModulos(modulosIniciales);
+  }, [modulosIniciales]);
+
+  const toggle = async (clave: keyof import("@/lib/types").ModulosActivos) => {
+    if (!esAdmin || clave === "flash_grupal" || guardando) return;
+    setGuardando(clave);
+    setMensaje(null);
+
+    try {
+      const res = await llamar<{ ok: boolean; modulos_activos: import("@/lib/types").ModulosActivos }>("/api/admin", {
+        body: {
+          accion: "toggle_modulo",
+          modulo: clave,
+        },
+      });
+      if (res.modulos_activos) {
+        setModulos(res.modulos_activos);
+        const nuevoEstado = res.modulos_activos[clave];
+        setMensaje(`✔ Juego "${clave.replace('_', ' ')}" ${nuevoEstado ? "ACTIVADO" : "DESACTIVADO"}.`);
+        setTimeout(() => setMensaje(null), 3000);
+        onCambio();
+      }
+    } catch (e: any) {
+      setMensaje(`❌ ${e.message || "Error al actualizar juego"}`);
+    } finally {
+      setGuardando(null);
+    }
+  };
+
+  return (
+    <section className="tarjeta space-y-4 p-5 border-cyan-500/30 bg-slate-900/90">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <span>🎮</span> Juegos y Solapas Activas de tu Tribu
+          </h2>
+          <p className="text-xs text-slate-300">
+            {esAdmin
+              ? "Activá o desactivá los juegos para que aparezcan en el menú superior de todos los integrantes."
+              : "Juegos habilitados por el administrador para tu Tribu."}
+          </p>
+        </div>
+      </div>
+
+      {mensaje && (
+        <p className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs font-bold text-cyan-200">
+          {mensaje}
+        </p>
+      )}
+
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        {LISTA_JUEGOS_TRIBU.map((j) => {
+          const activo = modulos[j.id];
+          const estaGuardando = guardando === j.id;
+
+          return (
+            <div
+              key={j.id}
+              className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                activo
+                  ? "border-emerald-500/50 bg-emerald-950/20 shadow-sm"
+                  : "border-white/10 bg-white/5 opacity-60"
+              }`}
+            >
+              <div className="space-y-0.5 pr-2">
+                <p className="text-xs font-black text-white flex items-center gap-1.5">
+                  <span className="text-base">{j.icon}</span>
+                  <span>{j.nombre}</span>
+                  {j.locked && (
+                    <span className="text-[9px] uppercase font-bold tracking-wider bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
+                      Core
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-slate-400 leading-tight">{j.desc}</p>
+              </div>
+
+              {j.locked ? (
+                <span className="text-xs text-emerald-400 font-bold px-2 whitespace-nowrap">
+                  Siempre ON
+                </span>
+              ) : esAdmin ? (
+                <button
+                  type="button"
+                  disabled={estaGuardando}
+                  onClick={() => toggle(j.id)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    activo ? "bg-emerald-500" : "bg-white/20"
+                  }`}
+                  title={activo ? "Desactivar juego" : "Activar juego"}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      activo ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              ) : (
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                    activo ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/50"
+                  }`}
+                >
+                  {activo ? "ACTIVO ✔" : "OFF ✕"}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

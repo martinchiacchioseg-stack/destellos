@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Camera, Trophy, Brain, Users, LogOut, Sparkles, Eye, Crown } from "lucide-react";
+import { Camera, Trophy, Brain, Users, LogOut, Sparkles, Eye, Crown, Palette, Mic2 } from "lucide-react";
 import { llamar } from "@/lib/cliente";
 import type { ModulosActivos } from "@/lib/types";
 
@@ -39,13 +39,15 @@ export function Navegacion() {
 
   const modulos = yo?.modulos_activos;
 
-  // Un solo inicio unificado: TRIBOO con el muro de fotos y anfitrión Arlequín
+  // Barra de navegación: Todos los juegos como solapas principales, condicionados por los módulos activos de cada Tribu
   const items = [
     { href: "/", icono: Sparkles, texto: "TRIBOO", destacado: true, visible: true },
     { href: "/impostor", icono: Eye, texto: "El Impostor", visible: modulos ? (modulos.el_impostor ?? true) : true },
     { href: "/picado", icono: Users, texto: "El Picado", visible: modulos ? (modulos.picado_futbol ?? true) : true },
-    { href: "/prode", icono: Trophy, texto: "El Prode", visible: modulos ? modulos.prode_futbol : true },
-    { href: "/trivia", icono: Brain, texto: "Trivia", visible: modulos ? modulos.cerebro_fuga : true },
+    { href: "/prode", icono: Trophy, texto: "El Prode", visible: modulos ? (modulos.prode_futbol ?? true) : true },
+    { href: "/trivia", icono: Brain, texto: "Cerebro en Fuga", visible: modulos ? (modulos.cerebro_fuga ?? true) : true },
+    { href: "/trazo", icono: Palette, texto: "Trazo Loco", visible: modulos ? (modulos.trazo_loco ?? true) : true },
+    { href: "/tarareo", icono: Mic2, texto: "Tarareo", visible: modulos ? (modulos.tarareo_ardilla ?? true) : true },
     { href: "/ranking", icono: Trophy, texto: "Ranking", visible: true },
     { href: "/admin", icono: Users, texto: yo?.familia ? `Tribu ${yo.familia}` : "Mi Tribu", visible: true },
   ].filter((item) => item.visible);
