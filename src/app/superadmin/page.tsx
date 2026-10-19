@@ -43,9 +43,9 @@ export default function Superadmin() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 px-4 py-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-extrabold">Panel de control</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-extrabold">Panel de control</h1>
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/"
             className="flex items-center gap-1.5 rounded-xl bg-orange-500/20 border border-orange-400/50 px-3 py-1.5 text-xs font-bold text-orange-200 hover:bg-orange-500/30 transition shadow-sm"
@@ -54,8 +54,27 @@ export default function Superadmin() {
             <span>🌟</span>
             <span>Ir a mi Tribu</span>
           </Link>
+          <a
+            href="/MANUAL_DE_JUEGOS_TRIBOO.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-xl bg-emerald-500/20 border border-emerald-400/50 px-2.5 py-1.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/30 transition shadow-sm"
+            title="Descargar Manual en PDF"
+          >
+            <span>📄</span>
+            <span>Manual PDF</span>
+          </a>
+          <a
+            href="/MANUAL_DE_JUEGOS_TRIBOO.docx"
+            download
+            className="flex items-center gap-1 rounded-xl bg-sky-500/20 border border-sky-400/50 px-2.5 py-1.5 text-xs font-bold text-sky-200 hover:bg-sky-500/30 transition shadow-sm"
+            title="Descargar Manual en Word (.docx)"
+          >
+            <span>📝</span>
+            <span>Manual DOCX</span>
+          </a>
+          <button className="btn px-3 py-1.5 text-sm" onClick={salir}>Salir</button>
         </div>
-        <button className="btn px-3 py-1.5 text-sm" onClick={salir}>Salir</button>
       </div>
       {m && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
