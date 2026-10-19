@@ -102,9 +102,24 @@ export const GET = api(async () => {
   const adUrls = await firmar(adRows.map((a) => a.imagen_path));
 
   const yo = (await publicos([usuario]))[0];
+  const modulos = grupo.modulos_activos ?? {
+    flash_grupal: true,
+    prode_futbol: false,
+    tarareo_ardilla: true,
+    trazo_loco: true,
+    cerebro_fuga: true,
+  };
+
   return {
     yo: { ...yo, esAdmin: usuario.rol === "admin" || c.esSuper, esSuper: c.esSuper },
-    grupo: { nombre: grupo.nombre, emoji: grupo.emoji, hora_limite: grupo.hora_limite },
+    grupo: {
+      id: grupo.id,
+      nombre: grupo.nombre,
+      emoji: grupo.emoji,
+      hora_limite: grupo.hora_limite,
+      tipo_grupo: grupo.tipo_grupo ?? "family",
+      modulos_activos: modulos,
+    },
     licencia: lic,
     hoy,
     cerrado,

@@ -1,4 +1,43 @@
-export type Rol = "miembro" | "admin";
+export type TipoGrupo = "family" | "friends" | "sports_club" | "custom";
+
+export interface ModulosActivos {
+  flash_grupal: boolean;
+  prode_futbol: boolean;
+  tarareo_ardilla: boolean;
+  trazo_loco: boolean;
+  cerebro_fuga: boolean;
+}
+
+export const MODULOS_DEFECTO: ModulosActivos = {
+  flash_grupal: true,
+  prode_futbol: false,
+  tarareo_ardilla: true,
+  trazo_loco: true,
+  cerebro_fuga: true,
+};
+
+export const PRESETS_TIPO_GRUPO: Record<TipoGrupo, { label: string; emoji: string; modulos: ModulosActivos }> = {
+  family: {
+    label: "Familia",
+    emoji: "🏡",
+    modulos: { flash_grupal: true, prode_futbol: false, tarareo_ardilla: true, trazo_loco: true, cerebro_fuga: true },
+  },
+  friends: {
+    label: "Grupo de Amigos",
+    emoji: "🍻",
+    modulos: { flash_grupal: true, prode_futbol: true, tarareo_ardilla: true, trazo_loco: true, cerebro_fuga: true },
+  },
+  sports_club: {
+    label: "Peña Deportiva / Fútbol",
+    emoji: "⚽",
+    modulos: { flash_grupal: true, prode_futbol: true, tarareo_ardilla: false, trazo_loco: false, cerebro_fuga: true },
+  },
+  custom: {
+    label: "Personalizado",
+    emoji: "🛠️",
+    modulos: { flash_grupal: true, prode_futbol: false, tarareo_ardilla: false, trazo_loco: false, cerebro_fuga: false },
+  },
+};
 
 export interface Grupo {
   id: string;
@@ -10,9 +49,13 @@ export interface Grupo {
   admin_nombre: string | null;
   admin_email: string | null;
   vence_en: string;
+  tipo_grupo?: TipoGrupo;
+  modulos_activos?: ModulosActivos;
   activo: boolean;
   creado_en: string;
 }
+
+export type Rol = "admin" | "miembro";
 
 export interface Usuario {
   id: string;

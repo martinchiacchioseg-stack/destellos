@@ -11,6 +11,8 @@ import { MarquesinaArlequin } from "@/components/MarquesinaArlequin";
 import { type MsgLed } from "@/components/LedBoard";
 import { ChatArlequin } from "@/components/ChatArlequin";
 
+import type { ModulosActivos } from "@/lib/types";
+
 interface Pub { id: string; nombre: string; apodo: string | null; foto_url: string | null }
 interface Comentario { id: string; texto: string; creado_en: string; autor: Pub | null }
 interface Destello {
@@ -23,7 +25,7 @@ interface Anuncio { id: string; titulo: string; texto: string | null; enlace: st
 interface Home {
   bloqueado?: boolean;
   licencia: { estado: string; vence_en: string; dias: number };
-  grupo: { nombre: string; emoji: string; hora_limite?: string };
+  grupo: { nombre: string; emoji: string; hora_limite?: string; modulos_activos?: ModulosActivos };
   yo?: Pub & { esAdmin: boolean; esSuper: boolean };
   hoy?: string; cerrado?: boolean; subiHoy?: boolean;
   faltan?: { id: string; nombre: string }[]; totalMiembros?: number;
@@ -148,10 +150,11 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
             Abrir Club completo ➔
           </a>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-left">
+        <div className="flex flex-wrap gap-2 text-left">
+          {/* FOTO OCULTA (Core) */}
           <a
             href="/tarambana"
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-400/40 transition group"
+            className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-400/40 transition group"
           >
             <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
               📸
@@ -162,44 +165,69 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
             </div>
           </a>
 
-          <a
-            href="/tarambana"
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-400/40 transition group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-fuchsia-400/20 text-fuchsia-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
-              🔔
-            </div>
-            <div>
-              <p className="text-xs font-black text-fuchsia-300">Tarambana</p>
-              <p className="text-[10px] text-slate-400">Ronda de tarareos</p>
-            </div>
-          </a>
+          {/* TARAMBANA */}
+          {(d.grupo.modulos_activos?.tarareo_ardilla ?? true) && (
+            <a
+              href="/tarambana"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-400/40 transition group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-fuchsia-400/20 text-fuchsia-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+                🔔
+              </div>
+              <div>
+                <p className="text-xs font-black text-fuchsia-300">Tarambana</p>
+                <p className="text-[10px] text-slate-400">Ronda de tarareos</p>
+              </div>
+            </a>
+          )}
 
-          <a
-            href="/trivia"
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-400/40 transition group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-orange-400/20 text-orange-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
-              🧠
-            </div>
-            <div>
-              <p className="text-xs font-black text-orange-300">Cerebro</p>
-              <p className="text-[10px] text-slate-400">Trivia diaria IA</p>
-            </div>
-          </a>
+          {/* CEREBRO */}
+          {(d.grupo.modulos_activos?.cerebro_fuga ?? true) && (
+            <a
+              href="/trivia"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-400/40 transition group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-orange-400/20 text-orange-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+                🧠
+              </div>
+              <div>
+                <p className="text-xs font-black text-orange-300">Cerebro</p>
+                <p className="text-[10px] text-slate-400">Trivia diaria IA</p>
+              </div>
+            </a>
+          )}
 
-          <a
-            href="/tarambana"
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-lime-950/50 hover:bg-lime-900/60 border border-lime-400/40 transition group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
-              ✏️
-            </div>
-            <div>
-              <p className="text-xs font-black text-lime-300">Trazo</p>
-              <p className="text-[10px] text-slate-400">Pizarra en vivo</p>
-            </div>
-          </a>
+          {/* TRAZO */}
+          {(d.grupo.modulos_activos?.trazo_loco ?? true) && (
+            <a
+              href="/tarambana"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-lime-950/50 hover:bg-lime-900/60 border border-lime-400/40 transition group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+                ✏️
+              </div>
+              <div>
+                <p className="text-xs font-black text-lime-300">Trazo</p>
+                <p className="text-[10px] text-slate-400">Pizarra en vivo</p>
+              </div>
+            </a>
+          )}
+
+          {/* PRODE (Si está activo) */}
+          {(d.grupo.modulos_activos?.prode_futbol) && (
+            <a
+              href="/prode"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-400/40 transition group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-400/20 text-emerald-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+                ⚽
+              </div>
+              <div>
+                <p className="text-xs font-black text-emerald-300">El Prode</p>
+                <p className="text-[10px] text-slate-400">Pronósticos fecha</p>
+              </div>
+            </a>
+          )}
         </div>
       </section>
 
@@ -428,51 +456,53 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
           </div>
         </div>
 
-        {/* Acceso al Prode del Fin de Semana */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
-                    FECHA EN JUEGO
-                  </span>
-                  <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
+        {/* Acceso al Prode del Fin de Semana (Solo si está habilitado en este grupo) */}
+        {(d.grupo.modulos_activos?.prode_futbol) && (
+          <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
+                      FECHA EN JUEGO
+                    </span>
+                    <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
+                  </div>
+                  <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
+                  <p className="text-xs text-slate-300">
+                    Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
+                  </p>
                 </div>
-                <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
-                <p className="text-xs text-slate-300">
-                  Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
-                </p>
               </div>
+              {d.subiHoy ? (
+                <a
+                  href="/prode"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+                >
+                  JUGAR EL PRODE ⚽
+                </a>
+              ) : (
+                <button
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    setAviso('¡Primero tu Destello del Día! 📸 Subí tu foto de hoy para desbloquear El Prode.');
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-400/50 text-amber-300 font-bold text-xs tracking-wider hover:bg-slate-700 transition text-center whitespace-nowrap flex items-center justify-center gap-1.5"
+                >
+                  <span>🔒</span> Subí tu foto primero
+                </button>
+              )}
             </div>
-            {d.subiHoy ? (
-              <a
-                href="/prode"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
-              >
-                JUGAR EL PRODE ⚽
-              </a>
-            ) : (
-              <button
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                  setAviso('¡Primero tu Destello del Día! 📸 Subí tu foto de hoy para desbloquear El Prode.');
-                }}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-400/50 text-amber-300 font-bold text-xs tracking-wider hover:bg-slate-700 transition text-center whitespace-nowrap flex items-center justify-center gap-1.5"
-              >
-                <span>🔒</span> Subí tu foto primero
-              </button>
-            )}
           </div>
-        </div>
+        )}
       </div>
 
       {d.licencia.estado === "por_vencer" && (
         <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
       )}
 
-      {!d.triviaJugada && (
+      {(!d.triviaJugada && (d.grupo.modulos_activos?.cerebro_fuga ?? true)) && (
         <a href="/trivia" className="tarjeta flex items-center gap-3 p-4 hover:bg-white/10">
           <span className="text-2xl">🧠</span>
           <span className="flex-1"><strong>Trivia de Arlequín</strong><br /><span className="text-sm text-suave">Tu turno de hoy te espera. ¡Sumá puntos!</span></span>

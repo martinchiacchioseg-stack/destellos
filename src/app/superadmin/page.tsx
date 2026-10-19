@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { llamar, ErrorApi } from "@/lib/cliente";
-import { COLORES_LED } from "@/lib/types";
+import { COLORES_LED, PRESETS_TIPO_GRUPO, type TipoGrupo, type ModulosActivos, MODULOS_DEFECTO } from "@/lib/types";
 
 interface Familia {
   id: string; nombre: string; emoji: string; codigo: string; hora_limite: string; admin_nombre: string | null; admin_email: string | null; admin_whatsapp: string | null;
   vence_en: string; activo: boolean; estado: "activa" | "por_vencer" | "vencida" | "pausada"; dias_restantes: number; integrantes: number; destellos: number;
+  tipo_grupo?: TipoGrupo; modulos_activos?: ModulosActivos;
 }
 interface Integrante { id: string; nombre: string; apodo: string | null; email: string | null; whatsapp: string | null; nacimiento: string | null; rol: string; bloqueado: boolean }
 interface Metricas { familias_activas: number; familias_total: number; integrantes: number; destellos: number }
@@ -93,6 +94,7 @@ function Familias() {
           admin_password: g("admin_password") || "123456",
           codigo: g("codigo") || undefined,
           meses: Number(g("meses")),
+          tipo_grupo: (g("tipo_grupo") as TipoGrupo) || "family",
         },
       });
       setCreada({
@@ -129,8 +131,14 @@ function Familias() {
         <input name="admin_password" type="text" className="input" placeholder="Clave del admin (por defecto 123456)" defaultValue="123456" required />
         <input name="codigo" className="input" placeholder="Código (opcional, se genera solo)" />
         <input name="hora" type="time" defaultValue="22:00" className="input" required />
+        <select name="tipo_grupo" className="input" defaultValue="family">
+          <option value="family">🏡 Tipo: Familia (Trivias + Dibujo + Música)</option>
+          <option value="friends">🍻 Tipo: Grupo de Amigos (Completo + Prode)</option>
+          <option value="sports_club">⚽ Tipo: Peña Deportiva (Prode + Trivias)</option>
+          <option value="custom">🛠️ Tipo: Personalizado (Solo Flash)</option>
+        </select>
         <select name="meses" className="input" defaultValue="3"><option value="1">Licencia 1 mes</option><option value="3">Licencia 3 meses</option><option value="12">Licencia 1 año</option></select>
-        <button className="btn btn-primario sm:col-span-2">Crear familia</button>
+        <button className="btn btn-primario sm:col-span-2">Crear comunidad / familia</button>
       </form>
       {msg && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{msg}</p>}
       {creada && (
@@ -158,14 +166,70 @@ function Familias() {
 function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
   const [editar, setEditar] = useState(false);
   const [ver, setVer] = useState(false);
+  const [verJuegos, setVerJuegos] = useState(false);
+  const [guardandoModulo, setGuardandoModulo] = useState(false);
   const [err, setErr] = useState("");
   const [copiado, setCopiado] = useState(false);
+
+  const modulosActuales: ModulosActivos = f.modulos_activos ?? {
+    flash_grupal: true,
+    prode_futbol: false,
+    tarareo_ardilla: true,
+    trazo_loco: true,
+    cerebro_fuga: true,
+  };
+
+  const tipoActual: TipoGrupo = f.tipo_grupo ?? "family";
 
   async function patch(body: object) {
     setErr("");
     try { await llamar(`/api/superadmin/familias/${f.id}`, { method: "PATCH", body }); setEditar(false); cambio(); }
     catch (e) { setErr(e instanceof Error ? e.message : "Error"); }
   }
+
+  async function cambiarTipoGrupo(tipo: TipoGrupo) {
+    const preset = PRESETS_TIPO_GRUPO[tipo];
+    if (!preset) return;
+    setGuardandoModulo(true);
+    try {
+      await llamar(`/api/superadmin/familias/${f.id}`, {
+        method: "PATCH",
+        body: {
+          tipo_grupo: tipo,
+          modulos_activos: preset.modulos,
+        },
+      });
+      cambio();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Error al actualizar perfil");
+    } finally {
+      setGuardandoModulo(false);
+    }
+  }
+
+  async function toggleModulo(clave: keyof ModulosActivos) {
+    if (clave === "flash_grupal") return; // Flash grupal es obligatorio
+    setGuardandoModulo(true);
+    const nuevosModulos = {
+      ...modulosActuales,
+      [clave]: !modulosActuales[clave],
+    };
+    try {
+      await llamar(`/api/superadmin/familias/${f.id}`, {
+        method: "PATCH",
+        body: {
+          tipo_grupo: "custom",
+          modulos_activos: nuevosModulos,
+        },
+      });
+      cambio();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Error al actualizar módulo");
+    } finally {
+      setGuardandoModulo(false);
+    }
+  }
+
   async function eliminar() {
     if (!confirm(`¿Eliminar PARA SIEMPRE la familia ${f.nombre}? Se borran integrantes, fotos y puntos. No se puede deshacer.`)) return;
     try { await llamar(`/api/superadmin/familias/${f.id}`, { method: "DELETE" }); cambio(); } catch (e) { setErr(e instanceof Error ? e.message : "Error"); }
@@ -182,6 +246,7 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
       admin_email: g("admin_email"),
       admin_whatsapp: g("admin_whatsapp") || null,
       vence_en: g("vence"),
+      tipo_grupo: g("tipo_grupo"),
     });
   }
 
@@ -193,10 +258,21 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
     setTimeout(() => setCopiado(false), 2500);
   };
 
+  const listaJuegos: { id: keyof ModulosActivos; nombre: string; desc: string; icon: string; locked?: boolean }[] = [
+    { id: "flash_grupal", nombre: "Flash Grupal (Fotos a Ciegas)", desc: "Core diario. Arlequín evalúa y premia.", icon: "📸", locked: true },
+    { id: "cerebro_fuga", nombre: "Cerebro Fuga (Trivia Diaria)", desc: "Trivia de preguntas con IA y ranking.", icon: "🧠" },
+    { id: "trazo_loco", nombre: "Trazo Loco (Pictionary / Pizarra)", desc: "Un miembro dibuja y los demás adivinan.", icon: "🎨" },
+    { id: "tarareo_ardilla", nombre: "Tarareo Ardilla (Música Pitch)", desc: "Adivinar la canción con voz acelerada.", icon: "🐿️" },
+    { id: "prode_futbol", nombre: "Prode de Fútbol", desc: "Pronósticos de partidos y tabla de posiciones.", icon: "⚽" },
+  ];
+
   return (
     <div className="tarjeta space-y-3 p-5">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-lg font-bold">{f.emoji} {f.nombre}</h3>
+        <span className="rounded-full bg-cyan-400/15 px-2.5 py-0.5 text-xs font-semibold text-cyan-200">
+          {PRESETS_TIPO_GRUPO[tipoActual]?.emoji} {PRESETS_TIPO_GRUPO[tipoActual]?.label ?? tipoActual}
+        </span>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge[f.estado]}`}>{etiqueta[f.estado]}</span>
         <span className="ml-auto text-sm text-suave">{f.integrantes} integrantes · {f.destellos} destellos</span>
       </div>
@@ -212,6 +288,12 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
           <input name="hora" type="time" className="input" defaultValue={f.hora_limite} required />
           <input name="admin_nombre" className="input" defaultValue={f.admin_nombre ?? ""} placeholder="Administrador" />
           <input name="admin_email" type="email" className="input" defaultValue={f.admin_email ?? ""} placeholder="Email admin" />
+          <select name="tipo_grupo" className="input sm:col-span-2" defaultValue={tipoActual}>
+            <option value="family">🏡 Perfil: Familia (Trivias + Dibujo + Música)</option>
+            <option value="friends">🍻 Perfil: Amigos (Completo + Prode)</option>
+            <option value="sports_club">⚽ Perfil: Peña Deportiva (Prode + Trivias)</option>
+            <option value="custom">🛠️ Perfil: Personalizado (Flags manuales)</option>
+          </select>
           <input name="admin_whatsapp" className="input sm:col-span-2" defaultValue={f.admin_whatsapp ?? ""} placeholder="WhatsApp del administrador (ej: 54911...)" />
           <label className="text-xs text-suave sm:col-span-2">Vencimiento de licencia<input name="vence" type="date" className="input mt-1" defaultValue={f.vence_en} required /></label>
           <button className="btn btn-primario">Guardar cambios</button>
@@ -219,8 +301,91 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
         </form>
       )}
 
+      {/* Panel colapsable de Juegos y Feature Flags */}
+      {verJuegos && (
+        <div className="rounded-xl border border-cyan-500/30 bg-slate-900/80 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+            <div>
+              <h4 className="font-bold text-white text-sm flex items-center gap-1.5">
+                🎮 Juegos y Módulos Activos
+                {guardandoModulo && <span className="text-xs text-cyan-300 animate-pulse font-normal">(Guardando...)</span>}
+              </h4>
+              <p className="text-xs text-suave">Elegí un preset o prendé/apagá juegos individualmente para este grupo.</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-suave">Perfil:</span>
+              <select
+                value={tipoActual}
+                onChange={(e) => cambiarTipoGrupo(e.target.value as TipoGrupo)}
+                disabled={guardandoModulo}
+                className="input py-1 px-2 text-xs font-semibold bg-white/10"
+              >
+                <option value="family">🏡 Familia</option>
+                <option value="friends">🍻 Amigos</option>
+                <option value="sports_club">⚽ Peña</option>
+                <option value="custom">🛠️ Personalizado</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {listaJuegos.map((juego) => {
+              const activo = modulosActuales[juego.id];
+              return (
+                <div
+                  key={juego.id}
+                  className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
+                    activo
+                      ? "border-emerald-500/40 bg-emerald-950/20"
+                      : "border-white/5 bg-white/5 opacity-60"
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>{juego.icon}</span>
+                      <span>{juego.nombre}</span>
+                      {juego.locked && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded">
+                          Core
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-suave">{juego.desc}</p>
+                  </div>
+
+                  {juego.locked ? (
+                    <span className="text-xs text-emerald-400 font-semibold px-2">Siempre ON</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={guardandoModulo}
+                      onClick={() => toggleModulo(juego.id)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        activo ? "bg-emerald-500" : "bg-white/20"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                          activo ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2 text-sm">
         <button className="btn px-3 py-1.5" onClick={() => setEditar((v) => !v)}>Modificar</button>
+        <button
+          className={`btn px-3 py-1.5 font-semibold ${verJuegos ? "bg-cyan-500/20 border-cyan-400/50 text-cyan-200" : "text-cyan-300"}`}
+          onClick={() => setVerJuegos((v) => !v)}
+        >
+          🎮 {verJuegos ? "Ocultar juegos" : "Gestionar juegos"}
+        </button>
         <button className="btn px-3 py-1.5" onClick={() => setVer((v) => !v)}>{ver ? "Ocultar integrantes" : `Integrantes (${f.integrantes})`}</button>
         <button className="btn px-3 py-1.5 text-emerald-300 font-semibold" onClick={copiarDatosWsp} title="Copiar datos para enviar al administrador por WhatsApp">
           {copiado ? "¡Copiado! ✔" : "📲 Copiar invitación WhatsApp"}

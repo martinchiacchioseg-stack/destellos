@@ -23,6 +23,16 @@ const Editar = z.object({
   /** Atajos de licencia: se suman al vencimiento actual (o a hoy si ya venció). */
   extender_meses: z.union([z.literal(1), z.literal(3), z.literal(12)]).optional(),
   activo: z.boolean().optional(),
+  tipo_grupo: z.enum(["family", "friends", "sports_club", "custom"]).optional(),
+  modulos_activos: z
+    .object({
+      flash_grupal: z.boolean().default(true),
+      prode_futbol: z.boolean(),
+      tarareo_ardilla: z.boolean(),
+      trazo_loco: z.boolean(),
+      cerebro_fuga: z.boolean(),
+    })
+    .optional(),
 });
 
 export const PATCH = api(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -33,7 +43,13 @@ export const PATCH = api(async (req: Request, ctx: { params: Promise<{ id: strin
   if (!actual) throw new ApiError(404, "Esa familia no existe.");
 
   const cambios: Record<string, unknown> = {};
-  for (const k of ["nombre", "emoji", "hora_limite", "admin_nombre", "activo"] as const) if (b[k] !== undefined) cambios[k] = b[k];
+  for (const k of ["nombre", "emoji", "hora_limite", "admin_nombre", "activo", "tipo_grupo"] as const) if (b[k] !== undefined) cambios[k] = b[k];
+  if (b.modulos_activos !== undefined) {
+    cambios.modulos_activos = {
+      ...b.modulos_activos,
+      flash_grupal: true, // Flash grupal es core y siempre obligatorio
+    };
+  }
   if (b.admin_email) cambios.admin_email = b.admin_email.toLowerCase();
   if (b.codigo) {
     const norm = normalizarCodigo(b.codigo);

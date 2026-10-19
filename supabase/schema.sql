@@ -18,6 +18,8 @@ create table if not exists grupos (
   admin_nombre  text,
   admin_email   text,
   vence_en      date not null,
+  tipo_grupo    text not null default 'family', -- 'family' | 'friends' | 'sports_club' | 'custom'
+  modulos_activos jsonb not null default '{"flash_grupal":true,"prode_futbol":false,"tarareo_ardilla":true,"trazo_loco":true,"cerebro_fuga":true}'::jsonb,
   activo        boolean not null default true,  -- false = pausada
   creado_en     timestamptz not null default now()
 );

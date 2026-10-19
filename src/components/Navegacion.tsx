@@ -6,8 +6,17 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Camera, Trophy, Brain, Users, LogOut, Sparkles } from "lucide-react";
 import { llamar } from "@/lib/cliente";
+import type { ModulosActivos } from "@/lib/types";
 
-interface Yo { tipo: string; nombre?: string; esAdmin?: boolean; esSuper?: boolean; familia?: string; emoji?: string }
+interface Yo {
+  tipo: string;
+  nombre?: string;
+  esAdmin?: boolean;
+  esSuper?: boolean;
+  familia?: string;
+  emoji?: string;
+  modulos_activos?: ModulosActivos;
+}
 
 export function Navegacion() {
   const path = usePathname();
@@ -26,14 +35,16 @@ export function Navegacion() {
     router.refresh();
   }
 
+  const modulos = yo?.modulos_activos;
+
   const items = [
-    { href: "/", icono: Camera, texto: "Destellos" },
-    { href: "/tarambana", icono: Sparkles, texto: "Club Tarambana", destacado: true },
-    { href: "/prode", icono: Trophy, texto: "Prode" },
-    { href: "/trivia", icono: Brain, texto: "Trivia" },
-    { href: "/ranking", icono: Trophy, texto: "Ranking" },
-    { href: "/admin", icono: Users, texto: "Mi familia" },
-  ];
+    { href: "/", icono: Camera, texto: "Destellos", visible: true },
+    { href: "/tarambana", icono: Sparkles, texto: "Club Tarambana", destacado: true, visible: true },
+    { href: "/prode", icono: Trophy, texto: "Prode", visible: modulos ? modulos.prode_futbol : true },
+    { href: "/trivia", icono: Brain, texto: "Trivia", visible: modulos ? modulos.cerebro_fuga : true },
+    { href: "/ranking", icono: Trophy, texto: "Ranking", visible: true },
+    { href: "/admin", icono: Users, texto: "Mi familia", visible: true },
+  ].filter((item) => item.visible);
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-[#070b16]/80 backdrop-blur">

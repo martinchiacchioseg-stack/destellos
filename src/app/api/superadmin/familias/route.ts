@@ -47,6 +47,16 @@ const Crear = z.object({
   admin_password: z.string().trim().min(4, "La clave debe tener al menos 4 caracteres.").max(100).optional(),
   codigo: z.string().trim().max(30).optional(),
   meses: z.union([z.literal(1), z.literal(3), z.literal(12)]).default(3),
+  tipo_grupo: z.enum(["family", "friends", "sports_club", "custom"]).default("family"),
+  modulos_activos: z
+    .object({
+      flash_grupal: z.boolean().default(true),
+      prode_futbol: z.boolean().default(false),
+      tarareo_ardilla: z.boolean().default(true),
+      trazo_loco: z.boolean().default(true),
+      cerebro_fuga: z.boolean().default(true),
+    })
+    .optional(),
 });
 
 /** Crea una familia + su administrador con WhatsApp y clave inicial. */
@@ -60,8 +70,22 @@ export const POST = api(async (req: Request) => {
   const ins = await db()
     .from("grupos")
     .insert({
-      nombre: b.nombre, emoji: b.emoji, codigo, codigo_norm: norm, hora_limite: b.hora_limite,
-      admin_nombre: b.admin_nombre, admin_email: b.admin_email.toLowerCase(), vence_en: sumarMeses(hoyAR(), b.meses),
+      nombre: b.nombre,
+      emoji: b.emoji,
+      codigo,
+      codigo_norm: norm,
+      hora_limite: b.hora_limite,
+      admin_nombre: b.admin_nombre,
+      admin_email: b.admin_email.toLowerCase(),
+      vence_en: sumarMeses(hoyAR(), b.meses),
+      tipo_grupo: b.tipo_grupo,
+      modulos_activos: b.modulos_activos ?? {
+        flash_grupal: true,
+        prode_futbol: b.tipo_grupo === "friends" || b.tipo_grupo === "sports_club",
+        tarareo_ardilla: b.tipo_grupo !== "sports_club",
+        trazo_loco: b.tipo_grupo !== "sports_club",
+        cerebro_fuga: true,
+      },
     })
     .select("*")
     .single();

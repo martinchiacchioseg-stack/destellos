@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Camera, Music, Brain, Edit3, MessageSquare, Heart, Sparkles, Crown, Send, RefreshCw } from 'lucide-react';
 import { llamar } from '@/lib/cliente';
+import type { ModulosActivos } from '@/lib/types';
 
 interface Autor {
   id: string;
@@ -35,7 +36,7 @@ interface DestelloFeed {
 }
 
 interface HomeData {
-  grupo: { nombre: string; emoji: string; hora_limite?: string };
+  grupo: { nombre: string; emoji: string; hora_limite?: string; modulos_activos?: ModulosActivos };
   muro?: DestelloFeed[];
   hoy?: string;
   totalMiembros?: number;
@@ -121,11 +122,11 @@ export default function FeedCentralView({ onAbrirJuego }: { onAbrirJuego?: (secc
           <span className="text-[11px] font-bold text-slate-400">Todo en un clic</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {/* FLASH / FOTO OCULTA */}
+        <div className="flex flex-wrap gap-2">
+          {/* FLASH / FOTO OCULTA (Core, siempre activo) */}
           <button
             onClick={() => onAbrirJuego?.('flash')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-400/40 text-left transition group active:scale-95"
+            className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-400/40 text-left transition group active:scale-95"
           >
             <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
               <Camera size={18} />
@@ -137,46 +138,68 @@ export default function FeedCentralView({ onAbrirJuego }: { onAbrirJuego?: (secc
           </button>
 
           {/* TARAMBANA / TARAREOS */}
-          <button
-            onClick={() => onAbrirJuego?.('tarambana')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-400/40 text-left transition group active:scale-95"
-          >
-            <div className="w-9 h-9 rounded-xl bg-fuchsia-400/20 text-fuchsia-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
-              <Music size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-fuchsia-300">Tarambana</p>
-              <p className="text-[10px] text-slate-400">Ronda de tarareos</p>
-            </div>
-          </button>
+          {(data?.grupo?.modulos_activos?.tarareo_ardilla ?? true) && (
+            <button
+              onClick={() => onAbrirJuego?.('tarambana')}
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-400/40 text-left transition group active:scale-95"
+            >
+              <div className="w-9 h-9 rounded-xl bg-fuchsia-400/20 text-fuchsia-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
+                <Music size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-fuchsia-300">Tarambana</p>
+                <p className="text-[10px] text-slate-400">Ronda de tarareos</p>
+              </div>
+            </button>
+          )}
 
           {/* CEREBRO / TRIVIA */}
-          <button
-            onClick={() => onAbrirJuego?.('cerebro')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-400/40 text-left transition group active:scale-95"
-          >
-            <div className="w-9 h-9 rounded-xl bg-orange-400/20 text-orange-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
-              <Brain size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-orange-300">Cerebro</p>
-              <p className="text-[10px] text-slate-400">Trivia con IA</p>
-            </div>
-          </button>
+          {(data?.grupo?.modulos_activos?.cerebro_fuga ?? true) && (
+            <button
+              onClick={() => onAbrirJuego?.('cerebro')}
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-400/40 text-left transition group active:scale-95"
+            >
+              <div className="w-9 h-9 rounded-xl bg-orange-400/20 text-orange-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
+                <Brain size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-orange-300">Cerebro</p>
+                <p className="text-[10px] text-slate-400">Trivia con IA</p>
+              </div>
+            </button>
+          )}
 
           {/* TRAZO / PIZARRA */}
-          <button
-            onClick={() => onAbrirJuego?.('trazo')}
-            className="flex items-center gap-2.5 p-3 rounded-2xl bg-lime-950/50 hover:bg-lime-900/60 border border-lime-400/40 text-left transition group active:scale-95"
-          >
-            <div className="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
-              <Edit3 size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-lime-300">Trazo</p>
-              <p className="text-[10px] text-slate-400">Pizarra por turnos</p>
-            </div>
-          </button>
+          {(data?.grupo?.modulos_activos?.trazo_loco ?? true) && (
+            <button
+              onClick={() => onAbrirJuego?.('trazo')}
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-lime-950/50 hover:bg-lime-900/60 border border-lime-400/40 text-left transition group active:scale-95"
+            >
+              <div className="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-300 grid place-items-center shrink-0 group-hover:scale-110 transition">
+                <Edit3 size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-lime-300">Trazo</p>
+                <p className="text-[10px] text-slate-400">Pizarra por turnos</p>
+              </div>
+            </button>
+          )}
+
+          {/* PRODE (Si está activo para este grupo) */}
+          {(data?.grupo?.modulos_activos?.prode_futbol) && (
+            <Link
+              href="/prode"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-400/40 text-left transition group active:scale-95"
+            >
+              <div className="w-9 h-9 rounded-xl bg-emerald-400/20 text-emerald-300 grid place-items-center shrink-0 group-hover:scale-110 transition text-lg">
+                ⚽
+              </div>
+              <div>
+                <p className="text-xs font-black text-emerald-300">El Prode</p>
+                <p className="text-[10px] text-slate-400">Pronósticos fecha</p>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
 

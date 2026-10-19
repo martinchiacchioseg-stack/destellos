@@ -3,24 +3,32 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, Camera, Music, Brain, Edit3 } from "lucide-react";
+import type { ModulosActivos } from "@/lib/types";
 
 export type TarambanaTab = "feed" | "flash" | "tarambana" | "cerebro" | "trazo";
 
 interface TabBarProps {
   activeTab: TarambanaTab;
   onSelectTab: (tab: TarambanaTab) => void;
+  modulosActivos?: ModulosActivos;
 }
 
-const TABS: { id: TarambanaTab; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string }[] = [
+const TABS: { id: TarambanaTab; moduloKey?: keyof ModulosActivos; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string }[] = [
   { id: "feed", label: "Feed", icon: MessageSquare, color: "#38BDF8" },
-  { id: "flash", label: "Flash", icon: Camera, color: "#FFE600" },
-  { id: "tarambana", label: "Tarambana", icon: Music, color: "#FF007F" },
-  { id: "cerebro", label: "Cerebro", icon: Brain, color: "#FB6107" },
-  { id: "trazo", label: "Trazo", icon: Edit3, color: "#70E000" },
+  { id: "flash", moduloKey: "flash_grupal", label: "Flash", icon: Camera, color: "#FFE600" },
+  { id: "tarambana", moduloKey: "tarareo_ardilla", label: "Tarambana", icon: Music, color: "#FF007F" },
+  { id: "cerebro", moduloKey: "cerebro_fuga", label: "Cerebro", icon: Brain, color: "#FB6107" },
+  { id: "trazo", moduloKey: "trazo_loco", label: "Trazo", icon: Edit3, color: "#70E000" },
 ];
 
-export function TarambanaTabBar({ activeTab, onSelectTab }: TabBarProps) {
-  const currentTab = TABS.find((t) => t.id === activeTab) || TABS[0];
+export function TarambanaTabBar({ activeTab, onSelectTab, modulosActivos }: TabBarProps) {
+  const tabsVisibles = TABS.filter((t) => {
+    if (!t.moduloKey) return true; // Feed siempre visible
+    if (!modulosActivos) return true;
+    return !!modulosActivos[t.moduloKey];
+  });
+
+  const currentTab = tabsVisibles.find((t) => t.id === activeTab) || tabsVisibles[0] || TABS[0];
 
   return (
     <nav
@@ -29,7 +37,7 @@ export function TarambanaTabBar({ activeTab, onSelectTab }: TabBarProps) {
       aria-label="Navegación del Club Tarambana"
     >
       <div className="mx-auto flex max-w-lg items-center justify-around">
-        {TABS.map((tab) => {
+        {tabsVisibles.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
 

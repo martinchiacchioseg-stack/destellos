@@ -28,6 +28,14 @@ export const GET = api(async () => {
       esSuper: c.esSuper,
       familia: c.grupo.nombre,
       emoji: c.grupo.emoji,
+      tipo_grupo: c.grupo.tipo_grupo ?? "family",
+      modulos_activos: c.grupo.modulos_activos ?? {
+        flash_grupal: true,
+        prode_futbol: false,
+        tarareo_ardilla: true,
+        trazo_loco: true,
+        cerebro_fuga: true,
+      },
       subiHoy,
     },
   };

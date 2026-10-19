@@ -11,6 +11,7 @@ import { LosTarambanaView } from '@/components/tarambana/LosTarambanaView';
 import { CerebroEnFugaView } from '@/components/tarambana/CerebroEnFugaView';
 import { TrazoLocoView } from '@/components/tarambana/TrazoLocoView';
 import { MarquesinaArlequin } from '@/components/MarquesinaArlequin';
+import type { ModulosActivos } from '@/lib/types';
 
 export default function TarambanaPage() {
   const [seccionActiva, setSeccionActiva] = useState<TarambanaTab>('feed');
@@ -18,6 +19,7 @@ export default function TarambanaPage() {
   const [nombreGrupo, setNombreGrupo] = useState<string>('El Club de los Tarambanas');
   const [usuarioId, setUsuarioId] = useState<string>('user-actual');
   const [subiHoy, setSubiHoy] = useState<boolean | null>(null);
+  const [modulosActivos, setModulosActivos] = useState<ModulosActivos | undefined>(undefined);
   const [notificacionPuntos, setNotificacionPuntos] = useState<{ texto: string; pts: number } | null>(null);
 
   // Verificar si el usuario cumplió con el juego principal (subir foto hoy)
@@ -29,6 +31,7 @@ export default function TarambanaPage() {
           setSubiHoy(!!data.sesion.subiHoy);
           if (data.sesion.id) setUsuarioId(data.sesion.id);
           if (data.sesion.familia) setNombreGrupo(`Familia ${data.sesion.familia}`);
+          if (data.sesion.modulos_activos) setModulosActivos(data.sesion.modulos_activos);
         } else {
           // Si no hay sesión, permitir explorar
           setSubiHoy(true);
@@ -183,11 +186,12 @@ export default function TarambanaPage() {
         </main>
       )}
 
-      {/* Tab Bar inferior con las 5 secciones e identidades cromáticas */}
+      {/* Tab Bar inferior con las secciones habilitadas por el superadmin */}
       {subiHoy && (
         <TarambanaTabBar
           activeTab={seccionActiva}
           onSelectTab={(tab) => setSeccionActiva(tab)}
+          modulosActivos={modulosActivos}
         />
       )}
     </div>
