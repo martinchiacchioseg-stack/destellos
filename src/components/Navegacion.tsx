@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Camera, Trophy, Brain, Shield, LogOut, Sparkles } from "lucide-react";
+import { Camera, Trophy, Brain, Users, LogOut, Sparkles } from "lucide-react";
 import { llamar } from "@/lib/cliente";
 
 interface Yo { tipo: string; nombre?: string; esAdmin?: boolean; esSuper?: boolean; familia?: string; emoji?: string }
@@ -32,7 +32,7 @@ export function Navegacion() {
     { href: "/prode", icono: Trophy, texto: "Prode" },
     { href: "/trivia", icono: Brain, texto: "Trivia" },
     { href: "/ranking", icono: Trophy, texto: "Ranking" },
-    ...(yo?.esAdmin ? [{ href: "/admin", icono: Shield, texto: "Mi familia" }] : []),
+    { href: "/admin", icono: Users, texto: "Mi familia" },
   ];
 
   return (

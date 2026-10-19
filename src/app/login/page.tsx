@@ -66,24 +66,30 @@ export default function Login() {
   const [cargando, setCargando] = useState(false);
   const [iniciandoAutoLogin, setIniciandoAutoLogin] = useState(true);
 
-  // Auto-cargar familia y usuario recordado de localStorage
+  // Auto-cargar familia y usuario recordado de localStorage o por link de invitación
   useEffect(() => {
     try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const urlCodigo = params?.get('codigo')?.trim().toUpperCase();
       const codigoGuardado = localStorage.getItem(LS_CODIGO);
+      const codigoAUsar = urlCodigo || codigoGuardado;
       const usuarioGuardadoRaw = localStorage.getItem(LS_USUARIO);
-      const usuarioGuardado = usuarioGuardadoRaw ? JSON.parse(usuarioGuardadoRaw) : null;
+      const usuarioGuardado = urlCodigo ? null : (usuarioGuardadoRaw ? JSON.parse(usuarioGuardadoRaw) : null);
 
-      if (codigoGuardado) {
-        setCodigo(codigoGuardado);
+      if (codigoAUsar) {
+        setCodigo(codigoAUsar);
         // Validar código automáticamente sin pedirlo de nuevo
         llamar<{ grupo: { nombre: string; emoji: string }; bienvenida: string; miembros: Miembro[] }>(
           '/api/auth/codigo',
-          { body: { codigo: codigoGuardado } }
+          { body: { codigo: codigoAUsar } }
         )
           .then((r) => {
             setFamilia(r.grupo);
             setBienvenida(r.bienvenida);
             setMiembros(r.miembros);
+            try {
+              localStorage.setItem(LS_CODIGO, codigoAUsar);
+            } catch {}
 
             if (usuarioGuardado && r.miembros.some((m) => m.id === usuarioGuardado.id)) {
               // Va directo a ingresar contraseña de su usuario
@@ -97,7 +103,7 @@ export default function Login() {
           })
           .catch(() => {
             // Si el código ya no es válido, se pide nuevamente
-            localStorage.removeItem(LS_CODIGO);
+            if (!urlCodigo) localStorage.removeItem(LS_CODIGO);
             setVista('codigo');
           })
           .finally(() => {
