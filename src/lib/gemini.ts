@@ -3,7 +3,14 @@ import { GoogleGenAI } from "@google/genai";
 import { envOpt } from "./env";
 import { ALMA_ROLF } from "./persona";
 
-const MODELOS = ["gemini-2.0-flash", "gemini-1.5-flash"];
+const MODELOS = [
+  "gemini-flash-latest",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-2.5-flash-lite",
+];
 let ai: GoogleGenAI | null = null;
 
 function obtenerKey(): string | null {
@@ -63,7 +70,11 @@ export async function jsonGemini<T>(instruccion: string, imagen?: { data: Buffer
           temperature: 0.85,
         },
       });
-      const raw = r.text?.trim() ?? "null";
+      let raw = r.text?.trim() ?? "null";
+      // Limpiar bloques de código markdown si el modelo los incluye
+      if (raw.startsWith("```")) {
+        raw = raw.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?\s*```$/, "").trim();
+      }
       return JSON.parse(raw) as T;
     } catch (e) {
       console.warn(`[gemini:json con ${modelo}]`, e instanceof Error ? e.message : e);
