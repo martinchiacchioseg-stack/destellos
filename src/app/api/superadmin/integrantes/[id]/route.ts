@@ -17,7 +17,7 @@ const Editar = z.object({
   whatsapp: z.string().trim().max(30).nullable().optional(),
   nacimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   rol: z.enum(["miembro", "admin"]).optional(),
-  password: z.string().min(6, "La clave debe tener al menos 6 caracteres.").max(100).optional(),
+  password: z.string().min(4, "La clave debe tener al menos 4 caracteres.").max(100).optional(),
   desbloquear: z.boolean().optional(),
 });
 

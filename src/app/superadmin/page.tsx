@@ -6,7 +6,7 @@ import { llamar, ErrorApi } from "@/lib/cliente";
 import { COLORES_LED } from "@/lib/types";
 
 interface Familia {
-  id: string; nombre: string; emoji: string; codigo: string; hora_limite: string; admin_nombre: string | null; admin_email: string | null;
+  id: string; nombre: string; emoji: string; codigo: string; hora_limite: string; admin_nombre: string | null; admin_email: string | null; admin_whatsapp: string | null;
   vence_en: string; activo: boolean; estado: "activa" | "por_vencer" | "vencida" | "pausada"; dias_restantes: number; integrantes: number; destellos: number;
 }
 interface Integrante { id: string; nombre: string; apodo: string | null; email: string | null; whatsapp: string | null; nacimiento: string | null; rol: string; bloqueado: boolean }
@@ -89,6 +89,7 @@ function Familias() {
           hora_limite: g("hora"),
           admin_nombre: g("admin_nombre"),
           admin_email: g("admin_email"),
+          admin_whatsapp: g("admin_whatsapp") || undefined,
           admin_password: g("admin_password") || "123456",
           codigo: g("codigo") || undefined,
           meses: Number(g("meses")),
@@ -124,6 +125,7 @@ function Familias() {
         <input name="emoji" className="input" placeholder="Emoji (✨)" maxLength={8} />
         <input name="admin_nombre" className="input" placeholder="Nombre del administrador" required />
         <input name="admin_email" type="email" className="input" placeholder="Email del administrador" required />
+        <input name="admin_whatsapp" className="input" placeholder="WhatsApp del administrador (ej: 54911...)" />
         <input name="admin_password" type="text" className="input" placeholder="Clave del admin (por defecto 123456)" defaultValue="123456" required />
         <input name="codigo" className="input" placeholder="Código (opcional, se genera solo)" />
         <input name="hora" type="time" defaultValue="22:00" className="input" required />
@@ -157,6 +159,7 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
   const [editar, setEditar] = useState(false);
   const [ver, setVer] = useState(false);
   const [err, setErr] = useState("");
+  const [copiado, setCopiado] = useState(false);
 
   async function patch(body: object) {
     setErr("");
@@ -170,8 +173,25 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
   function guardar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const g = (n: string) => (e.currentTarget.elements.namedItem(n) as HTMLInputElement).value;
-    patch({ nombre: g("nombre"), emoji: g("emoji"), codigo: g("codigo"), hora_limite: g("hora"), admin_nombre: g("admin_nombre"), admin_email: g("admin_email"), vence_en: g("vence") });
+    patch({
+      nombre: g("nombre"),
+      emoji: g("emoji"),
+      codigo: g("codigo"),
+      hora_limite: g("hora"),
+      admin_nombre: g("admin_nombre"),
+      admin_email: g("admin_email"),
+      admin_whatsapp: g("admin_whatsapp") || null,
+      vence_en: g("vence"),
+    });
   }
+
+  const copiarDatosWsp = () => {
+    const url = typeof window !== "undefined" ? `${window.location.origin}/login` : "https://destellos.vercel.app/login";
+    const texto = `¡Hola ${f.admin_nombre || "familia"}! Ya podés ingresar al espacio de ${f.nombre} en Destellos 🎭.\n\n1. Entrá a: ${url}\n2. Código de familia: ${f.codigo}\n3. Tu usuario: ${f.admin_nombre || "Administrador"}\n4. Clave inicial: 123456 (al ingresar podés cambiarla por tu propia clave)\n\n¡Listo! Ya podés compartir tu primera foto del día 📸`;
+    navigator.clipboard.writeText(texto);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2500);
+  };
 
   return (
     <div className="tarjeta space-y-3 p-5">
@@ -180,7 +200,9 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge[f.estado]}`}>{etiqueta[f.estado]}</span>
         <span className="ml-auto text-sm text-suave">{f.integrantes} integrantes · {f.destellos} destellos</span>
       </div>
-      <p className="text-sm text-suave">Código <strong className="select-all tracking-widest text-white">{f.codigo}</strong> · cierre {f.hora_limite} · vence {f.vence_en} ({f.dias_restantes} d) · admin {f.admin_nombre} &lt;{f.admin_email}&gt;</p>
+      <p className="text-sm text-suave">
+        Código <strong className="select-all tracking-widest text-white">{f.codigo}</strong> · cierre {f.hora_limite} · vence {f.vence_en} ({f.dias_restantes} d) · admin {f.admin_nombre} &lt;{f.admin_email}&gt; {f.admin_whatsapp ? `· 📲 +${f.admin_whatsapp}` : "· sin WhatsApp"}
+      </p>
 
       {editar && (
         <form onSubmit={guardar} className="grid gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2">
@@ -190,6 +212,7 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
           <input name="hora" type="time" className="input" defaultValue={f.hora_limite} required />
           <input name="admin_nombre" className="input" defaultValue={f.admin_nombre ?? ""} placeholder="Administrador" />
           <input name="admin_email" type="email" className="input" defaultValue={f.admin_email ?? ""} placeholder="Email admin" />
+          <input name="admin_whatsapp" className="input sm:col-span-2" defaultValue={f.admin_whatsapp ?? ""} placeholder="WhatsApp del administrador (ej: 54911...)" />
           <label className="text-xs text-suave sm:col-span-2">Vencimiento de licencia<input name="vence" type="date" className="input mt-1" defaultValue={f.vence_en} required /></label>
           <button className="btn btn-primario">Guardar cambios</button>
           <button type="button" className="btn" onClick={() => setEditar(false)}>Cancelar</button>
@@ -198,7 +221,10 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
 
       <div className="flex flex-wrap gap-2 text-sm">
         <button className="btn px-3 py-1.5" onClick={() => setEditar((v) => !v)}>Modificar</button>
-        <button className="btn px-3 py-1.5" onClick={() => setVer((v) => !v)}>{ver ? "Ocultar integrantes" : "Integrantes"}</button>
+        <button className="btn px-3 py-1.5" onClick={() => setVer((v) => !v)}>{ver ? "Ocultar integrantes" : `Integrantes (${f.integrantes})`}</button>
+        <button className="btn px-3 py-1.5 text-emerald-300 font-semibold" onClick={copiarDatosWsp} title="Copiar datos para enviar al administrador por WhatsApp">
+          {copiado ? "¡Copiado! ✔" : "📲 Copiar invitación WhatsApp"}
+        </button>
         {([1, 3, 12] as const).map((n) => <button key={n} className="btn px-3 py-1.5" onClick={() => patch({ extender_meses: n })}>+{n === 12 ? "1 año" : `${n} m`}</button>)}
         <button className="btn px-3 py-1.5" onClick={() => patch({ activo: !f.activo })}>{f.activo ? "Pausar" : "Reactivar"}</button>
         <button className="btn btn-peligro ml-auto px-3 py-1.5" onClick={eliminar}>Eliminar permanente</button>
@@ -213,11 +239,38 @@ function Integrantes({ familiaId, cambio }: { familiaId: string; cambio: () => v
   const router = useRouter();
   const [lista, setLista] = useState<Integrante[] | null>(null);
   const [editando, setEditando] = useState<string | null>(null);
+  const [agregando, setAgregando] = useState(false);
   const [err, setErr] = useState("");
+  const [exito, setExito] = useState("");
 
   const cargar = useCallback(() => llamar<{ integrantes: Integrante[] }>(`/api/superadmin/familias/${familiaId}`).then((r) => setLista(r.integrantes)).catch((e) => setErr(e.message)), [familiaId]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
+
+  async function crearNuevo(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const g = (n: string) => (form.elements.namedItem(n) as HTMLInputElement).value;
+    setErr("");
+    setExito("");
+    try {
+      await llamar(`/api/superadmin/familias/${familiaId}`, {
+        body: {
+          nombre: g("nombre"),
+          apodo: g("apodo") || null,
+          email: g("email") || null,
+          whatsapp: g("whatsapp") || null,
+          password: g("password") || "123456",
+          rol: g("rol") || "miembro",
+        },
+      });
+      setExito(`✔ Integrante "${g("nombre")}" agregado con éxito (clave inicial: ${g("password") || "123456"})`);
+      form.reset();
+      setAgregando(false);
+      cargar();
+      cambio();
+    } catch (er) { setErr(er instanceof Error ? er.message : "Error al agregar integrante"); }
+  }
 
   async function guardar(e: React.FormEvent<HTMLFormElement>, id: string) {
     e.preventDefault();
@@ -234,44 +287,78 @@ function Integrantes({ familiaId, cambio }: { familiaId: string; cambio: () => v
     if (!confirm(`¿Cambiar la clave de ${u.nombre} a "123456"?`)) return;
     try {
       await llamar(`/api/superadmin/integrantes/${u.id}`, { method: "PATCH", body: { password: "123456", desbloquear: true } });
-      setErr(`✔ Clave de ${u.nombre} actualizada a "123456"`);
+      setExito(`✔ Clave de ${u.nombre} restablecida a "123456"`);
       cargar();
     } catch (er) { setErr(er instanceof Error ? er.message : "Error"); }
   }
   async function accion(id: string, a: "entrar" | "reiniciar_trivia") {
     try {
       await llamar(`/api/superadmin/integrantes/${id}`, { body: { accion: a } });
-      if (a === "entrar") { router.push("/"); router.refresh(); } else setErr("Trivia de hoy reiniciada ✔");
+      if (a === "entrar") { router.push("/"); router.refresh(); } else setExito("Trivia de hoy reiniciada ✔");
     } catch (er) { setErr(er instanceof Error ? er.message : "Error"); }
   }
 
   if (!lista) return <p className="text-sm text-suave">Cargando…</p>;
   return (
-    <div className="space-y-2 border-t border-white/10 pt-3">
-      {err && <p className="text-sm text-amber-200">{err}</p>}
+    <div className="space-y-3 border-t border-white/10 pt-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-white/90">Integrantes ({lista.length})</h4>
+        <button
+          type="button"
+          className="btn btn-primario px-3 py-1 text-xs font-semibold"
+          onClick={() => setAgregando((v) => !v)}
+        >
+          {agregando ? "Cancelar carga" : "+ Cargar otro integrante"}
+        </button>
+      </div>
+
+      {exito && <p className="rounded-lg bg-emerald-500/10 p-2 text-xs text-emerald-300 font-semibold">{exito}</p>}
+      {err && <p className="rounded-lg bg-red-500/10 p-2 text-xs text-red-300">{err}</p>}
+
+      {agregando && (
+        <form onSubmit={crearNuevo} className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3 space-y-2 text-sm">
+          <p className="font-bold text-cyan-200 text-xs">Cargar nuevo integrante a la familia:</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input name="nombre" className="input" placeholder="Nombre completo (ej: Juan Pérez)" required />
+            <input name="apodo" className="input" placeholder="Apodo (ej: Juancito)" />
+            <input name="email" type="email" className="input" placeholder="Email (opcional)" />
+            <input name="whatsapp" className="input" placeholder="WhatsApp (ej: 54911...)" />
+            <input name="password" type="text" className="input" defaultValue="123456" placeholder="Clave inicial" required />
+            <select name="rol" className="input" defaultValue="miembro">
+              <option value="miembro">Miembro familiar</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button className="btn btn-primario text-xs">Guardar integrante</button>
+            <button type="button" className="btn text-xs" onClick={() => setAgregando(false)}>Cancelar</button>
+          </div>
+        </form>
+      )}
+
       {lista.length === 0 && <p className="text-sm text-suave">Sin integrantes todavía.</p>}
       {lista.map((u) => (
         <div key={u.id} className="rounded-xl bg-white/5 p-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
             <strong>{u.nombre}</strong>{u.apodo && <span className="text-suave">({u.apodo})</span>}
             <span className="rounded bg-white/10 px-1.5 text-xs">{u.rol}</span>{u.bloqueado && <span className="rounded bg-red-400/20 px-1.5 text-xs text-red-200">bloqueado</span>}
-            <span className="ml-auto text-xs text-suave">{u.email ?? "sin mail"} · {u.whatsapp ? `+${u.whatsapp}` : "sin WhatsApp"}</span>
+            <span className="ml-auto text-xs text-suave">{u.email ?? "sin mail"} · {u.whatsapp ? `📲 +${u.whatsapp}` : "sin WhatsApp"}</span>
           </div>
           {editando === u.id ? (
             <form onSubmit={(e) => guardar(e, u.id)} className="mt-2 grid gap-2 sm:grid-cols-2">
               <input name="nombre" className="input" defaultValue={u.nombre} required />
               <input name="apodo" className="input" defaultValue={u.apodo ?? ""} placeholder="Apodo" />
               <input name="email" type="email" className="input" defaultValue={u.email ?? ""} placeholder="Email" />
-              <input name="whatsapp" className="input" defaultValue={u.whatsapp ?? ""} placeholder="WhatsApp" />
+              <input name="whatsapp" className="input" defaultValue={u.whatsapp ?? ""} placeholder="WhatsApp (ej: 54911...)" />
               <input name="nacimiento" type="date" className="input" defaultValue={u.nacimiento ?? ""} />
               <select name="rol" className="input" defaultValue={u.rol}><option value="miembro">miembro</option><option value="admin">admin</option></select>
-              <input name="password" type="text" className="input sm:col-span-2" placeholder="Nueva clave (dejar vacío para no cambiarla)" minLength={6} autoComplete="off" />
+              <input name="password" type="text" className="input sm:col-span-2" placeholder="Nueva clave (dejar vacío para no cambiarla)" minLength={4} autoComplete="off" />
               <button className="btn btn-primario">Guardar</button><button type="button" className="btn" onClick={() => setEditando(null)}>Cancelar</button>
             </form>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
               <button className="btn px-3 py-1 text-xs" onClick={() => setEditando(u.id)}>Modificar</button>
-              <button className="btn px-3 py-1 text-xs text-cyan-300 font-semibold" onClick={() => blanquearClave(u)} title="Ponerle clave 123456 de inmediato">🔑 Resetear clave (123456)</button>
+              <button className="btn px-3 py-1 text-xs text-cyan-300 font-semibold" onClick={() => blanquearClave(u)} title="Restablecer clave a 123456">🔑 Resetear clave (123456)</button>
               <button className="btn px-3 py-1 text-xs" onClick={() => accion(u.id, "entrar")}>Entrar como…</button>
               <button className="btn px-3 py-1 text-xs" onClick={() => accion(u.id, "reiniciar_trivia")}>Reiniciar trivia</button>
               <button className="btn btn-peligro ml-auto px-3 py-1 text-xs" onClick={() => eliminar(u)}>Eliminar permanente</button>

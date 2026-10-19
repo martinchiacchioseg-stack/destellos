@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { api, json } from "@/lib/http";
 import { db, must } from "@/lib/db";
-import { requerirSuperadmin } from "@/lib/auth";
+import { requerirSuperadmin, hashPassword } from "@/lib/auth";
 import { normalizarCodigo } from "@/lib/grupos";
 import { sumarDias, sumarMeses, hoyAR } from "@/lib/fecha";
 import { ApiError } from "@/lib/env";
 import { borrarArchivos } from "@/lib/storage";
-import { miembrosDelGrupo, publicos } from "@/lib/usuarios";
+import { miembrosDelGrupo, publicos, soloDigitos } from "@/lib/usuarios";
 import type { Grupo } from "@/lib/types";
 
 const Id = z.string().uuid();
@@ -18,6 +18,7 @@ const Editar = z.object({
   codigo: z.string().trim().max(30).optional(),
   admin_nombre: z.string().trim().min(2).max(80).optional(),
   admin_email: z.string().trim().email("Email inválido.").optional(),
+  admin_whatsapp: z.string().trim().max(30).optional().nullable(),
   vence_en: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   /** Atajos de licencia: se suman al vencimiento actual (o a hoy si ya venció). */
   extender_meses: z.union([z.literal(1), z.literal(3), z.literal(12)]).optional(),
@@ -53,14 +54,57 @@ export const PATCH = api(async (req: Request, ctx: { params: Promise<{ id: strin
     throw new Error(`DB: ${up.error.message}`);
   }
 
-  // Mantener sincronizada la cuenta del administrador si cambió su nombre o email.
-  if ((b.admin_email || b.admin_nombre) && actual.admin_email) {
-    const sync: Record<string, string> = {};
+  // Mantener sincronizada la cuenta del administrador si cambió su nombre, email o WhatsApp.
+  if ((b.admin_email || b.admin_nombre || b.admin_whatsapp !== undefined) && actual.id) {
+    const sync: Record<string, string | null> = {};
     if (b.admin_email) sync.email = b.admin_email.toLowerCase();
     if (b.admin_nombre) sync.nombre = b.admin_nombre;
-    await db().from("usuarios").update(sync).eq("grupo_id", id).eq("rol", "admin").ilike("email", actual.admin_email);
+    if (b.admin_whatsapp !== undefined) {
+      sync.whatsapp = b.admin_whatsapp ? soloDigitos(b.admin_whatsapp) : null;
+    }
+    await db().from("usuarios").update(sync).eq("grupo_id", id).eq("rol", "admin");
   }
   return { familia: up.data };
+});
+
+const CrearMiembro = z.object({
+  nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 letras.").max(80),
+  apodo: z.string().trim().max(40).optional().nullable(),
+  email: z.string().trim().email("Email inválido.").optional().nullable(),
+  whatsapp: z.string().trim().max(30).optional().nullable(),
+  password: z.string().trim().min(4, "La clave debe tener al menos 4 caracteres.").max(100).default("123456"),
+  rol: z.enum(["admin", "miembro"]).default("miembro"),
+});
+
+/** Agregar un nuevo integrante directamente a la familia desde el panel Superadmin. */
+export const POST = api(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
+  await requerirSuperadmin();
+  const id = Id.parse((await ctx.params).id);
+  const b = await json(req, CrearMiembro);
+
+  const hash = await hashPassword(b.password);
+  const ws = b.whatsapp ? soloDigitos(b.whatsapp) : null;
+
+  const ins = await db()
+    .from("usuarios")
+    .insert({
+      grupo_id: id,
+      nombre: b.nombre,
+      apodo: b.apodo || null,
+      email: b.email ? b.email.toLowerCase() : null,
+      whatsapp: ws,
+      password_hash: hash,
+      rol: b.rol,
+    })
+    .select("id, nombre, apodo, email, whatsapp, rol")
+    .single();
+
+  if (ins.error) {
+    if (ins.error.code === "23505") throw new ApiError(409, "Ya existe un usuario con ese email en esta familia.");
+    throw new Error(`DB: ${ins.error.message}`);
+  }
+
+  return { ok: true, usuario: ins.data };
 });
 
 /** Eliminación permanente: borra familia, integrantes, destellos y también los archivos del Storage. */

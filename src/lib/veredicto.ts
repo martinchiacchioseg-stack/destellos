@@ -63,14 +63,25 @@ export async function asegurarVeredicto(grupo: Grupo, fecha: string): Promise<Ve
   const previo = must(await db().from("veredictos").select("*").eq("grupo_id", grupo.id).eq("fecha", fecha).limit(1))?.[0];
   if (previo) return previo as Veredicto;
 
-  const destellos = (must(
+  const destellosRaw = (must(
     await db()
       .from("destellos")
-      .select("id,usuario_id,foto_path,descripcion,usuarios(nombre,apodo)")
+      .select("id,usuario_id,foto_path,descripcion")
       .eq("grupo_id", grupo.id)
       .eq("fecha", fecha)
       .order("creado_en"),
-  ) ?? []) as unknown as FilaDestello[];
+  ) ?? []) as { id: string; usuario_id: string; foto_path: string; descripcion: string | null }[];
+
+  const userIds = [...new Set(destellosRaw.map((d) => d.usuario_id))];
+  const { data: usersData } = userIds.length > 0
+    ? await db().from("usuarios").select("id,nombre,apodo").in("id", userIds)
+    : { data: [] };
+  const userMap = new Map((usersData ?? []).map((u: any) => [u.id, u]));
+
+  const destellos: FilaDestello[] = destellosRaw.map((d) => ({
+    ...d,
+    usuarios: userMap.get(d.usuario_id) || null,
+  }));
 
   let ganador: FilaDestello | null = null;
   let texto: string;

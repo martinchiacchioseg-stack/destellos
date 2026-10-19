@@ -13,7 +13,7 @@ export const GET = api(async () => {
   await requerirSuperadmin();
   const [gs, us, ds] = await Promise.all([
     db().from("grupos").select("*").order("creado_en", { ascending: false }),
-    db().from("usuarios").select("grupo_id"),
+    db().from("usuarios").select("grupo_id,rol,whatsapp"),
     db().from("destellos").select("grupo_id"),
   ]);
   const cuenta = (rows: { grupo_id: string }[] | null) => {
@@ -22,8 +22,13 @@ export const GET = api(async () => {
     return m;
   };
   const cu = cuenta(us.data), cd = cuenta(ds.data);
+  const adminWspMap = new Map(
+    (us.data ?? []).filter((u: any) => u.rol === "admin" && u.whatsapp).map((u: any) => [u.grupo_id, u.whatsapp])
+  );
+
   const familias = ((must(gs) ?? []) as Grupo[]).map((g) => ({
     ...g,
+    admin_whatsapp: adminWspMap.get(g.id) ?? null,
     estado: estadoLicencia(g),
     dias_restantes: diasHasta(g.vence_en),
     integrantes: cu.get(g.id) ?? 0,
@@ -38,12 +43,13 @@ const Crear = z.object({
   hora_limite: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora límite inválida (HH:MM).").default("22:00"),
   admin_nombre: z.string().trim().min(2, "Falta el nombre del administrador.").max(80),
   admin_email: z.string().trim().email("Email del administrador inválido."),
+  admin_whatsapp: z.string().trim().max(30).optional(),
   admin_password: z.string().trim().min(4, "La clave debe tener al menos 4 caracteres.").max(100).optional(),
   codigo: z.string().trim().max(30).optional(),
   meses: z.union([z.literal(1), z.literal(3), z.literal(12)]).default(3),
 });
 
-/** Crea una familia + su administrador. La clave temporal se muestra UNA vez al superadmin. */
+/** Crea una familia + su administrador con WhatsApp y clave inicial. */
 export const POST = api(async (req: Request) => {
   await requerirSuperadmin();
   const b = await json(req, Crear);
@@ -66,10 +72,12 @@ export const POST = api(async (req: Request) => {
   const grupo = ins.data as Grupo;
 
   const claveAdmin = b.admin_password?.trim() || "123456";
+  const wsp = b.admin_whatsapp ? b.admin_whatsapp.replace(/\D/g, "") : null;
   const adm = await db().from("usuarios").insert({
     grupo_id: grupo.id,
     nombre: b.admin_nombre,
     email: b.admin_email.toLowerCase(),
+    whatsapp: wsp,
     rol: "admin",
     password_hash: await hashPassword(claveAdmin),
   });

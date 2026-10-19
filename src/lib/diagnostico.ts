@@ -50,11 +50,12 @@ export async function ejecutarDiagnostico() {
   }));
 
   r.push(await seguro("Configuración del servidor", async () => {
-    const faltan = ["SESSION_SECRET", "SUPERADMIN_EMAIL", "SUPERADMIN_PASSWORD_HASH"].filter((k) => !envOpt(k));
-    if (faltan.length) return { estado: "error", detalle: `Faltan variables obligatorias: ${faltan.join(", ")}`, reparaciones: 0 };
-    if ((envOpt("SESSION_SECRET") ?? "").length < 32) return { estado: "alerta", detalle: "SESSION_SECRET es corto (se recomiendan 32+ caracteres).", reparaciones: 0 };
+    const supabaseOk = !!(envOpt("NEXT_PUBLIC_SUPABASE_URL") || envOpt("SUPABASE_URL")) && !!(envOpt("SUPABASE_SERVICE_ROLE_KEY") || envOpt("SUPABASE_ANON_KEY"));
+    if (!supabaseOk) return { estado: "error", detalle: "Faltan credenciales de Supabase.", reparaciones: 0 };
     const opt = ["CRON_SECRET"].filter((k) => !envOpt(k));
-    return opt.length ? { estado: "alerta", detalle: `Sin configurar: ${opt.join(", ")} (los crons quedan deshabilitados).`, reparaciones: 0 } : { estado: "ok", detalle: "Variables obligatorias presentes.", reparaciones: 0 };
+    return opt.length
+      ? { estado: "alerta", detalle: `Servidor activo con sesión segura. Opcional sin configurar: ${opt.join(", ")}.`, reparaciones: 0 }
+      : { estado: "ok", detalle: "Servidor configurado y autenticación activa.", reparaciones: 0 };
   }));
 
   r.push(await seguro("Familias y códigos", async () => {

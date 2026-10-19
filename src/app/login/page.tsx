@@ -14,7 +14,7 @@ interface Miembro {
   foto_url: string | null;
 }
 
-type Vista = 'codigo' | 'elegir' | 'clave' | 'identificador' | 'registro' | 'recuperar' | 'recuperar2';
+type Vista = 'codigo' | 'elegir' | 'clave' | 'identificador' | 'registro' | 'recuperar' | 'recuperar2' | 'cambiar_clave';
 
 const LS_CODIGO = 'destellos_codigo_familia';
 const LS_USUARIO = 'destellos_usuario_recordado';
@@ -58,6 +58,8 @@ export default function Login() {
   const [elegido, setElegido] = useState<Miembro | null>(null);
   const [ident, setIdent] = useState('');
   const [clave, setClave] = useState('');
+  const [nuevaClave, setNuevaClave] = useState('');
+  const [confirmarNuevaClave, setConfirmarNuevaClave] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -142,7 +144,7 @@ export default function Login() {
   const ingresar = (e: React.FormEvent) => {
     e.preventDefault();
     accion(async () => {
-      const res = await llamar<{ ok?: boolean }>('/api/auth/login', {
+      const res = await llamar<{ ok?: boolean; debeCambiarClave?: boolean }>('/api/auth/login', {
         body: { codigo, usuarioId: elegido?.id, identificador: elegido ? undefined : ident, password: clave },
       });
 
@@ -154,6 +156,35 @@ export default function Login() {
         } catch {}
       }
 
+      if (res.debeCambiarClave) {
+        setClave('');
+        setNuevaClave('');
+        setConfirmarNuevaClave('');
+        setVista('cambiar_clave');
+        return;
+      }
+
+      router.push('/');
+      router.refresh();
+    });
+  };
+
+  const guardarNuevaClave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (nuevaClave.length < 4) {
+      setError('La clave debe tener al menos 4 caracteres.');
+      return;
+    }
+    if (nuevaClave === '123456') {
+      setError('Por seguridad, elegí una clave diferente a "123456".');
+      return;
+    }
+    if (nuevaClave !== confirmarNuevaClave) {
+      setError('Las contraseñas no coinciden. Verificalas.');
+      return;
+    }
+    accion(async () => {
+      await llamar('/api/auth/cambiar-clave', { body: { password: nuevaClave } });
       router.push('/');
       router.refresh();
     });
@@ -525,6 +556,51 @@ export default function Login() {
                   />
                   <button className="btn btn-primario w-full" disabled={cargando}>
                     {cargando ? 'Guardando…' : 'Cambiar clave'}
+                  </button>
+                </form>
+              )}
+
+              {/* VISTA 8: CAMBIO OBLIGATORIO DE CLAVE EN PRIMER INGRESO */}
+              {vista === 'cambiar_clave' && (
+                <form onSubmit={guardarNuevaClave} className="space-y-4">
+                  <div className="flex flex-col items-center gap-2 py-2 text-center">
+                    <div className="grid place-items-center w-14 h-14 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                      <KeyRound size={28} />
+                    </div>
+                    <strong className="text-base text-white font-extrabold">
+                      ¡Hola{elegido ? ` ${elegido.apodo || elegido.nombre}` : ''}! Creá tu clave personal
+                    </strong>
+                    <p className="text-xs text-slate-300">
+                      Por seguridad, como ingresaste con la clave inicial (<strong>123456</strong>), definí tu contraseña propia para tus próximos ingresos.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <input
+                      className="input text-center text-base font-semibold tracking-wider"
+                      type="password"
+                      placeholder="Nueva contraseña (mín. 4 caracteres)"
+                      value={nuevaClave}
+                      onChange={(e) => setNuevaClave(e.target.value)}
+                      minLength={4}
+                      required
+                      autoFocus
+                      autoComplete="new-password"
+                    />
+                    <input
+                      className="input text-center text-base font-semibold tracking-wider"
+                      type="password"
+                      placeholder="Confirmá tu nueva contraseña"
+                      value={confirmarNuevaClave}
+                      onChange={(e) => setConfirmarNuevaClave(e.target.value)}
+                      minLength={4}
+                      required
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <button className="btn btn-primario w-full font-black text-sm tracking-wide" disabled={cargando}>
+                    {cargando ? 'Guardando clave…' : 'Guardar mi clave y entrar a Destellos 🚀'}
                   </button>
                 </form>
               )}

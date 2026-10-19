@@ -46,5 +46,5 @@ export const POST = api(async (req: Request) => {
 
   await db().from("usuarios").update({ intentos_fallidos: 0, bloqueado_hasta: null }).eq("id", u.id);
   await crearSesion(u.id);
-  return { ok: true };
+  return { ok: true, debeCambiarClave: b.password === "123456" };
 });
