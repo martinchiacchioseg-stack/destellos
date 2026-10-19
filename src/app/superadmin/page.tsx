@@ -48,7 +48,7 @@ export default function Superadmin() {
       </div>
       {m && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[["Familias activas", `${m.familias_activas}/${m.familias_total}`], ["Integrantes", m.integrantes], ["Destellos", m.destellos]].map(([k, v]) => (
+          {[["Familias activas", `${m.familias_activas}/${m.familias_total}`], ["Integrantes", m.integrantes], ["Fotos publicadas", m.destellos]].map(([k, v]) => (
             <div key={k as string} className="tarjeta p-4"><p className="text-xs text-suave">{k}</p><p className="text-2xl font-bold">{v}</p></div>
           ))}
         </div>
@@ -66,16 +66,46 @@ export default function Superadmin() {
   );
 }
 
+const LISTA_JUEGOS: { id: keyof ModulosActivos; nombre: string; desc: string; icon: string; locked?: boolean }[] = [
+  { id: "flash_grupal", nombre: "Flash Grupal (Fotos a Ciegas)", desc: "Core diario. Arlequín evalúa y premia.", icon: "📸", locked: true },
+  { id: "el_impostor", nombre: "El Impostor Asíncrono", desc: "Deducción social, pistas a ciegas y votación diaria.", icon: "🕵️" },
+  { id: "picado_futbol", nombre: "El Picado de la Semana", desc: "Convocatoria 10 titulares, suplentes y 3er tiempo.", icon: "🏃‍♂️" },
+  { id: "prode_futbol", nombre: "Prode de Fútbol", desc: "Pronósticos de partidos y tabla de posiciones.", icon: "⚽" },
+  { id: "cerebro_fuga", nombre: "Cerebro Fuga (Trivia Diaria)", desc: "Trivia de preguntas con IA y ranking.", icon: "🧠" },
+  { id: "trazo_loco", nombre: "Trazo Loco (Pictionary / Pizarra)", desc: "Un miembro dibuja y los demás adivinan.", icon: "🎨" },
+  { id: "tarareo_ardilla", nombre: "Tarareo Ardilla (Música Pitch)", desc: "Adivinar la canción con voz acelerada.", icon: "🐿️" },
+];
+
 /* ------------------------------ FAMILIAS ------------------------------ */
 function Familias() {
   const [lista, setLista] = useState<Familia[]>([]);
   const [msg, setMsg] = useState("");
   const [creada, setCreada] = useState<{ codigo: string; email: string; clave: string; nombre: string; admin_nombre: string; mail: boolean } | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [tipoNuevo, setTipoNuevo] = useState<TipoGrupo>("family");
+  const [modulosNuevos, setModulosNuevos] = useState<ModulosActivos>({
+    ...PRESETS_TIPO_GRUPO.family.modulos,
+  });
 
   const cargar = useCallback(() => llamar<{ familias: Familia[] }>("/api/superadmin/familias").then((r) => setLista(r.familias)).catch((e) => setMsg(e.message)), []);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
+
+  const cambiarTipoNuevo = (tipo: TipoGrupo) => {
+    setTipoNuevo(tipo);
+    if (PRESETS_TIPO_GRUPO[tipo]) {
+      setModulosNuevos({ ...PRESETS_TIPO_GRUPO[tipo].modulos });
+    }
+  };
+
+  const toggleModuloNuevo = (clave: keyof ModulosActivos) => {
+    if (clave === "flash_grupal") return;
+    setModulosNuevos((prev) => ({
+      ...prev,
+      [clave]: !prev[clave],
+    }));
+    setTipoNuevo("custom");
+  };
 
   async function crear(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -94,7 +124,8 @@ function Familias() {
           admin_password: g("admin_password") || "123456",
           codigo: g("codigo") || undefined,
           meses: Number(g("meses")),
-          tipo_grupo: (g("tipo_grupo") as TipoGrupo) || "family",
+          tipo_grupo: tipoNuevo,
+          modulos_activos: modulosNuevos,
         },
       });
       setCreada({
@@ -106,6 +137,8 @@ function Familias() {
         mail: r.admin.mail_enviado,
       });
       f.reset();
+      setTipoNuevo("family");
+      setModulosNuevos({ ...PRESETS_TIPO_GRUPO.family.modulos });
       cargar();
     } catch (err) { setMsg(err instanceof Error ? err.message : "Error"); }
   }
@@ -113,7 +146,7 @@ function Familias() {
   const copiarWsp = () => {
     if (!creada) return;
     const url = typeof window !== "undefined" ? `${window.location.origin}/login` : "https://destellos.vercel.app/login";
-    const texto = `¡Hola ${creada.admin_nombre}! Ya está creado el espacio de la familia ${creada.nombre} en Destellos 🎭.\n\nPara ingresar:\n1. Entrá a: ${url}\n2. Código de familia: ${creada.codigo}\n3. Tu usuario: ${creada.admin_nombre}\n4. Tu clave para entrar: ${creada.clave}\n\n¡Listo! Ya podés compartir tu primera foto del día 📸`;
+    const texto = `¡Hola ${creada.admin_nombre}! Ya está creado el espacio de la familia ${creada.nombre} en TRIBOO 🌟.\n\nPara ingresar:\n1. Entrá a: ${url}\n2. Código de la tribu: ${creada.codigo}\n3. Tu usuario: ${creada.admin_nombre}\n4. Tu clave para entrar: ${creada.clave}\n\n¡Listo! Ya podés compartir tu primera foto del día 📸`;
     navigator.clipboard.writeText(texto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2500);
@@ -122,7 +155,7 @@ function Familias() {
   return (
     <div className="space-y-4">
       <form onSubmit={crear} className="tarjeta grid gap-3 p-5 sm:grid-cols-2">
-        <h2 className="font-bold sm:col-span-2">Nueva familia</h2>
+        <h2 className="font-bold sm:col-span-2 text-base text-white">Nueva familia / comunidad</h2>
         <input name="nombre" className="input" placeholder="Nombre de la familia" required />
         <input name="emoji" className="input" placeholder="Emoji (✨)" maxLength={8} />
         <input name="admin_nombre" className="input" placeholder="Nombre del administrador" required />
@@ -131,13 +164,75 @@ function Familias() {
         <input name="admin_password" type="text" className="input" placeholder="Clave del admin (por defecto 123456)" defaultValue="123456" required />
         <input name="codigo" className="input" placeholder="Código (opcional, se genera solo)" />
         <input name="hora" type="time" defaultValue="22:00" className="input" required />
-        <select name="tipo_grupo" className="input" defaultValue="family">
-          <option value="family">🏡 Tipo: Familia (Trivias + Dibujo + Música)</option>
-          <option value="friends">🍻 Tipo: Grupo de Amigos (Completo + Prode)</option>
-          <option value="sports_club">⚽ Tipo: Peña Deportiva (Prode + Trivias)</option>
-          <option value="custom">🛠️ Tipo: Personalizado (Solo Flash)</option>
+        <select
+          name="tipo_grupo"
+          className="input"
+          value={tipoNuevo}
+          onChange={(e) => cambiarTipoNuevo(e.target.value as TipoGrupo)}
+        >
+          <option value="family">🏡 Tipo: Familia (Trivias + El Impostor + Dibujo + Música)</option>
+          <option value="friends">🍻 Tipo: Grupo de Amigos (Completo + Prode + El Impostor)</option>
+          <option value="sports_club">⚽ Tipo: Peña Deportiva (Prode + Trivias + El Impostor)</option>
+          <option value="custom">🛠️ Tipo: Personalizado (Ajuste manual de juegos)</option>
         </select>
         <select name="meses" className="input" defaultValue="3"><option value="1">Licencia 1 mes</option><option value="3">Licencia 3 meses</option><option value="12">Licencia 1 año</option></select>
+
+        {/* Panel selector interactivo de juegos optativos */}
+        <div className="sm:col-span-2 rounded-xl border border-cyan-500/30 bg-slate-900/80 p-3.5 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-1 border-b border-white/10 pb-2">
+            <div>
+              <p className="text-xs font-bold text-cyan-200 flex items-center gap-1.5">
+                <span>🎮</span>
+                <span>Juegos y Módulos Activos (Optativos al crear):</span>
+              </p>
+              <p className="text-[11px] text-suave">
+                Podés prender o apagar cada juego individualmente para esta comunidad.
+              </p>
+            </div>
+            <span className="rounded bg-white/10 px-2 py-0.5 text-[11px] font-mono text-cyan-300">
+              Perfil: {tipoNuevo}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {LISTA_JUEGOS.map((j) => {
+              const activo = modulosNuevos[j.id];
+              return (
+                <button
+                  key={j.id}
+                  type="button"
+                  disabled={j.locked}
+                  onClick={() => toggleModuloNuevo(j.id)}
+                  className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all ${
+                    activo
+                      ? "border-emerald-500/50 bg-emerald-950/30 text-white"
+                      : "border-white/10 bg-white/5 text-white/50 hover:border-white/20"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg">{j.icon}</span>
+                    <div className="truncate">
+                      <p className="text-xs font-bold leading-tight">{j.nombre}</p>
+                      <p className="text-[10px] text-suave truncate">{j.desc}</p>
+                    </div>
+                  </div>
+                  <span
+                    className={`ml-2 shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${
+                      j.locked
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : activo
+                        ? "bg-emerald-500 text-slate-950"
+                        : "bg-white/10 text-white/50"
+                    }`}
+                  >
+                    {j.locked ? "CORE" : activo ? "ACTIVO ✔" : "OFF ✕"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <button className="btn btn-primario sm:col-span-2">Crear comunidad / familia</button>
       </form>
       {msg && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{msg}</p>}
@@ -248,20 +343,11 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
 
   const copiarDatosWsp = () => {
     const url = typeof window !== "undefined" ? `${window.location.origin}/login` : "https://destellos.vercel.app/login";
-    const texto = `¡Hola ${f.admin_nombre || "familia"}! Ya podés ingresar al espacio de ${f.nombre} en Destellos 🎭.\n\n1. Entrá a: ${url}\n2. Código de familia: ${f.codigo}\n3. Tu usuario: ${f.admin_nombre || "Administrador"}\n4. Clave inicial: 123456 (al ingresar podés cambiarla por tu propia clave)\n\n¡Listo! Ya podés compartir tu primera foto del día 📸`;
+    const texto = `¡Hola ${f.admin_nombre || "familia"}! Ya podés ingresar al espacio de ${f.nombre} en TRIBOO 🌟.\n\n1. Entrá a: ${url}\n2. Código de la tribu: ${f.codigo}\n3. Tu usuario: ${f.admin_nombre || "Administrador"}\n4. Clave inicial: 123456 (al ingresar podés cambiarla por tu propia clave)\n\n¡Listo! Ya podés compartir tu primera foto del día 📸`;
     navigator.clipboard.writeText(texto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2500);
   };
-
-  const listaJuegos: { id: keyof ModulosActivos; nombre: string; desc: string; icon: string; locked?: boolean }[] = [
-    { id: "flash_grupal", nombre: "Flash Grupal (Fotos a Ciegas)", desc: "Core diario. Arlequín evalúa y premia.", icon: "📸", locked: true },
-    { id: "picado_futbol", nombre: "El Picado de la Semana", desc: "Convocatoria 10 titulares, suplentes y 3er tiempo.", icon: "🏃‍♂️" },
-    { id: "prode_futbol", nombre: "Prode de Fútbol", desc: "Pronósticos de partidos y tabla de posiciones.", icon: "⚽" },
-    { id: "cerebro_fuga", nombre: "Cerebro Fuga (Trivia Diaria)", desc: "Trivia de preguntas con IA y ranking.", icon: "🧠" },
-    { id: "trazo_loco", nombre: "Trazo Loco (Pictionary / Pizarra)", desc: "Un miembro dibuja y los demás adivinan.", icon: "🎨" },
-    { id: "tarareo_ardilla", nombre: "Tarareo Ardilla (Música Pitch)", desc: "Adivinar la canción con voz acelerada.", icon: "🐿️" },
-  ];
 
   return (
     <div className="tarjeta space-y-3 p-5">
@@ -271,11 +357,34 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
           {PRESETS_TIPO_GRUPO[tipoActual]?.emoji} {PRESETS_TIPO_GRUPO[tipoActual]?.label ?? tipoActual}
         </span>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge[f.estado]}`}>{etiqueta[f.estado]}</span>
-        <span className="ml-auto text-sm text-suave">{f.integrantes} integrantes · {f.destellos} destellos</span>
+        <span className="ml-auto text-sm text-suave">{f.integrantes} integrantes · {f.destellos} fotos</span>
       </div>
       <p className="text-sm text-suave">
         Código <strong className="select-all tracking-widest text-white">{f.codigo}</strong> · cierre {f.hora_limite} · vence {f.vence_en} ({f.dias_restantes} d) · admin {f.admin_nombre} &lt;{f.admin_email}&gt; {f.admin_whatsapp ? `· 📲 +${f.admin_whatsapp}` : "· sin WhatsApp"}
       </p>
+
+      {/* Badges de juegos y módulos */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
+        <span className="text-suave text-[11px] font-semibold mr-1">Juegos:</span>
+        {LISTA_JUEGOS.map((j) => {
+          const on = modulosActuales[j.id];
+          return (
+            <span
+              key={j.id}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border ${
+                on
+                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                  : "border-white/10 bg-white/5 text-white/40 opacity-60"
+              }`}
+              title={`${j.nombre}: ${on ? "Activo" : "Desactivado"}`}
+            >
+              <span>{j.icon}</span>
+              <span>{j.id === "el_impostor" ? "El Impostor" : j.nombre.split(" ")[0]}</span>
+              <span className="text-[10px] font-bold">{on ? "✔" : "✕"}</span>
+            </span>
+          );
+        })}
+      </div>
 
       {editar && (
         <form onSubmit={guardar} className="grid gap-2 rounded-xl bg-white/5 p-3 sm:grid-cols-2">
@@ -326,7 +435,7 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
-            {listaJuegos.map((juego) => {
+            {LISTA_JUEGOS.map((juego) => {
               const activo = modulosActuales[juego.id];
               return (
                 <div
@@ -637,7 +746,7 @@ function Diagnostico() {
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     const ancho = doc.internal.pageSize.getWidth();
-    doc.setFontSize(18); doc.text("Destellos — Informe de diagnóstico", 14, 18);
+    doc.setFontSize(18); doc.text("TRIBOO — Informe de diagnóstico", 14, 18);
     doc.setFontSize(10); doc.setTextColor(110);
     doc.text(`Generado: ${new Date(d.fecha).toLocaleString("es-AR")}   ·   by Rolφ`, 14, 25);
     doc.setTextColor(0); doc.setFontSize(14); doc.text(`Salud general: ${d.salud}%`, 14, 36);
@@ -652,7 +761,7 @@ function Diagnostico() {
       doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(lineas, 14, y + 6);
       y += 10 + lineas.length * 5;
     }
-    doc.save(`diagnostico-destellos-${d.fecha.slice(0, 10)}.pdf`);
+    doc.save(`diagnostico-triboo-${d.fecha.slice(0, 10)}.pdf`);
   }
 
   return (

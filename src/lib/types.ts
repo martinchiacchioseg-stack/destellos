@@ -7,6 +7,7 @@ export interface ModulosActivos {
   tarareo_ardilla: boolean;
   trazo_loco: boolean;
   cerebro_fuga: boolean;
+  el_impostor: boolean;
 }
 
 export const MODULOS_DEFECTO: ModulosActivos = {
@@ -16,30 +17,82 @@ export const MODULOS_DEFECTO: ModulosActivos = {
   tarareo_ardilla: true,
   trazo_loco: true,
   cerebro_fuga: true,
+  el_impostor: true,
 };
 
 export const PRESETS_TIPO_GRUPO: Record<TipoGrupo, { label: string; emoji: string; modulos: ModulosActivos }> = {
   family: {
     label: "Familia",
     emoji: "🏡",
-    modulos: { flash_grupal: true, prode_futbol: false, picado_futbol: false, tarareo_ardilla: true, trazo_loco: true, cerebro_fuga: true },
+    modulos: { flash_grupal: true, prode_futbol: false, picado_futbol: false, tarareo_ardilla: true, trazo_loco: true, cerebro_fuga: true, el_impostor: true },
   },
   friends: {
     label: "Grupo de Amigos",
     emoji: "🍻",
-    modulos: { flash_grupal: true, prode_futbol: true, picado_futbol: true, tarareo_ardilla: true, trazo_loco: true, cerebro_fuga: true },
+    modulos: { flash_grupal: true, prode_futbol: true, picado_futbol: true, tarareo_ardilla: true, trazo_loco: true, cerebro_fuga: true, el_impostor: true },
   },
   sports_club: {
     label: "Peña Deportiva / Fútbol",
     emoji: "⚽",
-    modulos: { flash_grupal: true, prode_futbol: true, picado_futbol: true, tarareo_ardilla: false, trazo_loco: false, cerebro_fuga: true },
+    modulos: { flash_grupal: true, prode_futbol: true, picado_futbol: true, tarareo_ardilla: false, trazo_loco: false, cerebro_fuga: true, el_impostor: true },
   },
   custom: {
     label: "Personalizado",
     emoji: "🛠️",
-    modulos: { flash_grupal: true, prode_futbol: false, picado_futbol: false, tarareo_ardilla: false, trazo_loco: false, cerebro_fuga: false },
+    modulos: { flash_grupal: true, prode_futbol: false, picado_futbol: false, tarareo_ardilla: false, trazo_loco: false, cerebro_fuga: false, el_impostor: false },
   },
 };
+
+export type EstadoImpostor = "fase_1_pistas" | "fase_2_votacion" | "fase_3_resolucion" | "cancelada";
+
+export interface ImpostorConfiguracion {
+  grupo_id: string;
+  activo: boolean;
+  modo_seguro: boolean;
+  cantidad_impostores: number;
+  dias_no_repeticion: number;
+  hora_inicio: string;
+  hora_revelacion: string;
+  hora_cierre: string;
+  puntos_civil_acierta: number;
+  puntos_impostor_engana: number;
+  puntos_tiro_gracia: number;
+  penalizacion_sin_pista: number;
+  penalizacion_sin_voto: number;
+  compensacion_civil_cancelada: number;
+}
+
+export interface ImpostorPartida {
+  id: string;
+  grupo_id: string;
+  fecha: string;
+  estado: EstadoImpostor;
+  palabra_secreta?: string;
+  categoria: string;
+  modo_seguro_usado: boolean;
+  ganador?: "civiles" | "impostor" | "ninguno" | null;
+  tiro_gracia_intento?: string | null;
+  tiro_gracia_acertado?: boolean | null;
+  motivo_cancelacion?: string | null;
+  creado_en: string;
+  cerrado_en?: string | null;
+}
+
+export interface ImpostorJugador {
+  id: string;
+  partida_id: string;
+  usuario_id: string;
+  nombre?: string;
+  apodo?: string | null;
+  rol: "civil" | "impostor";
+  pista_texto?: string | null;
+  pista_foto_url?: string | null;
+  pista_enviada_at?: string | null;
+  voto_sospechoso_id?: string | null;
+  voto_enviado_at?: string | null;
+  puntos_obtenidos: number;
+  motivo_puntos?: string | null;
+}
 
 export type EstadoPicado =
   | "convocatoria_abierta"

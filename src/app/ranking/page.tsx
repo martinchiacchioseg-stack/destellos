@@ -23,7 +23,6 @@ export default function Ranking() {
     <>
       <Navegacion />
       <main className="mx-auto max-w-xl space-y-4 px-4 py-6">
-        <MarquesinaArlequin />
         <h1 className="text-center text-2xl font-extrabold">🏆 Ranking familiar</h1>
         <div className="mx-auto flex w-fit gap-1 rounded-xl bg-white/5 p-1">
           {(["total", "semana"] as const).map((m) => (

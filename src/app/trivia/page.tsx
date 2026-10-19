@@ -87,7 +87,7 @@ export default function Trivia() {
 
   function compartir() {
     if (!v) return;
-    const t = `🎭 Trivia de Arlequín (${NIVELES[v.nivel].etiqueta}): ${v.acerto ? `¡acerté! +${v.puntos} punto(s) 🎉` : "hoy no me salió, pero mañana hay revancha 💪"}\n¿Te animás? #Destellos`;
+    const t = `🎭 Trivia de Arlequín (${NIVELES[v.nivel].etiqueta}): ${v.acerto ? `¡acerté! +${v.puntos} punto(s) 🎉` : "hoy no me salió, pero mañana hay revancha 💪"}\n¿Te animás? #TRIBOO`;
     window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, "_blank", "noopener");
   }
 
@@ -99,7 +99,6 @@ export default function Trivia() {
     <>
       <Navegacion />
       <main className="mx-auto max-w-xl space-y-4 px-4 py-6">
-        <MarquesinaArlequin />
         <h1 className="text-center text-2xl font-extrabold">🧠 Trivia de Arlequín</h1>
         {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
 

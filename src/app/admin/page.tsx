@@ -14,6 +14,9 @@ import {
   Trash2,
   Edit3,
   Shield,
+  ShieldAlert,
+  Eye,
+  AlertTriangle,
   Sparkles,
   Bell,
   Phone,
@@ -80,7 +83,7 @@ export default function PanelFamilia() {
 
   const compartirWhatsAppFamilia = () => {
     if (!d) return;
-    const texto = `¡Hola a todos! 👋 Les comparto el link para entrar a nuestro espacio de la familia ${d.grupo.nombre} en Destellos 📸🎭:\n\n👉 ${linkInvitacion}\n\nCódigo de familia: *${d.grupo.codigo}*\n¡Entren para compartir la foto del día y ver los destellos de hoy! ✨`;
+    const texto = `¡Hola a todos! 👋 Les comparto el link para entrar a nuestro espacio de la familia ${d.grupo.nombre} en TRIBOO 📸🎭:\n\n👉 ${linkInvitacion}\n\nCódigo de familia: *${d.grupo.codigo}*\n¡Entren para compartir la foto del día con toda la Tribu! ✨`;
     const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, "_blank");
   };
@@ -88,7 +91,7 @@ export default function PanelFamilia() {
   const enviarInvitacionPersonalizada = (u: Integrante) => {
     if (!d) return;
     const nombre = u.apodo || u.nombre;
-    const texto = `¡Hola ${nombre}! 👋 Te invito a unirte a nuestro espacio familiar ${d.grupo.nombre} en Destellos 📸🎭.\n\nPara ingresar:\n1. Entrá a este enlace: ${linkInvitacion}\n2. Tu usuario: *${u.nombre}*\n3. Clave inicial: *123456* (al entrar por primera vez creás tu propia clave privada)\n\n¡Te esperamos para compartir la foto del día! ✨`;
+    const texto = `¡Hola ${nombre}! 👋 Te invito a unirte a nuestro espacio familiar ${d.grupo.nombre} en TRIBOO 📸🎭.\n\nPara ingresar:\n1. Entrá a este enlace: ${linkInvitacion}\n2. Tu usuario: *${u.nombre}*\n3. Clave inicial: *123456* (al entrar por primera vez creás tu propia clave privada)\n\n¡Te esperamos para compartir la foto del día! ✨`;
 
     navigator.clipboard.writeText(texto);
     setCopiadoInvitacion(u.id);
@@ -104,7 +107,7 @@ export default function PanelFamilia() {
   const mandarMensajeWhatsApp = (u: Integrante) => {
     if (!u.whatsapp || !d) return;
     const cleanWsp = u.whatsapp.replace(/\D/g, "");
-    const texto = `¡Hola ${u.apodo || u.nombre}! Te escribo desde nuestro espacio familiar ${d.grupo.nombre} en Destellos 📸`;
+    const texto = `¡Hola ${u.apodo || u.nombre}! Te escribo desde nuestro espacio familiar ${d.grupo.nombre} en TRIBOO 📸`;
     const url = `https://wa.me/${cleanWsp}?text=${encodeURIComponent(texto)}`;
     window.open(url, "_blank");
   };
@@ -255,9 +258,9 @@ export default function PanelFamilia() {
             </section>
 
             {/* TARJETA DE INVITACIÓN DIRECTA */}
-            <section className="tarjeta space-y-3 p-5 border-fuchsia-500/30 bg-fuchsia-950/20">
+            <section className="tarjeta space-y-3 p-5 border-orange-500/30 bg-orange-950/20">
               <div className="flex items-center gap-2">
-                <Share2 size={20} className="text-fuchsia-400" />
+                <Share2 size={20} className="text-orange-400" />
                 <h2 className="text-base font-extrabold text-white">Link de invitación a la familia</h2>
               </div>
               <p className="text-xs text-slate-300">
@@ -374,7 +377,7 @@ export default function PanelFamilia() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={u.foto_url} alt="" className="h-12 w-12 rounded-full object-cover border border-white/20 shadow-md" />
                         ) : (
-                          <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-cyan-400/30 to-fuchsia-500/30 font-black text-white text-base shadow-md border border-white/10">
+                          <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-orange-500/30 to-amber-400/30 font-black text-white text-base shadow-md border border-white/10">
                             {u.nombre[0].toUpperCase()}
                           </span>
                         )}
@@ -389,7 +392,7 @@ export default function PanelFamilia() {
                               </span>
                             )}
                             {esYo && (
-                              <span className="rounded bg-fuchsia-400/20 px-2 py-0.5 text-[11px] font-bold text-fuchsia-200 border border-fuchsia-400/30">
+                              <span className="rounded bg-orange-500/20 px-2 py-0.5 text-[11px] font-bold text-orange-200 border border-orange-500/30">
                                 Vos
                               </span>
                             )}
@@ -507,6 +510,9 @@ export default function PanelFamilia() {
               </div>
             </section>
 
+            {/* CONFIGURACIÓN DE EL IMPOSTOR ASÍNCRONO */}
+            <ConfiguracionImpostorAdmin esAdmin={d.esAdmin} />
+
             {/* SECCIÓN AVISOS */}
             <section className="tarjeta space-y-2 p-5">
               <div className="flex items-center justify-between">
@@ -533,3 +539,346 @@ export default function PanelFamilia() {
     </>
   );
 }
+
+/* ------------------ CONFIGURACIÓN DE EL IMPOSTOR ASÍNCRONO ------------------ */
+function ConfiguracionImpostorAdmin({ esAdmin }: { esAdmin: boolean }) {
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [config, setConfig] = useState<any>(null);
+  const [historial, setHistorial] = useState<any[]>([]);
+  const [modalSeguro, setModalSeguro] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  // Estados locales de configuración
+  const [activo, setActivo] = useState(false);
+  const [modoSeguro, setModoSeguro] = useState(true);
+  const [horaRevelacion, setHoraRevelacion] = useState("19:00");
+  const [horaCierre, setHoraCierre] = useState("22:00");
+  const [diasNoRepeticion, setDiasNoRepeticion] = useState(60);
+  const [ptsCivil, setPtsCivil] = useState(5);
+  const [ptsImpostor, setPtsImpostor] = useState(10);
+  const [ptsTiro, setPtsTiro] = useState(7);
+
+  const cargar = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/impostor");
+      const data = await res.json();
+      if (data.config) {
+        setConfig(data.config);
+        setActivo(data.config.activo);
+        setModoSeguro(data.config.modo_seguro);
+        setHoraRevelacion(data.config.hora_revelacion || "19:00");
+        setHoraCierre(data.config.hora_cierre || "22:00");
+        setDiasNoRepeticion(data.config.dias_no_repeticion || 60);
+        setPtsCivil(data.config.puntos_civil_acierta ?? 5);
+        setPtsImpostor(data.config.puntos_impostor_engana ?? 10);
+        setPtsTiro(data.config.puntos_tiro_gracia ?? 7);
+      }
+      if (Array.isArray(data.historial)) {
+        setHistorial(data.historial);
+      }
+    } catch (e) {
+      console.warn("Error cargando config impostor:", e);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  const handleToggleModoSeguro = () => {
+    if (!esAdmin) return;
+    // Si está activo y quiere desactivarlo -> mostrar modal de advertencia clara
+    if (modoSeguro) {
+      setModalSeguro(true);
+    } else {
+      setModoSeguro(true);
+    }
+  };
+
+  const confirmarModoLibre = () => {
+    setModoSeguro(false);
+    setModalSeguro(false);
+  };
+
+  const guardarConfiguracion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!esAdmin) return;
+    setGuardando(true);
+    setAviso(null);
+
+    try {
+      const res = await fetch("/api/admin/impostor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activo,
+          modo_seguro: modoSeguro,
+          hora_revelacion: horaRevelacion,
+          hora_cierre: horaCierre,
+          dias_no_repeticion: diasNoRepeticion,
+          puntos_civil_acierta: ptsCivil,
+          puntos_impostor_engana: ptsImpostor,
+          puntos_tiro_gracia: ptsTiro,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAviso("✔ Ajustes de El Impostor guardados correctamente.");
+        setTimeout(() => setAviso(null), 3500);
+      } else {
+        setAviso(`❌ ${data.error || "Error al guardar."}`);
+      }
+    } catch (err: any) {
+      setAviso(`❌ ${err.message || "Error al conectar."}`);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (cargando) {
+    return (
+      <section className="tarjeta p-4 text-center text-xs text-suave">
+        Cargando ajustes de El Impostor…
+      </section>
+    );
+  }
+
+  return (
+    <section className="tarjeta space-y-4 p-5 border-purple-500/30 bg-purple-950/20">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-purple-500/20 text-purple-300 grid place-items-center text-lg shrink-0">
+            🕵️
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+              El Impostor Asíncrono
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                activo ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-800 text-slate-400"
+              }`}>
+                {activo ? "Activo en la Tribu" : "Pausado"}
+              </span>
+            </h2>
+            <p className="text-xs text-slate-300">
+              Juego diario de deducción social automatizado al 100% con inteligencia artificial.
+            </p>
+          </div>
+        </div>
+
+        {/* Interruptor de activación rápida */}
+        {esAdmin && (
+          <button
+            type="button"
+            onClick={() => setActivo(!activo)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow ${
+              activo
+                ? "bg-emerald-500 text-black hover:bg-emerald-400"
+                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            }`}
+          >
+            {activo ? "Juego ACTIVADO" : "Juego PAUSADO"}
+          </button>
+        )}
+      </div>
+
+      {aviso && (
+        <div className="p-3 rounded-xl bg-purple-900/60 border border-purple-400/40 text-xs font-bold text-white">
+          {aviso}
+        </div>
+      )}
+
+      {!esAdmin ? (
+        /* VISTA DE SOLO LECTURA PARA MIEMBROS COMUNES */
+        <div className="space-y-2 text-xs text-slate-300">
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-black/30">
+            {modoSeguro ? (
+              <>
+                <Shield size={16} className="text-emerald-400" />
+                <span><strong>Modo Seguro Activado:</strong> Las palabras de Arlequín son 100% aptas para menores.</span>
+              </>
+            ) : (
+              <>
+                <ShieldAlert size={16} className="text-amber-400" />
+                <span><strong>Modo Libre:</strong> Las palabras pueden incluir temas para mayores de edad.</span>
+              </>
+            )}
+          </div>
+          <p className="text-[11px] text-suave">
+            Fase de pistas: 00:00 a {horaRevelacion} hs · Votación: {horaRevelacion} a {horaCierre} hs.
+          </p>
+        </div>
+      ) : (
+        /* PANEL COMPLETO DE CONFIGURACIÓN DEL ADMINISTRADOR */
+        <form onSubmit={guardarConfiguracion} className="space-y-4 pt-1">
+          {/* MODO SEGURO */}
+          <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {modoSeguro ? (
+                  <Shield size={18} className="text-emerald-400 shrink-0" />
+                ) : (
+                  <ShieldAlert size={18} className="text-amber-400 shrink-0" />
+                )}
+                <div>
+                  <h4 className="text-xs font-black text-white">
+                    Modo Seguro (Apto para menores de edad)
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    {modoSeguro
+                      ? "Sin alcohol, drogas, apuestas, violencia, armas ni temas de adultos."
+                      : "Modo libre habilitado (humor entre amigos, salidas, cervezas)."}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleModoSeguro}
+                className={`px-3 py-1 rounded-xl text-xs font-black transition ${
+                  modoSeguro
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                    : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                }`}
+              >
+                {modoSeguro ? "🛡️ SEGURO" : "⚠️ LIBRE"}
+              </button>
+            </div>
+            <p className="text-[10px] text-suave italic">
+              * Nota: Si se cambia el modo a mitad de una partida, regirá a partir de la próxima palabra generada.
+            </p>
+          </div>
+
+          {/* HORARIOS DE FASES */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label className="block text-suave font-semibold mb-1">
+                Apertura de Muro y Votación (Fase 2):
+              </label>
+              <input
+                type="time"
+                value={horaRevelacion}
+                onChange={(e) => setHoraRevelacion(e.target.value)}
+                className="input w-full text-xs font-bold"
+                required
+              />
+              <span className="text-[10px] text-suave">Por defecto: 19:00 hs</span>
+            </div>
+            <div>
+              <label className="block text-suave font-semibold mb-1">
+                Cierre de Votos y Desenmascaramiento (Fase 3):
+              </label>
+              <input
+                type="time"
+                value={horaCierre}
+                onChange={(e) => setHoraCierre(e.target.value)}
+                className="input w-full text-xs font-bold"
+                required
+              />
+              <span className="text-[10px] text-suave">Por defecto: 22:00 hs</span>
+            </div>
+          </div>
+
+          {/* PARÁMETROS DE PUNTOS */}
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <label className="block text-suave font-semibold mb-1">Civil acierta:</label>
+              <input
+                type="number"
+                value={ptsCivil}
+                onChange={(e) => setPtsCivil(Number(e.target.value))}
+                className="input w-full text-center font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-suave font-semibold mb-1">Impostor engaña:</label>
+              <input
+                type="number"
+                value={ptsImpostor}
+                onChange={(e) => setPtsImpostor(Number(e.target.value))}
+                className="input w-full text-center font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-suave font-semibold mb-1">Tiro de Gracia:</label>
+              <input
+                type="number"
+                value={ptsTiro}
+                onChange={(e) => setPtsTiro(Number(e.target.value))}
+                className="input w-full text-center font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-slate-400">
+              Ventana de no repetición de palabras: <strong>{diasNoRepeticion} días</strong>
+            </span>
+            <button
+              type="submit"
+              disabled={guardando}
+              className="btn btn-primario px-5 py-2 text-xs font-black shadow-lg"
+            >
+              {guardando ? "Guardando…" : "Guardar Ajustes de El Impostor"}
+            </button>
+          </div>
+
+          {/* HISTORIAL RECIENTE DE PALABRAS */}
+          {historial.length > 0 && (
+            <div className="pt-2 border-t border-white/10 space-y-2">
+              <h4 className="text-xs font-bold text-slate-400">
+                Historial de palabras generadas por IA en esta Tribu ({historial.length}):
+              </h4>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                {historial.map((h) => (
+                  <span
+                    key={h.id}
+                    className="px-2 py-0.5 rounded-lg bg-black/40 border border-white/10 text-[10px] text-purple-300 font-mono"
+                  >
+                    {h.palabra} <span className="text-slate-500">({h.categoria})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
+      )}
+
+      {/* MODAL DE ADVERTENCIA PARA DESACTIVAR MODO SEGURO */}
+      {modalSeguro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="max-w-md w-full rounded-3xl bg-slate-900 border-2 border-amber-400/50 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2 text-amber-400 text-lg font-black">
+              <AlertTriangle size={24} />
+              <h3>¿Desactivar Modo Seguro?</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Con el modo seguro desactivado, la IA de Arlequín puede generar palabras y textos con temas para mayores de edad (salidas nocturnas, alcohol, resacas, cargadas entre amigos).
+            </p>
+            <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200">
+              💡 <strong>Recomendación:</strong> Si en tu Tribu participan menores de edad o niños de la familia, te sugerimos <strong>mantener el Modo Seguro activo</strong>.
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalSeguro(false)}
+                className="btn px-4 py-2 text-xs font-bold text-slate-300 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarModoLibre}
+                className="btn bg-amber-500 hover:bg-amber-400 text-black text-xs font-black px-4 py-2 rounded-xl shadow-lg"
+              >
+                Entendido, activar Modo Libre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+

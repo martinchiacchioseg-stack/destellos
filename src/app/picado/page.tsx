@@ -549,12 +549,12 @@ export default function PicadoPage() {
         )}
 
         {/* RITUAL OBLIGATORIO: FOTO POST-PARTIDO DEL TERCER TIEMPO */}
-        <section className="rounded-3xl border-2 border-fuchsia-500/40 bg-slate-950 p-6 space-y-4 shadow-[0_0_35px_rgba(255,0,127,0.2)]">
+        <section className="rounded-3xl border-2 border-orange-500/40 bg-slate-950 p-6 space-y-4 shadow-[0_0_35px_rgba(255,119,0,0.2)]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl">📸</span>
               <div>
-                <h3 className="text-sm font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-300">
+                <h3 className="text-sm font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-sky-300">
                   FOTO POST-PARTIDO & TERCER TIEMPO
                 </h3>
                 <p className="text-xs text-slate-300">
@@ -566,7 +566,7 @@ export default function PicadoPage() {
 
           {picado.foto_post_partido ? (
             /* TARJETA DE CIERRE DE ARLEQUÍN CON LA FOTO DEL PARTIDO */
-            <div className="space-y-4 rounded-2xl border border-fuchsia-500/30 bg-slate-900/90 p-4">
+            <div className="space-y-4 rounded-2xl border border-orange-500/30 bg-slate-900/90 p-4">
               <div className="relative overflow-hidden rounded-2xl border border-white/20 max-h-80">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -580,9 +580,9 @@ export default function PicadoPage() {
               </div>
 
               {/* Veredicto de Arlequín */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-fuchsia-950/60 to-purple-950/60 border border-fuchsia-400/40 space-y-1.5">
-                <p className="text-xs font-black uppercase tracking-wider text-fuchsia-300 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-pink-400" />
+              <div className="p-4 rounded-xl bg-gradient-to-r from-orange-950/60 to-amber-950/60 border border-orange-400/40 space-y-1.5">
+                <p className="text-xs font-black uppercase tracking-wider text-orange-300 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-amber-400" />
                   <span>VEREDICTO DE ARLEQUÍN</span>
                 </p>
                 <h4 className="text-base font-black text-white italic">
@@ -654,18 +654,18 @@ export default function PicadoPage() {
           ) : (
             /* Formulario para que CUALQUIERA suba la foto */
             <form onSubmit={handleSubirFoto} className="space-y-3">
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-fuchsia-400/50 hover:border-fuchsia-300 rounded-2xl p-6 bg-slate-900/60 cursor-pointer transition">
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-orange-400/50 hover:border-orange-300 rounded-2xl p-6 bg-slate-900/60 cursor-pointer transition">
                 {fotoPreview ? (
                   <div className="relative w-full max-h-56 overflow-hidden rounded-xl">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={fotoPreview} alt="Previa" className="w-full h-full object-cover max-h-56 mx-auto" />
-                    <span className="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded text-xs text-pink-300">
+                    <span className="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded text-xs text-amber-300">
                       Cambiar foto ↺
                     </span>
                   </div>
                 ) : (
                   <div className="text-center space-y-2">
-                    <Camera size={36} className="mx-auto text-pink-400 animate-bounce" />
+                    <Camera size={36} className="mx-auto text-amber-400 animate-bounce" />
                     <p className="text-xs font-black text-white uppercase tracking-wider">
                       Sacar o elegir la foto del equipo 📷
                     </p>

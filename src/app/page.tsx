@@ -72,7 +72,7 @@ export default function Inicio() {
       <Navegacion />
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-4">
         {error && <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
-        {!d && !error && <p className="py-20 text-center text-suave">Cargando destellos…</p>}
+        {!d && !error && <p className="py-20 text-center text-suave">Cargando fotos de la Tribu…</p>}
         {d?.bloqueado && <Licencia d={d} />}
         {d && !d.bloqueado && <Contenido d={d} recargar={cargar} />}
       </main>
@@ -135,80 +135,45 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
 
   return (
     <>
-      <MarquesinaArlequin mensajesIniciales={d.pizarra ?? []} />
-
-      {/* HUB RÁPIDO: FOTO OCULTA, TARAMBANA, CEREBRO, TRAZO Y FEED JUNTOS */}
-      <section className="rounded-3xl border-2 border-fuchsia-500/40 bg-gradient-to-r from-slate-950 via-purple-950/40 to-slate-950 p-4 shadow-[0_0_30px_rgba(255,0,127,0.18)]">
+      {/* HUB RÁPIDO: MÓDULOS Y JUEGOS DE LA TRIBU */}
+      <section className="rounded-3xl border-2 border-orange-500/30 bg-slate-950/90 p-4 shadow-[0_0_25px_rgba(255,119,0,0.15)]">
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🎭</span>
-            <span className="text-xs font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-300">
-              JUEGOS FAMILIARES & ACCESO DIRECTO
+            <span className="text-xl">🌟</span>
+            <span className="text-xs font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-sky-400">
+              MÓDULOS Y JUEGOS DE LA TRIBU
             </span>
           </div>
-          <a href="/tarambana" className="text-[11px] font-bold text-fuchsia-300 hover:text-white transition">
-            Abrir Club completo ➔
-          </a>
         </div>
         <div className="flex flex-wrap gap-2 text-left">
-          {/* FOTO OCULTA (Core) */}
-          <a
-            href="/tarambana"
-            className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-amber-950/50 hover:bg-amber-900/60 border border-amber-400/40 transition group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
-              📸
-            </div>
-            <div>
-              <p className="text-xs font-black text-amber-300">Foto Oculta</p>
-              <p className="text-[10px] text-slate-400">Adiviná el autor</p>
-            </div>
-          </a>
-
-          {/* TARAMBANA */}
-          {(d.grupo.modulos_activos?.tarareo_ardilla ?? true) && (
-            <a
-              href="/tarambana"
-              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-400/40 transition group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-fuchsia-400/20 text-fuchsia-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
-                🔔
-              </div>
-              <div>
-                <p className="text-xs font-black text-fuchsia-300">Tarambana</p>
-                <p className="text-[10px] text-slate-400">Ronda de tarareos</p>
-              </div>
-            </a>
-          )}
-
-          {/* CEREBRO */}
+          {/* CEREBRO / TRIVIA */}
           {(d.grupo.modulos_activos?.cerebro_fuga ?? true) && (
             <a
               href="/trivia"
-              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/50 hover:bg-orange-900/60 border border-orange-400/40 transition group"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-orange-950/40 hover:bg-orange-900/50 border border-orange-400/40 transition group"
             >
               <div className="w-9 h-9 rounded-xl bg-orange-400/20 text-orange-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
                 🧠
               </div>
               <div>
-                <p className="text-xs font-black text-orange-300">Cerebro</p>
-                <p className="text-[10px] text-slate-400">Trivia diaria IA</p>
+                <p className="text-xs font-black text-orange-300">Trivia Diaria</p>
+                <p className="text-[10px] text-slate-400">Preguntas con IA</p>
               </div>
             </a>
           )}
 
-          {/* TRAZO */}
-          {(d.grupo.modulos_activos?.trazo_loco ?? true) && (
+          {/* EL PICADO */}
+          {(d.grupo.modulos_activos?.picado_futbol ?? true) && (
             <a
-              href="/tarambana"
-              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-lime-950/50 hover:bg-lime-900/60 border border-lime-400/40 transition group"
+              href="/picado"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-sky-950/40 hover:bg-sky-900/50 border border-sky-400/40 transition group"
             >
-              <div className="w-9 h-9 rounded-xl bg-lime-400/20 text-lime-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
-                ✏️
+              <div className="w-9 h-9 rounded-xl bg-sky-400/20 text-sky-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+                🏃‍♂️
               </div>
               <div>
-                <p className="text-xs font-black text-lime-300">Trazo</p>
-                <p className="text-[10px] text-slate-400">Pizarra en vivo</p>
+                <p className="text-xs font-black text-sky-300">El Picado</p>
+                <p className="text-[10px] text-slate-400">Convocatoria & fotos</p>
               </div>
             </a>
           )}
@@ -217,7 +182,7 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
           {(d.grupo.modulos_activos?.prode_futbol) && (
             <a
               href="/prode"
-              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-400/40 transition group"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-400/40 transition group"
             >
               <div className="w-9 h-9 rounded-xl bg-emerald-400/20 text-emerald-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
                 ⚽
@@ -225,6 +190,22 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
               <div>
                 <p className="text-xs font-black text-emerald-300">El Prode</p>
                 <p className="text-[10px] text-slate-400">Pronósticos fecha</p>
+              </div>
+            </a>
+          )}
+
+          {/* EL IMPOSTOR */}
+          {(d.grupo.modulos_activos?.el_impostor ?? true) && (
+            <a
+              href="/impostor"
+              className="flex-1 min-w-[130px] flex items-center gap-2.5 p-3 rounded-2xl bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-400/40 transition group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-indigo-400/20 text-indigo-300 grid place-items-center shrink-0 text-lg group-hover:scale-110 transition">
+                🕵️
+              </div>
+              <div>
+                <p className="text-xs font-black text-indigo-300">El Impostor</p>
+                <p className="text-[10px] text-slate-400">Pistas y engaño</p>
               </div>
             </a>
           )}
@@ -254,24 +235,24 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-black uppercase tracking-wider">
-                EL JUEGO PRINCIPAL
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500 text-black uppercase tracking-wider">
+                RITUAL DIARIO DE LA TRIBU
               </span>
-              <span className="text-xs text-amber-300 font-bold">Un clic familiar</span>
+              <span className="text-xs text-orange-300 font-bold">Foto diaria compartida</span>
             </div>
             <h2 className="text-xl font-black text-white">
               {d.cerrado
-                ? "¡Cerró el escenario de hoy!"
+                ? "¡Cerró el muro por hoy!"
                 : d.subiHoy
-                  ? "¡Tu destello ya brilla en el muro! ✨"
+                  ? "¡Tu foto ya brilla en el muro de la Tribu! ✨"
                   : `Hola ${d.yo?.apodo || d.yo?.nombre.split(" ")[0]}, ¿cuál es tu foto de hoy?`}
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-0.5">
               {d.cerrado
-                ? "Mañana empieza otro día para brillar juntos."
+                ? "Mañana empieza otro día para compartir en la Tribu."
                 : faltan.length
                   ? `Faltan subir foto ${faltan.length + (d.subiHoy ? 0 : 1)} de ${d.totalMiembros} integrantes antes de las ${d.grupo.hora_limite} hs.`
-                  : `¡Toda la familia subió su destello! Arlequín ya tiene todas las fotos en el muro.`}
+                  : `¡Toda la Tribu subió su foto! Arlequín ya tiene el muro completo.`}
             </p>
           </div>
           {d.yo?.esAdmin && (
@@ -336,9 +317,9 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
 
             <input name="descripcion" className="input text-sm" placeholder="Contá algo lindo sobre tu foto (opcional)" maxLength={200} />
             <div className="flex gap-2">
-              <button className="btn btn-primario flex-1 font-black text-sm tracking-wide py-3 shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:scale-[1.01] transition" disabled={subiendo}>
+              <button className="btn btn-primario flex-1 font-black text-sm tracking-wide py-3 shadow-[0_0_20px_rgba(255,119,0,0.3)] hover:scale-[1.01] transition" disabled={subiendo}>
                 <Camera size={20} />
-                {subiendo ? "Brillando en el muro…" : "¡SUBIR DESTELLO AL MURO! 🌟"}
+                {subiendo ? "Subiendo al muro de la Tribu…" : "¡SUBIR FOTO A LA TRIBU! 📸"}
               </button>
               {mostrarSubirExtra && (
                 <button
@@ -374,9 +355,9 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
       <section className="space-y-4 pt-1">
         <div className="flex items-center justify-between border-b border-white/10 pb-2">
           <div className="flex items-center gap-2">
-            <span className="text-lg">✨</span>
-            <h3 className="text-sm font-black uppercase tracking-wider text-amber-300">
-              Muro de Destellos Familiares
+            <span className="text-lg">📸</span>
+            <h3 className="text-sm font-black uppercase tracking-wider text-orange-400">
+              Muro Diario de la Tribu
             </h3>
           </div>
           <span className="text-xs text-slate-400 font-bold">{(d.muro ?? []).length} fotos compartidas</span>
@@ -395,58 +376,37 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
         ))}
       </section>
 
-      {/* 4. SALA DE JUEGOS Y ENTRETENIMIENTO FAMILIAR (DESBLOQUEADOS) */}
-      <div className="space-y-3 pt-4 border-t border-white/10">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm">🎮</span>
-          <h4 className="text-xs font-black uppercase tracking-wider text-fuchsia-400">
-            Juegos Familiares del Club
-          </h4>
-        </div>
-
-        {/* Acceso a la suite TRIBOO */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-950 p-5 border-2 border-orange-500/50 shadow-[0_0_30px_rgba(255,119,0,0.25)]">
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-35 mix-blend-screen pointer-events-none"
-            style={{ backgroundImage: "url('/logos/triboo-banner.jpg')" }}
-          />
-          <div className="absolute -top-12 -left-12 w-48 h-48 bg-orange-600/30 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-400/30 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Acceso al Prode del Fin de Semana (Solo si está habilitado en este grupo) */}
+      {(d.grupo.modulos_activos?.prode_futbol) && (
+        <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-orange-400 bg-slate-900 shadow-[0_0_15px_rgba(255,119,0,0.6)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logos/triboo-logo.jpg" alt="TRIBOO Logo" className="h-full w-full object-cover" />
-              </div>
-              <div className="space-y-0.5 text-left">
+              <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
+              <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-orange-400 to-amber-300 text-black uppercase tracking-wider animate-pulse">
-                    TU TRIBU EN UN SOLO LUGAR
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
+                    FECHA EN JUEGO
                   </span>
-                  <span className="text-xs text-sky-300 font-bold">Módulos en Vivo</span>
+                  <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
                 </div>
-                <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-orange-100 to-sky-200">
-                  TRIBOO
-                </h3>
-                <p className="text-xs text-orange-200 font-medium">
-                  Jugá. Compartí. Tribu: El Picado de fútbol, Flash grupal, Trivias y Juegos.
+                <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
+                <p className="text-xs text-slate-300">
+                  Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
                 </p>
               </div>
             </div>
-
             {d.subiHoy ? (
               <a
-                href="/tarambana"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-fuchsia-600 to-cyan-400 text-white font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
+                href="/prode"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
               >
-                ENTRAR AL CLUB 🚀
+                JUGAR EL PRODE ⚽
               </a>
             ) : (
               <button
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
-                  setAviso('¡Primero tu Destello del Día! 📸 Subí tu foto de hoy para desbloquear Sincericidio.');
+                  setAviso('¡Primero tu foto de hoy! 📸 Subí tu foto al muro para desbloquear El Prode.');
                 }}
                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-400/50 text-amber-300 font-bold text-xs tracking-wider hover:bg-slate-700 transition text-center whitespace-nowrap flex items-center justify-center gap-1.5"
               >
@@ -455,48 +415,7 @@ function Contenido({ d, recargar }: { d: Home; recargar: () => void }) {
             )}
           </div>
         </div>
-
-        {/* Acceso al Prode del Fin de Semana (Solo si está habilitado en este grupo) */}
-        {(d.grupo.modulos_activos?.prode_futbol) && (
-          <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 p-5 border-2 border-emerald-400/40 shadow-[0_0_25px_rgba(16,185,129,0.2)]">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <span className="text-3xl p-2.5 rounded-2xl bg-emerald-400/10 border border-emerald-400/30">⚽</span>
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-black uppercase tracking-wider">
-                      FECHA EN JUEGO
-                    </span>
-                    <span className="text-xs text-emerald-300 font-bold">Fecha 14 • Clásicos</span>
-                  </div>
-                  <h3 className="text-lg font-black text-white">El Prode del Fin de Semana</h3>
-                  <p className="text-xs text-slate-300">
-                    Pronosticá Boca-River, Racing-Independiente y más. Pleno suma +8 pts al ranking.
-                  </p>
-                </div>
-              </div>
-              {d.subiHoy ? (
-                <a
-                  href="/prode"
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-black text-xs tracking-wider shadow-lg hover:scale-105 active:scale-95 transition text-center whitespace-nowrap"
-                >
-                  JUGAR EL PRODE ⚽
-                </a>
-              ) : (
-                <button
-                  onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    setAviso('¡Primero tu Destello del Día! 📸 Subí tu foto de hoy para desbloquear El Prode.');
-                  }}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 border border-amber-400/50 text-amber-300 font-bold text-xs tracking-wider hover:bg-slate-700 transition text-center whitespace-nowrap flex items-center justify-center gap-1.5"
-                >
-                  <span>🔒</span> Subí tu foto primero
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {d.licencia.estado === "por_vencer" && (
         <p className="rounded-lg bg-amber-400/10 p-3 text-sm text-amber-200">⏳ La licencia de la familia vence en {d.licencia.dias} día(s). Avisale al administrador.</p>
@@ -551,10 +470,10 @@ function Tarjeta({ x, hoy, recargar }: { x: Destello; hoy: string; recargar: () 
       {x.foto_url && (
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={x.foto_url} alt={`Destello de ${nom(x.autor)}`} className="max-h-[32rem] w-full object-cover" loading="lazy" />
+          <img src={x.foto_url} alt={`Foto de ${nom(x.autor)}`} className="max-h-[32rem] w-full object-cover" loading="lazy" />
           {x.titulo_arlequin && (
-            <div className="absolute top-2 left-2 right-2 bg-black/85 backdrop-blur-md rounded-xl p-2.5 border border-pink-500/50 shadow-lg">
-              <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-pink-300">
+            <div className="absolute top-2 left-2 right-2 bg-black/85 backdrop-blur-md rounded-xl p-2.5 border border-orange-500/50 shadow-lg">
+              <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-orange-300">
                 <span>🎭</span> Arlequín:
               </div>
               <p className="text-xs font-black text-amber-300 leading-tight mt-0.5">

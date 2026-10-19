@@ -27,11 +27,12 @@ const Editar = z.object({
   modulos_activos: z
     .object({
       flash_grupal: z.boolean().default(true),
-      prode_futbol: z.boolean(),
+      prode_futbol: z.boolean().optional(),
       picado_futbol: z.boolean().optional(),
-      tarareo_ardilla: z.boolean(),
-      trazo_loco: z.boolean(),
-      cerebro_fuga: z.boolean(),
+      tarareo_ardilla: z.boolean().optional(),
+      trazo_loco: z.boolean().optional(),
+      cerebro_fuga: z.boolean().optional(),
+      el_impostor: z.boolean().optional(),
     })
     .optional(),
 });
@@ -69,6 +70,32 @@ export const PATCH = api(async (req: Request, ctx: { params: Promise<{ id: strin
   if (up.error) {
     if (up.error.code === "23505") throw new ApiError(409, "Ese código de familia ya existe. Elegí otro.");
     throw new Error(`DB: ${up.error.message}`);
+  }
+
+  // Sincronizar impostor_configuracion si se modificaron los módulos
+  if (cambios.modulos_activos && typeof cambios.modulos_activos === "object") {
+    const modObj = cambios.modulos_activos as Record<string, unknown>;
+    if (modObj.el_impostor !== undefined) {
+      try {
+        await db()
+          .from("impostor_configuracion")
+          .upsert(
+            {
+              grupo_id: id,
+              activo: Boolean(modObj.el_impostor),
+              modo_seguro: true,
+              cantidad_impostores: 1,
+              hora_inicio: "00:00",
+              hora_revelacion: "19:00",
+              hora_cierre: "22:00",
+              dias_no_repeticion: 60,
+            },
+            { onConflict: "grupo_id" }
+          );
+      } catch {
+        // Ignorar si la tabla no existe o error transitorio
+      }
+    }
   }
 
   // Mantener sincronizada la cuenta del administrador si cambió su nombre, email o WhatsApp.

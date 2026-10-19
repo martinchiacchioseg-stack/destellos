@@ -101,28 +101,34 @@ body {
   background: rgba(248, 113, 113, 0.12);
 }
 
-/* ---------- Cartel LED vintage (Dot Matrix) ---------- */
+/* ---------- Cartel LED vintage (Dot Matrix) - Más grueso y llamativo ---------- */
 .led {
   position: relative;
   overflow: hidden;
-  border-radius: 0.9rem;
-  background: #05070d;
-  border: 2px solid #1b2236;
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-radius: 0.95rem;
+  background: #04060a;
+  border: 2px solid rgba(255, 119, 0, 0.45);
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.98), 0 0 16px rgba(255, 119, 0, 0.2);
+  min-height: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
 }
 .led::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.75) 1.2px, transparent 1.6px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.7) 1.2px, transparent 1.6px);
   background-size: 4px 4px;
+  z-index: 5;
 }
 .led-pista {
   display: inline-flex;
   white-space: nowrap;
   will-change: transform;
-  animation: led-scroll var(--dur, 30s) linear infinite;
+  animation: led-scroll var(--dur, 35s) linear infinite;
+  align-items: center;
 }
 .led:hover .led-pista,
 .led:active .led-pista,
@@ -139,17 +145,20 @@ body {
 }
 .led-texto {
   font-family: "Courier New", ui-monospace, monospace;
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  font-weight: 900;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-size: 1.05rem;
-  padding: 0.55rem 3rem;
+  font-size: 1.12rem;
+  line-height: 1.2;
+  padding: 0.7rem 3.5rem;
+  display: inline-flex;
+  align-items: center;
 }
-.led-ambar { color: #ffb020; text-shadow: 0 0 6px #ff9d00, 0 0 14px rgba(255, 157, 0, 0.7); }
-.led-verde { color: #4ade80; text-shadow: 0 0 6px #22c55e, 0 0 14px rgba(34, 197, 94, 0.7); }
-.led-rojo { color: #ff5a5a; text-shadow: 0 0 6px #ef4444, 0 0 14px rgba(239, 68, 68, 0.7); }
-.led-celeste { color: #5ee7ff; text-shadow: 0 0 6px #22d3ee, 0 0 14px rgba(34, 211, 238, 0.7); }
-.led-magenta { color: #ff6ee7; text-shadow: 0 0 6px #e83ec8, 0 0 14px rgba(232, 62, 200, 0.7); }
+.led-ambar { color: #ffb020; text-shadow: 0 0 8px #ff9d00, 0 0 18px rgba(255, 157, 0, 0.8); }
+.led-verde { color: #4ade80; text-shadow: 0 0 8px #22c55e, 0 0 18px rgba(34, 197, 94, 0.8); }
+.led-rojo { color: #ff5a5a; text-shadow: 0 0 8px #ef4444, 0 0 18px rgba(239, 68, 68, 0.8); }
+.led-celeste { color: #5ee7ff; text-shadow: 0 0 8px #22d3ee, 0 0 18px rgba(34, 211, 238, 0.8); }
+.led-magenta { color: #ff6ee7; text-shadow: 0 0 8px #e83ec8, 0 0 18px rgba(232, 62, 200, 0.8); }
 
 @media (prefers-reduced-motion: reduce) {
   .led-pista { animation-duration: 90s; }

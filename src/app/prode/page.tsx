@@ -68,7 +68,10 @@ export default function ProdePage() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
-  const [tabVista, setTabVista] = useState<'partidos' | 'posiciones' | 'admin'>('partidos');
+  const [tabVista, setTabVista] = useState<'partidos' | 'posiciones' | 'liga' | 'admin'>('partidos');
+  const [standings, setStandings] = useState<any[]>([]);
+  const [scorers, setScorers] = useState<any[]>([]);
+  const [actualizadoLiga, setActualizadoLiga] = useState<string | null>(null);
   const [subiHoy, setSubiHoy] = useState<boolean | null>(null);
 
   // Estado para carga de resultado admin
@@ -118,6 +121,15 @@ export default function ProdePage() {
       const dataRank = await resRank.json();
       if (dataRank.ranking) {
         setRanking(dataRank.ranking);
+      }
+
+      // Cargar estadísticas y tabla de la Liga Profesional
+      const resLiga = await fetch('/api/prode/liga');
+      const dataLiga = await resLiga.json();
+      if (dataLiga.ok) {
+        setStandings(dataLiga.standings || []);
+        setScorers(dataLiga.scorers || []);
+        setActualizadoLiga(dataLiga.actualizadoEn || null);
       }
     } catch (err) {
       console.error('Error al cargar prode:', err);
@@ -229,13 +241,13 @@ export default function ProdePage() {
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-white flex flex-col justify-between selection:bg-[#00F5D4] selection:text-black">
-      {/* Fondo Neón SINCERICIDIO */}
+      {/* Fondo TRIBOO */}
       <div
-        className="fixed inset-0 bg-cover bg-center opacity-15 mix-blend-screen pointer-events-none z-0"
-        style={{ backgroundImage: "url('/logos/sincericidio-bg.jpg')" }}
+        className="fixed inset-0 bg-cover bg-center opacity-10 mix-blend-screen pointer-events-none z-0"
+        style={{ backgroundImage: "url('/logos/triboo-banner.jpg')" }}
       />
-      <div className="fixed top-1/4 -left-32 w-96 h-96 bg-fuchsia-600/15 rounded-full blur-[140px] pointer-events-none z-0" />
-      <div className="fixed bottom-1/3 -right-32 w-96 h-96 bg-cyan-400/15 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="fixed top-1/4 -left-32 w-96 h-96 bg-orange-600/15 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="fixed bottom-1/3 -right-32 w-96 h-96 bg-sky-400/15 rounded-full blur-[140px] pointer-events-none z-0" />
 
       {/* Navegación Superior */}
       <div className="relative z-20">
@@ -243,23 +255,22 @@ export default function ProdePage() {
       </div>
 
       <main className="relative z-10 flex-1 w-full max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <MarquesinaArlequin />
 
         {/* Cabecera del Prode */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border-2 border-fuchsia-500/40 p-6 shadow-[0_0_30px_rgba(255,0,127,0.2)]">
+        <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border-2 border-orange-500/40 p-6 shadow-[0_0_30px_rgba(255,119,0,0.2)]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-emerald-400 to-cyan-400 text-black uppercase tracking-wider">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-orange-400 to-amber-300 text-black uppercase tracking-wider">
                   FECHA {fecha?.numero_fecha || 14}
                 </span>
-                <span className="text-xs text-fuchsia-300 font-semibold">{fecha?.torneo || 'Liga Profesional'}</span>
+                <span className="text-xs text-amber-300 font-semibold">{fecha?.torneo || 'Liga Profesional'}</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5">
                 <span>⚽</span> EL PRODE DEL FIN DE SEMANA
               </h1>
               <p className="text-xs sm:text-sm text-slate-300">
-                Pronosticá los clásicos: Acertar signo (L/E/V) suma <strong className="text-[#00F5D4]">+3 pts</strong>. ¡Marcador exacto otorga un <strong className="text-fuchsia-400">PLENO de +8 pts</strong>!
+                Pronosticá los clásicos: Acertar signo (L/E/V) suma <strong className="text-emerald-400">+3 pts</strong>. ¡Marcador exacto otorga un <strong className="text-amber-400">PLENO de +8 pts</strong>!
               </p>
             </div>
 
@@ -284,7 +295,7 @@ export default function ProdePage() {
               onClick={() => setTabVista('partidos')}
               className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
                 tabVista === 'partidos'
-                  ? 'bg-gradient-to-r from-pink-500 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/30'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-black shadow-lg shadow-orange-500/30'
                   : 'bg-slate-800/80 text-slate-400 hover:text-white'
               }`}
             >
@@ -299,6 +310,16 @@ export default function ProdePage() {
               }`}
             >
               <Trophy size={14} /> Posiciones del Prode
+            </button>
+            <button
+              onClick={() => setTabVista('liga')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
+                tabVista === 'liga'
+                  ? 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-black shadow-lg shadow-emerald-400/30'
+                  : 'bg-slate-800/80 text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>📊</span> Tabla & Goleadores Liga AFA
             </button>
             <button
               onClick={() => setTabVista('admin')}
@@ -330,14 +351,14 @@ export default function ProdePage() {
               <span className="px-3 py-1 rounded-full text-[10px] font-black bg-amber-400 text-black uppercase tracking-wider">
                 REGLA DE LA FAMILIA
               </span>
-              <h2 className="text-2xl font-black text-white">¡Primero tu Destello del Día!</h2>
+              <h2 className="text-2xl font-black text-white">¡Primero tu Foto Diaria en la Tribu!</h2>
               <p className="text-sm text-slate-300">
                 Para pronosticar los partidos del <strong className="text-emerald-400">Prode</strong> y sumar puntos en la tabla familiar, primero tenés que <strong>subir tu foto del día</strong>.
               </p>
             </div>
             <Link
               href="/"
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 text-black font-black text-sm tracking-wider shadow-[0_0_25px_rgba(251,191,36,0.4)] hover:scale-105 active:scale-95 transition"
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-orange-600 text-black font-black text-sm tracking-wider shadow-[0_0_25px_rgba(251,191,36,0.4)] hover:scale-105 active:scale-95 transition"
             >
               📸 SUBIR MI FOTO AHORA
             </Link>
@@ -378,7 +399,7 @@ export default function ProdePage() {
                         className={`relative overflow-hidden rounded-2xl bg-slate-900/90 border p-4 shadow-xl transition ${
                           p.finalizado
                             ? pts === 8
-                              ? 'border-fuchsia-400/80 shadow-[0_0_15px_rgba(255,0,127,0.3)]'
+                              ? 'border-amber-400/80 shadow-[0_0_15px_rgba(251,191,36,0.3)]'
                               : pts === 3
                               ? 'border-emerald-400/80 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
                               : 'border-slate-800 opacity-80'
@@ -394,7 +415,7 @@ export default function ProdePage() {
                             {p.estadio && <span className="text-[11px] text-slate-500">{p.estadio}</span>}
                             {p.finalizado ? (
                               <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
-                                pts === 8 ? 'bg-fuchsia-500 text-white animate-pulse' :
+                                pts === 8 ? 'bg-amber-400 text-black animate-pulse' :
                                 pts === 3 ? 'bg-emerald-500 text-black' : 'bg-slate-700 text-slate-300'
                               }`}>
                                 {pts === 8 ? '🎯 PLENO +8 PTS' : pts === 3 ? '✅ ACIERTO +3 PTS' : 'FINAL'}
@@ -439,7 +460,7 @@ export default function ProdePage() {
                         <div className="mt-4 pt-3 border-t border-white/5 space-y-2.5">
                           <div className="flex items-center justify-between text-xs text-slate-400">
                             <span>Tu pronóstico:</span>
-                            <span className="text-[11px] font-bold text-fuchsia-300">Marcador exacto (opcional):</span>
+                            <span className="text-[11px] font-bold text-amber-300">Marcador exacto (opcional):</span>
                           </div>
 
                           <div className="flex items-center justify-between gap-3">
@@ -456,10 +477,10 @@ export default function ProdePage() {
                                     className={`py-2 rounded-xl font-black text-xs transition ${
                                       activo
                                         ? signo === 'L'
-                                          ? 'bg-[#00F5D4] text-black shadow-lg shadow-[#00F5D4]/40 scale-105'
+                                          ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-400/40 scale-105'
                                           : signo === 'E'
-                                          ? 'bg-[#FFE600] text-black shadow-lg shadow-[#FFE600]/40 scale-105'
-                                          : 'bg-[#FF007F] text-white shadow-lg shadow-[#FF007F]/40 scale-105'
+                                          ? 'bg-amber-300 text-black shadow-lg shadow-amber-300/40 scale-105'
+                                          : 'bg-orange-500 text-white shadow-lg shadow-orange-500/40 scale-105'
                                         : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                     }`}
                                   >
@@ -490,7 +511,7 @@ export default function ProdePage() {
                                 value={pr?.golesVisitante ?? ''}
                                 onChange={(e) => setGoles(p.id, 'visitante', parseInt(e.target.value) || 0)}
                                 placeholder="0"
-                                className="w-8 h-8 rounded-lg bg-slate-900 text-center font-black text-xs text-pink-300 border border-pink-400/30 focus:outline-none"
+                                className="w-8 h-8 rounded-lg bg-slate-900 text-center font-black text-xs text-orange-300 border border-orange-400/30 focus:outline-none"
                               />
                             </div>
                           </div>
@@ -529,7 +550,7 @@ export default function ProdePage() {
                           <th className="py-2.5 px-3">#</th>
                           <th className="py-2.5 px-3">Familiar</th>
                           <th className="py-2.5 px-3 text-center">Pronósticos</th>
-                          <th className="py-2.5 px-3 text-center text-fuchsia-400">Plenos (8pts)</th>
+                          <th className="py-2.5 px-3 text-center text-amber-400">Plenos (8pts)</th>
                           <th className="py-2.5 px-3 text-center text-emerald-400">Aciertos (3pts)</th>
                           <th className="py-2.5 px-3 text-right text-amber-300">Total Puntos</th>
                         </tr>
@@ -548,13 +569,13 @@ export default function ProdePage() {
                                 {idx === 0 ? '👑 1' : idx + 1}
                               </td>
                               <td className="py-3 px-3 font-bold text-white flex items-center gap-2">
-                                <span className="h-7 w-7 rounded-full bg-gradient-to-tr from-pink-500 to-cyan-400 flex items-center justify-center text-xs font-black text-black">
+                                <span className="h-7 w-7 rounded-full bg-gradient-to-tr from-orange-500 to-sky-400 flex items-center justify-center text-xs font-black text-black">
                                   {r.nombre[0]}
                                 </span>
                                 <span>{r.apodo || r.nombre}</span>
                               </td>
                               <td className="py-3 px-3 text-center text-slate-300">{r.partidosPronosticados}</td>
-                              <td className="py-3 px-3 text-center font-extrabold text-fuchsia-400">{r.plenos}</td>
+                              <td className="py-3 px-3 text-center font-extrabold text-amber-400">{r.plenos}</td>
                               <td className="py-3 px-3 text-center font-extrabold text-emerald-400">{r.aciertosSimples}</td>
                               <td className="py-3 px-3 text-right font-black text-amber-300 text-base">{r.puntosTotales}</td>
                             </tr>
@@ -591,7 +612,125 @@ export default function ProdePage() {
               </div>
             )}
 
-            {/* VISTA 3: CARGA / SIMULACIÓN DE RESULTADOS OFICIALES */}
+            {/* VISTA 3: ESTADÍSTICAS OFICIALES DE LA LIGA (API-FOOTBALL) */}
+            {tabVista === 'liga' && (
+              <div className="space-y-6">
+                <div className="bg-slate-900/90 rounded-2xl border border-white/10 p-5 shadow-xl space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-emerald-400 to-cyan-400 text-black uppercase tracking-wider">
+                        AFA · LIGA PROFESIONAL 2026
+                      </span>
+                      <h3 className="text-xl font-black text-white mt-1 flex items-center gap-2">
+                        <span>🏆</span> Tabla de Posiciones y Goleadores Oficiales
+                      </h3>
+                      <p className="text-xs text-slate-300">
+                        Datos sincronizados automáticamente desde API-Football al servidor de TRIBOO.
+                      </p>
+                    </div>
+                    {actualizadoLiga && (
+                      <span className="text-[10px] text-slate-400 font-mono self-start sm:self-center bg-slate-950 px-2.5 py-1 rounded-lg border border-white/5">
+                        Actualizado: {new Date(actualizadoLiga).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} hs
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Tabla de Posiciones (2 columnas en desktop) */}
+                  <div className="lg:col-span-2 bg-slate-900/90 rounded-2xl border border-white/10 p-5 shadow-xl space-y-4">
+                    <h4 className="text-sm font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                      <span>⚽</span> Tabla General del Torneo
+                    </h4>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-white/10 text-slate-400 uppercase font-black text-[10px]">
+                            <th className="py-2.5 px-2">#</th>
+                            <th className="py-2.5 px-2">Club</th>
+                            <th className="py-2.5 px-2 text-center text-amber-300 font-bold">PTS</th>
+                            <th className="py-2.5 px-2 text-center">PJ</th>
+                            <th className="py-2.5 px-2 text-center text-emerald-400">G</th>
+                            <th className="py-2.5 px-2 text-center text-slate-300">E</th>
+                            <th className="py-2.5 px-2 text-center text-rose-400">P</th>
+                            <th className="py-2.5 px-2 text-right">DIF</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {standings.map((t, idx) => (
+                            <tr key={t.team || idx} className="hover:bg-white/5 transition">
+                              <td className="py-2.5 px-2 font-black text-slate-400">
+                                <span className={`inline-block w-5 text-center ${idx < 4 ? 'text-amber-300 font-black' : ''}`}>
+                                  {t.rank || idx + 1}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-2 font-bold text-white flex items-center gap-2">
+                                <span className="text-base">{t.badge || "⚽"}</span>
+                                <span className="truncate">{t.team}</span>
+                              </td>
+                              <td className="py-2.5 px-2 text-center font-black text-amber-300 text-sm">
+                                {t.points}
+                              </td>
+                              <td className="py-2.5 px-2 text-center text-slate-300">{t.played}</td>
+                              <td className="py-2.5 px-2 text-center font-bold text-emerald-400">{t.win}</td>
+                              <td className="py-2.5 px-2 text-center text-slate-400">{t.draw}</td>
+                              <td className="py-2.5 px-2 text-center text-slate-400">{t.lose}</td>
+                              <td className="py-2.5 px-2 text-right font-mono text-slate-300">{t.diff}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Top Goleadores & Sedes (1 columna en desktop) */}
+                  <div className="space-y-6">
+                    {/* Goleadores */}
+                    <div className="bg-slate-900/90 rounded-2xl border border-white/10 p-5 shadow-xl space-y-3">
+                      <h4 className="text-sm font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                        <span>🎯</span> Tabla de Goleadores
+                      </h4>
+                      <div className="divide-y divide-white/5">
+                        {scorers.map((s, idx) => (
+                          <div key={s.name || idx} className="py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <span className="h-6 w-6 rounded-full bg-slate-950 font-black text-[11px] text-amber-300 flex items-center justify-center border border-white/10">
+                                {idx + 1}
+                              </span>
+                              <div>
+                                <p className="text-xs font-black text-white">{s.name}</p>
+                                <p className="text-[10px] text-slate-400">{s.team}</p>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-amber-400/15 text-amber-300 font-black text-xs border border-amber-400/30">
+                              {s.goals} ⚽
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Resumen de Estadios / Sedes */}
+                    <div className="bg-slate-900/90 rounded-2xl border border-white/10 p-5 shadow-xl space-y-3">
+                      <h4 className="text-sm font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                        <span>🏟️</span> Sedes de la Fecha
+                      </h4>
+                      <div className="space-y-2 text-xs">
+                        {partidos.slice(0, 4).map((p) => (
+                          <div key={p.id} className="p-2.5 rounded-xl bg-slate-950/60 border border-white/5">
+                            <p className="font-bold text-white">{p.local} vs {p.visitante}</p>
+                            <p className="text-[11px] text-slate-400">{p.estadio || 'Estadio a confirmar'} · {p.horario}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VISTA 4: CARGA / SIMULACIÓN DE RESULTADOS OFICIALES */}
             {tabVista === 'admin' && (
               <div className="bg-slate-900/90 rounded-3xl border-2 border-amber-400/40 p-6 shadow-2xl space-y-6">
                 <div>
@@ -646,14 +785,14 @@ export default function ProdePage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-pink-300 mb-1.5">Goles Visitante:</label>
+                      <label className="block text-xs font-bold text-orange-300 mb-1.5">Goles Visitante:</label>
                       <input
                         type="number"
                         min={0}
                         max={15}
                         value={adminGolesV}
                         onChange={(e) => setAdminGolesV(parseInt(e.target.value) || 0)}
-                        className="w-full bg-slate-950 border border-pink-400/40 rounded-xl p-3 text-center text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-pink-400"
+                        className="w-full bg-slate-950 border border-orange-400/40 rounded-xl p-3 text-center text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-orange-400"
                         required
                       />
                     </div>

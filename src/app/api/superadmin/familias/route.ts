@@ -56,6 +56,7 @@ const Crear = z.object({
       tarareo_ardilla: z.boolean().default(true),
       trazo_loco: z.boolean().default(true),
       cerebro_fuga: z.boolean().default(true),
+      el_impostor: z.boolean().default(true),
     })
     .optional(),
 });
@@ -87,6 +88,7 @@ export const POST = api(async (req: Request) => {
         tarareo_ardilla: b.tipo_grupo !== "sports_club",
         trazo_loco: b.tipo_grupo !== "sports_club",
         cerebro_fuga: true,
+        el_impostor: true,
       },
     })
     .select("*")
@@ -96,6 +98,24 @@ export const POST = api(async (req: Request) => {
     throw new Error(`DB: ${ins.error.message}`);
   }
   const grupo = ins.data as Grupo;
+
+  // Si El Impostor está activo, inicializar su configuración
+  if (grupo.modulos_activos?.el_impostor) {
+    try {
+      await db().from("impostor_configuracion").insert({
+        grupo_id: grupo.id,
+        activo: true,
+        modo_seguro: true,
+        cantidad_impostores: 1,
+        hora_inicio: "00:00",
+        hora_revelacion: "19:00",
+        hora_cierre: "22:00",
+        dias_no_repeticion: 60,
+      });
+    } catch {
+      // Ignorar si la tabla no existe o error transitorio
+    }
+  }
 
   const claveAdmin = b.admin_password?.trim() || "123456";
   const wsp = b.admin_whatsapp ? b.admin_whatsapp.replace(/\D/g, "") : null;
