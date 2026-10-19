@@ -7,6 +7,7 @@ import { mensajesVigentes } from "@/lib/pizarra";
 import { asegurarVeredicto } from "@/lib/veredicto";
 import { firmar } from "@/lib/storage";
 import { miembrosDelGrupo, publicos, nombreCorto } from "@/lib/usuarios";
+import { MODULOS_DEFECTO } from "@/lib/types";
 
 interface FilaDestello {
   id: string;
@@ -102,13 +103,7 @@ export const GET = api(async () => {
   const adUrls = await firmar(adRows.map((a) => a.imagen_path));
 
   const yo = (await publicos([usuario]))[0];
-  const modulos = grupo.modulos_activos ?? {
-    flash_grupal: true,
-    prode_futbol: false,
-    tarareo_ardilla: true,
-    trazo_loco: true,
-    cerebro_fuga: true,
-  };
+  const modulos = grupo.modulos_activos ?? MODULOS_DEFECTO;
 
   return {
     yo: { ...yo, esAdmin: usuario.rol === "admin" || c.esSuper, esSuper: c.esSuper },

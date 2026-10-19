@@ -4,6 +4,8 @@ import { publicos } from "@/lib/usuarios";
 import { hoyAR } from "@/lib/fecha";
 import { db } from "@/lib/db";
 
+import { MODULOS_DEFECTO } from "@/lib/types";
+
 export const GET = api(async () => {
   const c = await contexto();
   if (!c) return { sesion: null };
@@ -29,13 +31,7 @@ export const GET = api(async () => {
       familia: c.grupo.nombre,
       emoji: c.grupo.emoji,
       tipo_grupo: c.grupo.tipo_grupo ?? "family",
-      modulos_activos: c.grupo.modulos_activos ?? {
-        flash_grupal: true,
-        prode_futbol: false,
-        tarareo_ardilla: true,
-        trazo_loco: true,
-        cerebro_fuga: true,
-      },
+      modulos_activos: c.grupo.modulos_activos ?? MODULOS_DEFECTO,
       subiHoy,
     },
   };

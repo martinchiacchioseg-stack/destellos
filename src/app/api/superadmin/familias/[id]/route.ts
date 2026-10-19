@@ -28,6 +28,7 @@ const Editar = z.object({
     .object({
       flash_grupal: z.boolean().default(true),
       prode_futbol: z.boolean(),
+      picado_futbol: z.boolean().optional(),
       tarareo_ardilla: z.boolean(),
       trazo_loco: z.boolean(),
       cerebro_fuga: z.boolean(),

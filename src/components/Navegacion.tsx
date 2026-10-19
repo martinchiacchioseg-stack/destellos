@@ -40,6 +40,7 @@ export function Navegacion() {
   const items = [
     { href: "/", icono: Camera, texto: "Destellos", visible: true },
     { href: "/tarambana", icono: Sparkles, texto: "Club Tarambana", destacado: true, visible: true },
+    { href: "/picado", icono: Users, texto: "El Picado", visible: modulos ? (modulos.picado_futbol ?? true) : true },
     { href: "/prode", icono: Trophy, texto: "Prode", visible: modulos ? modulos.prode_futbol : true },
     { href: "/trivia", icono: Brain, texto: "Trivia", visible: modulos ? modulos.cerebro_fuga : true },
     { href: "/ranking", icono: Trophy, texto: "Ranking", visible: true },
@@ -51,10 +52,10 @@ export function Navegacion() {
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
         <Link href="/" className="flex items-center gap-2 font-extrabold group">
           <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-fuchsia-500/60 shadow-[0_0_8px_rgba(255,0,127,0.4)]">
-            <Image src="/logos/sincericidio-logo.jpg" alt="Sincericidio" width={32} height={32} className="h-full w-full object-cover" priority />
+            <Image src="/logos/sincericidio-logo.jpg" alt="TRIBOO" width={32} height={32} className="h-full w-full object-cover" priority />
           </div>
-          <span className="hidden sm:inline font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-cyan-300">
-            SINCERICIDIO
+          <span className="hidden sm:inline font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-fuchsia-400 to-cyan-300">
+            TRIBOO
           </span>
         </Link>
         <nav className="ml-auto flex items-center gap-1">

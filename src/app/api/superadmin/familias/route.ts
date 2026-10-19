@@ -52,6 +52,7 @@ const Crear = z.object({
     .object({
       flash_grupal: z.boolean().default(true),
       prode_futbol: z.boolean().default(false),
+      picado_futbol: z.boolean().default(true),
       tarareo_ardilla: z.boolean().default(true),
       trazo_loco: z.boolean().default(true),
       cerebro_fuga: z.boolean().default(true),
@@ -82,6 +83,7 @@ export const POST = api(async (req: Request) => {
       modulos_activos: b.modulos_activos ?? {
         flash_grupal: true,
         prode_futbol: b.tipo_grupo === "friends" || b.tipo_grupo === "sports_club",
+        picado_futbol: b.tipo_grupo !== "family",
         tarareo_ardilla: b.tipo_grupo !== "sports_club",
         trazo_loco: b.tipo_grupo !== "sports_club",
         cerebro_fuga: true,

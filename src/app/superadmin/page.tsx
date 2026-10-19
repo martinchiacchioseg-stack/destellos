@@ -172,11 +172,7 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
   const [copiado, setCopiado] = useState(false);
 
   const modulosActuales: ModulosActivos = f.modulos_activos ?? {
-    flash_grupal: true,
-    prode_futbol: false,
-    tarareo_ardilla: true,
-    trazo_loco: true,
-    cerebro_fuga: true,
+    ...MODULOS_DEFECTO,
   };
 
   const tipoActual: TipoGrupo = f.tipo_grupo ?? "family";
@@ -260,10 +256,11 @@ function TarjetaFamilia({ f, cambio }: { f: Familia; cambio: () => void }) {
 
   const listaJuegos: { id: keyof ModulosActivos; nombre: string; desc: string; icon: string; locked?: boolean }[] = [
     { id: "flash_grupal", nombre: "Flash Grupal (Fotos a Ciegas)", desc: "Core diario. Arlequín evalúa y premia.", icon: "📸", locked: true },
+    { id: "picado_futbol", nombre: "El Picado de la Semana", desc: "Convocatoria 10 titulares, suplentes y 3er tiempo.", icon: "🏃‍♂️" },
+    { id: "prode_futbol", nombre: "Prode de Fútbol", desc: "Pronósticos de partidos y tabla de posiciones.", icon: "⚽" },
     { id: "cerebro_fuga", nombre: "Cerebro Fuga (Trivia Diaria)", desc: "Trivia de preguntas con IA y ranking.", icon: "🧠" },
     { id: "trazo_loco", nombre: "Trazo Loco (Pictionary / Pizarra)", desc: "Un miembro dibuja y los demás adivinan.", icon: "🎨" },
     { id: "tarareo_ardilla", nombre: "Tarareo Ardilla (Música Pitch)", desc: "Adivinar la canción con voz acelerada.", icon: "🐿️" },
-    { id: "prode_futbol", nombre: "Prode de Fútbol", desc: "Pronósticos de partidos y tabla de posiciones.", icon: "⚽" },
   ];
 
   return (
