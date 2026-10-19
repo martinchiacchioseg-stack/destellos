@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { llamar, ErrorApi } from "@/lib/cliente";
 import { COLORES_LED, PRESETS_TIPO_GRUPO, type TipoGrupo, type ModulosActivos, MODULOS_DEFECTO } from "@/lib/types";
@@ -43,7 +44,17 @@ export default function Superadmin() {
   return (
     <main className="mx-auto max-w-4xl space-y-4 px-4 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold">Panel de control</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold">Panel de control</h1>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 rounded-xl bg-orange-500/20 border border-orange-400/50 px-3 py-1.5 text-xs font-bold text-orange-200 hover:bg-orange-500/30 transition shadow-sm"
+            title="Ir a mi Tribu / Inicio"
+          >
+            <span>🌟</span>
+            <span>Ir a mi Tribu</span>
+          </Link>
+        </div>
         <button className="btn px-3 py-1.5 text-sm" onClick={salir}>Salir</button>
       </div>
       {m && (

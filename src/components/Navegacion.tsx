@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Camera, Trophy, Brain, Users, LogOut, Sparkles, Eye } from "lucide-react";
+import { Camera, Trophy, Brain, Users, LogOut, Sparkles, Eye, Crown } from "lucide-react";
 import { llamar } from "@/lib/cliente";
 import type { ModulosActivos } from "@/lib/types";
 
@@ -79,6 +79,16 @@ export function Navegacion() {
               <span>{texto}</span>
             </Link>
           ))}
+          {yo?.esSuper && (
+            <Link
+              href="/superadmin"
+              className="flex items-center gap-1 rounded-xl bg-purple-500/20 border border-purple-400/40 px-2.5 py-1.5 text-xs font-black text-purple-200 hover:bg-purple-500/30 transition shrink-0 shadow-sm ml-1"
+              title="Panel de Superadministrador"
+            >
+              <Crown size={14} className="text-amber-300" />
+              <span className="hidden sm:inline">Superadmin</span>
+            </Link>
+          )}
           <button
             onClick={salir}
             aria-label="Salir"

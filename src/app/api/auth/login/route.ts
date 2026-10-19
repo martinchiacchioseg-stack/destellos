@@ -2,7 +2,7 @@ import { z } from "zod";
 import { api, json } from "@/lib/http";
 import { db, must } from "@/lib/db";
 import { grupoPorCodigo, licenciaPermiteAcceso } from "@/lib/grupos";
-import { verificarPassword, verificarSuperadmin } from "@/lib/auth";
+import { verificarPassword, verificarSuperadmin, hashPassword } from "@/lib/auth";
 import { crearSesion } from "@/lib/session";
 import { ApiError } from "@/lib/env";
 import { buscarPorIdentificador } from "@/lib/usuarios";
@@ -25,9 +25,13 @@ export const POST = api(async (req: Request) => {
   let u: Usuario | null = null;
   let g: any = null;
 
-  // 0. Comprobar si es el Superadministrador ingresando por la pantalla unificada
-  if (b.identificador) {
-    const esSuper = await verificarSuperadmin(b.identificador.trim(), b.password);
+  const rawIdent = (b.identificador || "").trim();
+  const rawLower = rawIdent.toLowerCase();
+  const soloNum = rawIdent.replace(/\D/g, "");
+
+  // 0. Si escribió explícitamente "superadmin", acceso directo al panel maestro
+  if (rawLower === "superadmin") {
+    const esSuper = await verificarSuperadmin(rawIdent, b.password);
     if (esSuper) {
       await crearSesion("superadmin");
       return {
@@ -50,27 +54,22 @@ export const POST = api(async (req: Request) => {
     }
   }
 
-  // 2. Ingreso Directo por Email o WhatsApp (sin necesidad de código de familia)
-  if (!u && b.identificador) {
-    const raw = b.identificador.trim();
-    const soloNum = raw.replace(/\D/g, "");
-    const emailNorm = raw.toLowerCase();
-
-    // Si viene código de familia clásico, buscar dentro del grupo
+  // 2. Ingreso Directo por Email, WhatsApp o Nombre de usuario
+  if (!u && rawIdent) {
     if (b.codigo?.trim()) {
       g = await grupoPorCodigo(b.codigo.trim());
       if (g) {
-        u = await buscarPorIdentificador(g.id, raw);
+        u = await buscarPorIdentificador(g.id, rawIdent);
       }
     } else {
       // Búsqueda global directa
       let q = db().from("usuarios").select("*, grupos(*)");
-      if (emailNorm.includes("@")) {
-        q = q.eq("email", emailNorm);
+      if (rawLower.includes("@")) {
+        q = q.eq("email", rawLower);
       } else if (soloNum.length >= 6) {
         q = q.eq("whatsapp", soloNum);
       } else {
-        q = q.ilike("nombre", `%${raw}%`);
+        q = q.ilike("nombre", `%${rawIdent}%`);
       }
       const res = await q.limit(1);
       const fila = res.data?.[0];
@@ -78,6 +77,21 @@ export const POST = api(async (req: Request) => {
         u = fila as unknown as Usuario;
         g = fila.grupos;
       }
+    }
+  }
+
+  // 3. Si no existe usuario en ninguna familia pero sus credenciales coinciden con superadmin maestro
+  if (!u && rawIdent) {
+    const esSuper = await verificarSuperadmin(rawIdent, b.password);
+    if (esSuper) {
+      await crearSesion("superadmin");
+      return {
+        ok: true,
+        esSuperadmin: true,
+        debeCambiarClave: false,
+        perfilCompleto: true,
+        redirect: "/superadmin",
+      };
     }
   }
 
@@ -92,21 +106,37 @@ export const POST = api(async (req: Request) => {
     throw new ApiError(429, "Demasiados intentos. Esperá unos minutos y probá otra vez.");
   }
 
-  if (!(await verificarPassword(b.password, u.password_hash))) {
+  // Comprobar clave contra el usuario o contra clave maestra si es superadmin
+  const passUser = await verificarPassword(b.password, u.password_hash);
+  const esSuper = await verificarSuperadmin(u.email || rawIdent, b.password);
+
+  if (!passUser && !esSuper) {
     const intentos = (u.intentos_fallidos || 0) + 1;
     const bloqueo = intentos >= MAX_INTENTOS ? new Date(Date.now() + BLOQUEO_MIN * 60_000).toISOString() : null;
     await db().from("usuarios").update({ intentos_fallidos: bloqueo ? 0 : intentos, bloqueado_hasta: bloqueo }).eq("id", u.id);
     throw generico;
   }
 
-  await db().from("usuarios").update({ intentos_fallidos: 0, bloqueado_hasta: null }).eq("id", u.id);
-  await crearSesion(u.id);
+  // Éxito: limpiar intentos fallidos y sincronizar clave si ingresó con clave maestra
+  const updateData: Record<string, unknown> = { intentos_fallidos: 0, bloqueado_hasta: null };
+  if (esSuper && !passUser) {
+    updateData.password_hash = await hashPassword(b.password);
+  }
+  await db().from("usuarios").update(updateData).eq("id", u.id);
 
-  // Debe cambiar clave si su flag está activo o si usa la clave genérica inicial
-  const debeCambiar = u.debe_cambiar_clave ?? (b.password === "123456");
+  // Crear sesión con privilegios superadmin vinculados al usuario, o de usuario regular
+  if (esSuper) {
+    await crearSesion(`superadmin:${u.id}`);
+  } else {
+    await crearSesion(u.id);
+  }
+
+  // Debe cambiar clave si su flag está activo o si usa la clave genérica inicial (y no es superadmin)
+  const debeCambiar = !esSuper && (u.debe_cambiar_clave ?? (b.password === "123456"));
 
   return {
     ok: true,
+    esSuperadmin: esSuper,
     debeCambiarClave: debeCambiar,
     perfilCompleto: u.perfil_completo ?? !!u.foto_path,
     usuario: {
@@ -121,5 +151,6 @@ export const POST = api(async (req: Request) => {
       nombre: g.nombre,
       emoji: g.emoji,
     },
+    redirect: "/", // Ingresa directamente a su perfil de Tribu
   };
 });

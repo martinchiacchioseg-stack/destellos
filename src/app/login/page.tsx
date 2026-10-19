@@ -80,12 +80,6 @@ export default function LoginPage() {
         },
       });
 
-      if (res.redirect || res.esSuperadmin) {
-        router.push(res.redirect || "/superadmin");
-        router.refresh();
-        return;
-      }
-
       if (recordarme && res.usuario) {
         // Guardar perfil en la lista de recordados del dispositivo
         const nuevoPerfil: PerfilRecordado = {
@@ -112,7 +106,15 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      // Si no es un usuario de tribu y solo tiene acceso a superadmin
+      if (!res.usuario && (res.redirect || res.esSuperadmin)) {
+        router.push(res.redirect || "/superadmin");
+        router.refresh();
+        return;
+      }
+
+      // Redirección al muro de la tribu por defecto
+      router.push(res.redirect || "/");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión.");
@@ -387,6 +389,20 @@ export default function LoginPage() {
                   Ver fotos recordadas en este dispositivo ➔
                 </button>
               )}
+
+              <div className="text-center pt-1 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdentificador("superadmin");
+                    setClave("");
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-purple-300 transition inline-flex items-center gap-1 font-semibold"
+                >
+                  <span>👑</span>
+                  <span>¿Ingresar directo al panel Superadmin?</span>
+                </button>
+              </div>
             </form>
           )}
 

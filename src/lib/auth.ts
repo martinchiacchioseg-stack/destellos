@@ -67,7 +67,18 @@ export async function verificarSuperadmin(email: string, password: string): Prom
 export async function contexto(): Promise<Contexto | null> {
   const s = await leerSesion();
   if (!s) return null;
-  if (s.sub === "superadmin") return { tipo: "superadmin" };
+  if (s.sub === "superadmin") {
+    // Si la sesión es superadmin pura, verificar si tiene un perfil de usuario asignado por SUPERADMIN_EMAIL
+    const emailSuper = (process.env.SUPERADMIN_EMAIL || "martinchiacchio.seg@gmail.com").trim().toLowerCase();
+    const uSuper = must(await db().from("usuarios").select("*").eq("email", emailSuper).limit(1))?.[0] as Usuario | undefined;
+    if (uSuper) {
+      const gSuper = must(await db().from("grupos").select("*").eq("id", uSuper.grupo_id).limit(1))?.[0] as Grupo | undefined;
+      if (gSuper) {
+        return { tipo: "usuario", usuario: uSuper, grupo: gSuper, esSuper: true };
+      }
+    }
+    return { tipo: "superadmin" };
+  }
 
   const esSuper = s.sub.startsWith("superadmin:");
   const uid = esSuper ? s.sub.slice("superadmin:".length) : s.sub;
@@ -93,6 +104,6 @@ export async function requerirUsuario(opts: { admin?: boolean; ignorarLicencia?:
 
 export async function requerirSuperadmin() {
   const c = await contexto();
-  if (!c || c.tipo !== "superadmin") throw new ApiError(403, "No autorizado.");
+  if (!c || (c.tipo !== "superadmin" && !c.esSuper)) throw new ApiError(403, "No autorizado.");
   return c;
 }
