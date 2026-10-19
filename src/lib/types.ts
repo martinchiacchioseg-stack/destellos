@@ -113,6 +113,7 @@ export interface Usuario {
   id: string;
   grupo_id: string;
   nombre: string;
+  apellido?: string | null;
   apodo: string | null;
   email: string | null;
   whatsapp: string | null;
@@ -120,6 +121,9 @@ export interface Usuario {
   foto_path: string | null;
   rol: Rol;
   password_hash: string;
+  debe_cambiar_clave?: boolean;
+  perfil_completo?: boolean;
+  bio?: string | null;
   intentos_fallidos: number;
   bloqueado_hasta: string | null;
   creado_en: string;

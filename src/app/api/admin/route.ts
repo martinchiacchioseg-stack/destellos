@@ -43,10 +43,11 @@ const AccionBody = z.discriminatedUnion("accion", [
   z.object({
     accion: z.literal("agregar_integrante"),
     nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 letras.").max(80),
+    apellido: z.string().trim().max(80).optional().nullable(),
     apodo: z.string().trim().max(40).optional().nullable(),
     email: z.string().trim().email("Email inválido.").optional().nullable(),
-    whatsapp: z.string().trim().max(30).optional().nullable(),
-    password: z.string().trim().min(4, "La clave debe tener al menos 4 caracteres.").max(100).default("123456"),
+    whatsapp: z.string().trim().min(8, "El número de WhatsApp es obligatorio para enviar la invitación."),
+    password: z.string().trim().min(4).max(100).optional(),
     rol: z.enum(["miembro", "admin"]).default("miembro"),
   }),
   z.object({
@@ -86,27 +87,50 @@ export const POST = api(async (req: Request) => {
   }
 
   if (b.accion === "agregar_integrante") {
-    const hash = await hashPassword(b.password);
-    const ws = b.whatsapp ? soloDigitos(b.whatsapp) : null;
+    // Generar clave temporal automática de 6 dígitos si no se especifica
+    const claveGenerada = b.password || Math.floor(100000 + Math.random() * 900000).toString();
+    const hash = await hashPassword(claveGenerada);
+    const ws = soloDigitos(b.whatsapp);
+
     const ins = await db()
       .from("usuarios")
       .insert({
         grupo_id: grupo.id,
         nombre: b.nombre,
+        apellido: b.apellido || null,
         apodo: b.apodo || null,
         email: b.email ? b.email.toLowerCase() : null,
         whatsapp: ws,
         password_hash: hash,
         rol: b.rol,
+        debe_cambiar_clave: true,
+        perfil_completo: false,
       })
-      .select("id, nombre, apodo, email, whatsapp, rol")
+      .select("id, nombre, apellido, apodo, email, whatsapp, rol")
       .single();
 
     if (ins.error) {
-      if (ins.error.code === "23505") throw new ApiError(409, "Ya existe un usuario con ese email en la familia.");
+      if (ins.error.code === "23505") throw new ApiError(409, "Ya existe un usuario con ese email o WhatsApp en la tribu.");
       throw new Error(`DB: ${ins.error.message}`);
     }
-    return { ok: true, usuario: ins.data };
+
+    const textoWsp =
+      `¡Hola ${b.nombre}! Te sumaron a la tribu *${grupo.nombre}* en *TRIBOO* 🌟.\n\n` +
+      `Para ingresar por primera vez:\n` +
+      `1. Entrá a: https://destellos.vercel.app/login\n` +
+      `2. Ingresá con tu WhatsApp: *${ws}* (o tu email)\n` +
+      `3. Tu clave de acceso temporal: *${claveGenerada}*\n\n` +
+      `Al entrar, el sistema te pedirá cambiar tu clave y subir tu foto de perfil para que todos te reconozcan. ¡Bienvenido/a a la Tribu! 🎉`;
+
+    const wspUrl = `https://wa.me/${ws}?text=${encodeURIComponent(textoWsp)}`;
+
+    return {
+      ok: true,
+      usuario: ins.data,
+      clave_temporal: claveGenerada,
+      wsp_url: wspUrl,
+      texto_invitacion: textoWsp,
+    };
   }
 
   if (b.accion === "modificar_integrante") {

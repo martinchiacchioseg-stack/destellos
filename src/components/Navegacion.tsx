@@ -39,7 +39,7 @@ export function Navegacion() {
 
   const items = [
     { href: "/", icono: Camera, texto: "Destellos", visible: true },
-    { href: "/tarambana", icono: Sparkles, texto: "Club Tarambana", destacado: true, visible: true },
+    { href: "/tarambana", icono: Sparkles, texto: "TRIBOO", destacado: true, visible: true },
     { href: "/picado", icono: Users, texto: "El Picado", visible: modulos ? (modulos.picado_futbol ?? true) : true },
     { href: "/prode", icono: Trophy, texto: "Prode", visible: modulos ? modulos.prode_futbol : true },
     { href: "/trivia", icono: Brain, texto: "Trivia", visible: modulos ? modulos.cerebro_fuga : true },

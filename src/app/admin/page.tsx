@@ -114,30 +114,53 @@ export default function PanelFamilia() {
     cargar();
   }
 
+  const [invitacionReciente, setInvitacionReciente] = useState<{ nombre: string; clave: string; wspUrl: string } | null>(null);
+
   async function agregarIntegrante(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const g = (n: string) => (form.elements.namedItem(n) as HTMLInputElement).value;
     setError("");
     setExito("");
+    setInvitacionReciente(null);
+
+    const ws = g("whatsapp").trim();
+    if (!ws || ws.replace(/\D/g, "").length < 8) {
+      setError("El número de WhatsApp es obligatorio para enviarle su clave.");
+      return;
+    }
+
     try {
-      await llamar("/api/admin", {
+      const res = await llamar<{
+        ok: boolean;
+        usuario: Integrante;
+        clave_temporal: string;
+        wsp_url: string;
+        texto_invitacion: string;
+      }>("/api/admin", {
         body: {
           accion: "agregar_integrante",
           nombre: g("nombre"),
+          apellido: g("apellido") || null,
           apodo: g("apodo") || null,
           email: g("email") || null,
-          whatsapp: g("whatsapp") || null,
-          password: g("password") || "123456",
+          whatsapp: ws,
           rol: g("rol") || "miembro",
         },
       });
-      setExito(`✔ Integrante "${g("nombre")}" agregado a la familia. Clave inicial: ${g("password") || "123456"}`);
+
+      setInvitacionReciente({
+        nombre: g("nombre"),
+        clave: res.clave_temporal,
+        wspUrl: res.wsp_url,
+      });
+
+      setExito(`✔ Participante "${g("nombre")}" agregado con clave temporal: ${res.clave_temporal}`);
       form.reset();
       setAgregando(false);
       cargar();
     } catch (er) {
-      setError(er instanceof Error ? er.message : "Error al agregar integrante");
+      setError(er instanceof Error ? er.message : "Error al agregar participante");
     }
   }
 
@@ -283,23 +306,56 @@ export default function PanelFamilia() {
                 )}
               </div>
 
+              {/* AVISO DE CLAVE TEMPORAL GENERADA Y BOTÓN DIRECTO DE WHATSAPP */}
+              {invitacionReciente && (
+                <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/40 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-emerald-300">
+                      🎉 ¡Participante agregado con éxito! Clave temporal: <strong className="text-white bg-black/60 px-2 py-0.5 rounded font-mono text-sm">{invitacionReciente.clave}</strong>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setInvitacionReciente(null)}
+                      className="text-xs text-slate-400 hover:text-white"
+                    >
+                      Cerrar ×
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Enviále su clave de primer acceso por WhatsApp ahora mismo con 1 solo toque:
+                  </p>
+                  <a
+                    href={invitacionReciente.wspUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs py-2.5 px-4 flex items-center justify-center gap-2 shadow-lg w-full sm:w-auto"
+                  >
+                    <MessageCircle size={16} />
+                    <span>📲 ENVIAR CLAVE Y ACCESO POR WHATSAPP</span>
+                  </a>
+                </div>
+              )}
+
               {/* FORMULARIO AGREGAR INTEGRANTE */}
               {agregando && d.esAdmin && (
-                <form onSubmit={agregarIntegrante} className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4 space-y-3">
-                  <p className="font-bold text-sm text-cyan-200">Nuevo integrante de la familia</p>
+                <form onSubmit={agregarIntegrante} className="rounded-xl border border-orange-500/30 bg-slate-900/90 p-4 space-y-3">
+                  <p className="font-bold text-sm text-orange-200">Nuevo participante de la Tribu</p>
                   <div className="grid gap-2 sm:grid-cols-2 text-sm">
-                    <input name="nombre" className="input" placeholder="Nombre completo (ej: María González)" required />
-                    <input name="apodo" className="input" placeholder="Apodo (ej: Mari)" />
+                    <input name="nombre" className="input" placeholder="Nombre (ej: Martín)" required />
+                    <input name="apellido" className="input" placeholder="Apellido (ej: Chiacchio)" />
+                    <input name="whatsapp" className="input sm:col-span-2 border-orange-400/50" placeholder="WhatsApp OBLIGATORIO (ej: 5491123456789)" required />
                     <input name="email" type="email" className="input" placeholder="Email (opcional)" />
-                    <input name="whatsapp" className="input" placeholder="WhatsApp (ej: 54911...)" />
-                    <input name="password" type="text" className="input" defaultValue="123456" placeholder="Clave inicial" required />
-                    <select name="rol" className="input" defaultValue="miembro">
-                      <option value="miembro">Miembro familiar</option>
-                      <option value="admin">Administrador</option>
+                    <input name="apodo" className="input" placeholder="Apodo o sobrenombre (opcional)" />
+                    <select name="rol" className="input sm:col-span-2" defaultValue="miembro">
+                      <option value="miembro">Participante / Miembro de la Tribu</option>
+                      <option value="admin">Administrador de la Tribu</option>
                     </select>
                   </div>
+                  <p className="text-[11px] text-slate-400">
+                    * El sistema generará automáticamente una clave de acceso temporal única para el primer ingreso.
+                  </p>
                   <div className="flex gap-2">
-                    <button className="btn btn-primario text-xs font-bold">Guardar familiar</button>
+                    <button className="btn btn-primario text-xs font-bold">Guardar y generar clave de WhatsApp</button>
                     <button type="button" className="btn text-xs" onClick={() => setAgregando(false)}>Cancelar</button>
                   </div>
                 </form>

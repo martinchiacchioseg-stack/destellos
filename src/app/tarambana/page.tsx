@@ -16,7 +16,7 @@ import type { ModulosActivos } from '@/lib/types';
 export default function TarambanaPage() {
   const [seccionActiva, setSeccionActiva] = useState<TarambanaTab>('feed');
   const [puntos, setPuntos] = useState<number>(340);
-  const [nombreGrupo, setNombreGrupo] = useState<string>('El Club de los Tarambanas');
+  const [nombreGrupo, setNombreGrupo] = useState<string>('TRIBOO');
   const [usuarioId, setUsuarioId] = useState<string>('user-actual');
   const [subiHoy, setSubiHoy] = useState<boolean | null>(null);
   const [modulosActivos, setModulosActivos] = useState<ModulosActivos | undefined>(undefined);
@@ -145,7 +145,7 @@ export default function TarambanaPage() {
               ¡Primero cumplí con el juego principal!
             </h2>
             <p className="text-sm text-slate-300">
-              Para desbloquear <strong className="text-fuchsia-400">SINCERICIDIO</strong>, la ronda de tarareos ardilla y todos los juegos, primero tenés que <strong>subir tu foto del día al muro familiar</strong>.
+              Para desbloquear <strong className="text-orange-400">TRIBOO</strong>, la ronda de tarareos ardilla y todos los juegos, primero tenés que <strong>subir tu foto del día al muro familiar</strong>.
             </p>
           </div>
 
